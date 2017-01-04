@@ -2,10 +2,10 @@
 """bmorph command line interface for the TIP304 project"""
 import argparse
 import configparser
+from itertools import product
 import os
 import os.path
 import pandas as pd
-import sys
 
 import bmorph
 from bmorph.io import tip304
@@ -14,8 +14,15 @@ verbose = False
 
 
 def main():
-    """
-    bmorph a time series from the TIP304 project
+    """bmorph a time series from the TIP304 project
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
     """
     # Parse command-line
     config_file = get_args()
@@ -24,54 +31,48 @@ def main():
     config = parse_config_file(config_file)
 
     sitedata = {}
+
     # Loop over sites
-    for site in config['siteinfo']['site']:
-        sitedata['site'] = site
+    for (sitedata['site'], sitedata['hydro'], sitedata['parameter_set'],
+         sitedata['scenario'], sitedata['downscaling'], sitedata['GCM']) in \
+        product(config['siteinfo']['site'],
+                config['siteinfo']['hydro'],
+                config['siteinfo']['parameter_set'],
+                config['siteinfo']['scenario'],
+                config['siteinfo']['downscaling'],
+                config['siteinfo']['GCM']):
 
-        # Loop over hydro models
-        for hydro in config['siteinfo']['hydro']:
-            sitedata['hydro'] = hydro
+        if verbose:
+            print(*sitedata.values())
 
-            # Loop over parameter sections
-            for parameter_set in config['siteinfo']['parameter_set']:
-                sitedata['parameter_set'] = parameter_set
-
-                # Loop over scenarios
-                for scenario in config['siteinfo']['scenario']:
-                    sitedata['scenario'] = scenario
-
-                    # Loop over downscaling methods
-                    for downscaling in config['siteinfo']['downscaling']:
-                        sitedata['downscaling'] = downscaling
-
-                        # Loop over GCMs
-                        for GCM in config['siteinfo']['GCM']:
-                            sitedata['GCM'] = GCM
-                            if verbose:
-                                print(*sitedata.values())
-                            process_single_file(sitedata, config['io'],
-                                                config['bmorph'])
+        process_single_file(sitedata, config['io'], config['bmorph'])
 
 
 def get_args():
-    '''Parse command-line arguments'''
+    '''Parse command-line arguments
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str
+        Pathname for configuration file
+    '''
     parser = argparse.ArgumentParser(description='bmorph a time series from '
                                                  'the TIP304 project')
     parser.add_argument("--cfg", required=True, type=str,
                         metavar='<configuration file>',
                         help="configuration file",
                         default=None)
-    parser.add_argument("--version", action='store_true',
+    parser.add_argument("--version", action='version',
+                        version='%(prog)s {}'.format(bmorph.short_version),
                         help="Return bmorph version string")
     parser.add_argument("--verbose", action='store_true',
                         help="Turn on verbose")
 
     args = parser.parse_args()
-
-    if args.version:
-        from bmorph import version
-        print(version.short_version)
-        return sys.exit()
 
     if args.verbose:
         global verbose
@@ -81,7 +82,19 @@ def get_args():
 
 
 def parse_config_file(config_file):
-    '''Parse the configuration file and return dictionary'''
+    '''Parse the configuration file and return dictionary with config options
+
+    Parameters
+    ----------
+    config_file : str
+        Pathname for configuration file
+
+    Returns
+    -------
+    dict
+        Dictionary of configuration options
+
+    '''
     cfg = configparser.SafeConfigParser(allow_no_value=True)
     cfg.optionxform = str  # preserve case of configuration keys
 
@@ -140,7 +153,21 @@ def parse_config_file(config_file):
 
 
 def process_single_file(sitedata, io_info, bmorph_info):
-    '''Process a single file'''
+    '''Bias-correct a single file using bmorph
+
+    Parameters
+    ----------
+    sitedata : dict
+        Dictionary with information about the site to be processed
+    io_info : dict
+        Dictionary with information used for input / output
+    bmorph_info : dict
+        Dictionary with information for bmorph processed
+
+    Returns
+    -------
+    None
+    '''
     # ingest the data
     infile = tip304.construct_file_name(sitedata,
                                         io_info['raw_model_file_template'])
@@ -186,9 +213,9 @@ def process_single_file(sitedata, io_info, bmorph_info):
                                    raw_ts_window.stop)
 
         bmorph_ts = \
-            bmorph_ts.append(bmorph.bmorph(nrni_ts, train_ts, training_window,
-                                           raw_ts, raw_cdf_window,
+            bmorph_ts.append(bmorph.bmorph(raw_ts, raw_cdf_window,
                                            raw_bmorph_window,
+                                           nrni_ts, train_ts, training_window,
                                            bmorph_info['n_smooth_short']))
 
     # Apply the correction
