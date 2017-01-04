@@ -1,0 +1,257 @@
+#!/usr/bin/env python
+"""bmorph command line interface for the TIP304 project"""
+import argparse
+import configparser
+from itertools import product
+import os
+import os.path
+import pandas as pd
+
+import bmorph
+from bmorph.io import tip304
+
+verbose = False
+
+
+def main():
+    """bmorph a time series from the TIP304 project
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
+    # Parse command-line
+    config_file = get_args()
+
+    # Read configuration file
+    config = parse_config_file(config_file)
+
+    sitedata = {}
+
+    # Loop over sites
+    for (sitedata['site'], sitedata['hydro'], sitedata['parameter_set'],
+         sitedata['scenario'], sitedata['downscaling'], sitedata['GCM']) in \
+        product(config['siteinfo']['site'],
+                config['siteinfo']['hydro'],
+                config['siteinfo']['parameter_set'],
+                config['siteinfo']['scenario'],
+                config['siteinfo']['downscaling'],
+                config['siteinfo']['GCM']):
+
+        if verbose:
+            print(*sitedata.values())
+
+        process_single_file(sitedata, config['io'], config['bmorph'])
+
+
+def get_args():
+    '''Parse command-line arguments
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str
+        Pathname for configuration file
+    '''
+    parser = argparse.ArgumentParser(description='bmorph a time series from '
+                                                 'the TIP304 project')
+    parser.add_argument("--cfg", required=True, type=str,
+                        metavar='<configuration file>',
+                        help="configuration file",
+                        default=None)
+    parser.add_argument("--version", action='version',
+                        version='%(prog)s {}'.format(bmorph.short_version),
+                        help="Return bmorph version string")
+    parser.add_argument("--verbose", action='store_true',
+                        help="Turn on verbose")
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        global verbose
+        verbose = True
+
+    return args.cfg
+
+
+def parse_config_file(config_file):
+    '''Parse the configuration file and return dictionary with config options
+
+    Parameters
+    ----------
+    config_file : str
+        Pathname for configuration file
+
+    Returns
+    -------
+    dict
+        Dictionary of configuration options
+
+    '''
+    cfg = configparser.SafeConfigParser(allow_no_value=True)
+    cfg.optionxform = str  # preserve case of configuration keys
+
+    if verbose:
+        print('Reading {}'.format(config_file))
+
+    cfg.read(config_file)
+
+    config = {}
+
+    for section in cfg.sections():
+        config[section] = {}
+        for key, value in cfg.items(section):
+            if ',' in value:
+                config[section][key] = [x.strip() for x in value.split(',')]
+            else:
+                config[section][key] = value
+
+    # convert the entries that need to be ints
+    config['bmorph']['n_smooth_short'] = cfg.getint('bmorph', 'n_smooth_short')
+    config['bmorph']['n_smooth_long'] = cfg.getint('bmorph', 'n_smooth_long')
+    config['bmorph']['cdf_half_period'] = \
+        cfg.getint('bmorph', 'cdf_half_period')
+
+    # convert the entries that need to be lists (if they are not already)
+    if type(config['bmorph']['training_window']) is not list:
+        raise ValueError('bmorph/training_window must be a list of two dates')
+    if type(config['bmorph']['bmorph_window']) is not list:
+        raise ValueError('bmorph/bmorph_window must be a list of two dates')
+    if type(config['bmorph']['reference_window']) is not list:
+        raise ValueError('bmorph/reference_window must be a list of two dates')
+    config['bmorph']['training_window'] = \
+        [pd.to_datetime(x) for x in config['bmorph']['training_window']]
+    config['bmorph']['bmorph_window'] = \
+        [pd.to_datetime(x) for x in config['bmorph']['bmorph_window']]
+    config['bmorph']['reference_window'] = \
+        [pd.to_datetime(x) for x in config['bmorph']['reference_window']]
+
+    if type(config['siteinfo']['site']) is not list:
+        config['siteinfo']['site'] = [config['siteinfo']['site']]
+    if type(config['siteinfo']['hydro']) is not list:
+        config['siteinfo']['hydro'] = [config['siteinfo']['hydro']]
+    if type(config['siteinfo']['parameter_set']) is not list:
+        config['siteinfo']['parameter_set'] = \
+            [config['siteinfo']['parameter_set']]
+    if type(config['siteinfo']['scenario']) is not list:
+        config['siteinfo']['scenario'] = [config['siteinfo']['scenario']]
+    if type(config['siteinfo']['GCM']) is not list:
+        config['siteinfo']['GCM'] = [config['siteinfo']['GCM']]
+    if type(config['siteinfo']['downscaling']) is not list:
+        config['siteinfo']['downscaling'] = [config['siteinfo']['downscaling']]
+
+    config['io']['config_file'] = config_file
+
+    return config
+
+
+def process_single_file(sitedata, io_info, bmorph_info):
+    '''Bias-correct a single file using bmorph
+
+    Parameters
+    ----------
+    sitedata : dict
+        Dictionary with information about the site to be processed
+    io_info : dict
+        Dictionary with information used for input / output
+    bmorph_info : dict
+        Dictionary with information for bmorph processed
+
+    Returns
+    -------
+    None
+    '''
+    # ingest the data
+    infile = tip304.construct_file_name(sitedata,
+                                        io_info['raw_model_file_template'])
+    if not os.path.exists(infile):
+        if verbose:
+            print('\tFile does not exist - skipping: {}\n'.format(infile))
+        return
+
+    if verbose:
+        print('\tReading {}'.format(infile))
+    raw_ts = tip304.get_model_ts(infile)
+    metadata = tip304.get_metadata(infile)
+    train_ts = raw_ts.copy()
+    nrni_ts = tip304.get_nrni_ts(sitedata['site'], io_info['nrni_file'])
+
+    training_window = slice(*bmorph_info['training_window'])
+    bmorph_window = slice(*bmorph_info['bmorph_window'])
+    reference_window = slice(*bmorph_info['reference_window'])
+    raw_ts_window = slice(raw_ts.index[0], raw_ts.index[-1])
+
+    # bmorph the series
+    cdf_half_period = bmorph_info['cdf_half_period']
+    bmorph_ts = pd.Series([])
+    for year in range(bmorph_window.start.year, bmorph_window.stop.year+1):
+        raw_bmorph_window = \
+            slice(pd.to_datetime('{}-01-01 00:00:00'.format(year)),
+                  pd.to_datetime('{}-12-31 00:00:00'.format(year)))
+
+        raw_cdf_window = \
+            slice(pd.to_datetime('{}-01-01 00:00:00'.
+                                 format(year-cdf_half_period)),
+                  pd.to_datetime('{}-12-31 00:00:00'.
+                                 format(year+cdf_half_period)))
+
+        if (raw_cdf_window.start < raw_ts_window.start):
+            offset = raw_ts_window.start - raw_cdf_window.start
+            raw_cdf_window = slice(raw_ts_window.start,
+                                   raw_cdf_window.stop + offset)
+
+        if(raw_cdf_window.stop > raw_ts_window.stop):
+            offset = raw_ts_window.stop - raw_cdf_window.stop
+            raw_cdf_window = slice(raw_cdf_window.start + offset,
+                                   raw_ts_window.stop)
+
+        bmorph_ts = \
+            bmorph_ts.append(bmorph.bmorph(raw_ts, raw_cdf_window,
+                                           raw_bmorph_window,
+                                           nrni_ts, train_ts, training_window,
+                                           bmorph_info['n_smooth_short']))
+
+    # Apply the correction
+    nrni_mean = nrni_ts[reference_window].mean()
+    train_mean = train_ts[reference_window].mean()
+    bmorph_corr_ts = bmorph.bmorph_correct(raw_ts, bmorph_ts, raw_ts_window,
+                                           nrni_mean, train_mean,
+                                           bmorph_info['n_smooth_long'])
+
+    # Write the new time series to file
+    outfile = tip304.construct_file_name(sitedata,
+                                         io_info['outfile_template'])
+
+    if not os.path.exists(os.path.dirname(outfile)):
+        os.makedirs(os.path.dirname(outfile))
+
+    if verbose:
+        print('\tWriting {}\n'.format(outfile))
+
+    # Expand metadata
+    out_buffer = metadata
+    out_buffer += \
+        '# Bias correction : bmorph version {}\n'.format(bmorph.version)
+    out_buffer += \
+        '# Bias correction configuration file: {}\n'.\
+        format(os.path.abspath(io_info['config_file']))
+    out_buffer += 'date,streamflow\n'
+
+    # time series to csv
+    out_buffer += \
+        bmorph_corr_ts.to_csv(float_format='%'+io_info['outfile_float_format'])
+
+    # to file
+    with open(outfile, 'w') as f:
+        f.write(out_buffer)
+
+
+if __name__ == "__main__":
+    main()
