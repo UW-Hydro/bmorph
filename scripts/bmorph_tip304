@@ -181,7 +181,7 @@ def process_single_file(sitedata, io_info, bmorph_info):
     raw_ts = tip304.get_model_ts(infile)
     metadata = tip304.get_metadata(infile)
     train_ts = raw_ts.copy()
-    nrni_ts = tip304.get_nrni_ts(sitedata['site'], io_info['nrni_file'])
+    nrni_ts = tip304.get_nrni_ts_csv(sitedata['site'], io_info['nrni_file'])
 
     training_window = slice(*bmorph_info['training_window'])
     bmorph_window = slice(*bmorph_info['bmorph_window'])

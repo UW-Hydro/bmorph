@@ -85,7 +85,7 @@ def get_model_ts(infilename, na_values='-9999', comment='#',
     return pd.Series(ts[column])
 
 
-def get_nrni_ts(site_index, nrni_file,
+def get_nrni_ts_nc(site_index, nrni_file,
                 rename_columns={'Streamflow': 'streamflow'},
                 column='streamflow'):
     '''Retrieve NRNI streamflow from NetCDF file by site index
@@ -118,6 +118,17 @@ def get_nrni_ts(site_index, nrni_file,
         nrni = nrni.rename(columns=rename_columns)
     return pd.Series(nrni[column])
 
+def get_nrni_ts_csv(site_index, nrni_file,
+                rename_columns={'Streamflow': 'streamflow'}):
+    nrni = pd.read_csv(nrni_file, index_col=0, skiprows=[1,2,3,4,5,6])
+    nrni.drop('Unnamed: 1', axis=1, inplace=True)
+    nrni.index = pd.date_range(start='1928-07-01', end='2008-09-30')
+    for suffix in ['5N', '_QD', '_QN', '_QM']:
+        nrni.columns = nrni.columns.str.replace(suffix, '')
+    nrni = nrni[site_index]
+    if rename_columns:
+        nrni.columns = ['streamflow']
+    return pd.Series(nrni)
 
 def put_bmorph_ts(outfilename, ts, metadata=''):
     '''Write bias-corrected output to file
