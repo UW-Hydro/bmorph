@@ -85,9 +85,9 @@ def get_model_ts(infilename, na_values='-9999', comment='#',
     return pd.Series(ts[column])
 
 
-def get_nrni_ts(site_index, nrni_file,
-                rename_columns={'Streamflow': 'streamflow'},
-                column='streamflow'):
+def get_nrni_ts_nc(site_index, nrni_file,
+                   rename_columns={'Streamflow': 'streamflow'},
+                   column='streamflow'):
     '''Retrieve NRNI streamflow from NetCDF file by site index
 
     Parameters
@@ -117,6 +117,33 @@ def get_nrni_ts(site_index, nrni_file,
     if rename_columns:
         nrni = nrni.rename(columns=rename_columns)
     return pd.Series(nrni[column])
+
+
+def get_nrni_ts_csv(site_index, nrni_file, date_column=1,
+                    series_name='streamflow'):
+    '''Retrieve NRNI streamflow from ASCII file by site index'''
+    nrni = pd.read_csv(nrni_file, skiprows=list(range(1, 7)))
+    nrni.index = pd.date_range(
+        start=parse_csv_date(nrni.iloc[0, date_column]),
+        end=parse_csv_date(nrni.iloc[-1, date_column]))
+    for suffix in ['5N', '_QD', '_QN', '_QM']:
+        nrni.columns = nrni.columns.str.replace(suffix, '')
+    nrni = pd.Series(nrni[site_index], dtype='float32')
+    if series_name:
+        nrni.name = series_name
+    return nrni
+
+
+def parse_csv_date(date_string):
+    '''Fix the time stamp for the 2-digit years in the NRNI file'''
+    (day, month, year) = date_string.split('-')
+    year = int(year)
+    if year < 10:
+        year += 2000
+    else:
+        year += 1900
+    return pd.to_datetime('{}-{}-{}'.format(day, month, year),
+                          format="%d-%b-%Y")
 
 
 def put_bmorph_ts(outfilename, ts, metadata=''):
