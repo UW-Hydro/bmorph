@@ -1,3 +1,6 @@
+| [UW-Hydro/bmorph](https://github.com/UW-Hydro/bmorph) | [![Build status](https://travis-ci.org/UW-Hydro/bmorph.svg?branch=master)](https://travis-ci.org/UW-Hydro/bmorph) |
+|----|----|
+
 # bmorph
 Bias correction for streamflow time series
 
