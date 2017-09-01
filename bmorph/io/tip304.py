@@ -9,7 +9,7 @@ the rest of bmorph as panda data frames and/or time series.
 
 import pandas as pd
 import xarray as xr
-
+from ..version import version
 
 def construct_file_name(sitedata, file_template):
     '''Construct a file name from a dictionary and template'''
@@ -22,21 +22,31 @@ def get_metadata(infilename, comment='#'):
     with open(infilename, 'r') as f:
         for line in f:
             if line.startswith(comment):
+                if 'models_streamflow_bias_correction_name' in line:
+                    continue
+                if 'models_streamflow_bias_correction_version' in line:
+                    line = '{} models_streamflow_bias_correction_name : bmorph\n{} models_streamflow_bias_correction_version : {}\n'.format(comment, comment, version)
+                if 'short_name : ' in line:
+                    line = '{} short_name : biascorrected_streamflow\n'.format(comment)
+                if 'long_name : ' in line:
+                    line = '{} long_name : Bias-corrected streamflow at outlet grid cell\n'.format(comment)
+
                 metadata += line
+        
             else:
                 break
     return metadata
 
 
 def get_model_ts(infilename, na_values='-9999', comment='#',
-                 rename_columns=None, column='streamflow'):
+                 rename_columns=True, column='biascorrected_streamflow'):
     '''Retrieve modeled time series from file by site index'''
     ts = pd.read_csv(infilename, comment=comment, na_values=na_values,
                      index_col=0, parse_dates=True)
     # renaming of columns may seem superfluous if we are converting to a Series
     # anyway, but it allows all the Series to have the same name
     if rename_columns:
-        ts = ts.rename(columns=rename_columns)
+        ts.columns = [column]
     return pd.Series(ts[column])
 
 
@@ -70,7 +80,7 @@ def get_nrni_ts_csv(site_index, nrni_file,
 def put_bmorph_ts(outfilename, ts, metadata=''):
     '''Write bias-corrected output to file'''
     buffer = metadata
-    buffer += ts.to_csv()
+    buffer += ts.to_csv(na_rep='-9999')
     with open(outfilename, 'w') as f:
         f.write(buffer)
     return
