@@ -237,16 +237,11 @@ def process_single_file(sitedata, io_info, bmorph_info):
 
     # Expand metadata
     out_buffer = metadata
-    out_buffer += \
-        '# Bias correction : bmorph version {}\n'.format(bmorph.version)
-    out_buffer += \
-        '# Bias correction configuration file: {}\n'.\
-        format(os.path.abspath(io_info['config_file']))
-    out_buffer += 'date,streamflow\n'
+    out_buffer += 'date,biascorrected_streamflow\n'
 
     # time series to csv
     out_buffer += \
-        bmorph_corr_ts.to_csv(float_format='%'+io_info['outfile_float_format'])
+        bmorph_corr_ts.to_csv(float_format='%'+io_info['outfile_float_format'], na_rep='-9999')
 
     # to file
     with open(outfile, 'w') as f:

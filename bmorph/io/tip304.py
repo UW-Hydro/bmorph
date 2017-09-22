@@ -9,7 +9,7 @@ the rest of bmorph as pandas.Series.
 
 import pandas as pd
 import xarray as xr
-
+from ..version import version
 
 def construct_file_name(file_info, file_template):
     '''Construct a file name from a dictionary and template
@@ -48,7 +48,17 @@ def get_metadata(infilename, comment='#'):
     with open(infilename, 'r') as f:
         for line in f:
             if line.startswith(comment):
+                if 'models_streamflow_bias_correction_name' in line:
+                    continue
+                if 'models_streamflow_bias_correction_version' in line:
+                    line = '{} models_streamflow_bias_correction_name : bmorph\n{} models_streamflow_bias_correction_version : {}\n'.format(comment, comment, version)
+                if 'short_name : ' in line:
+                    line = '{} short_name : biascorrected_streamflow\n'.format(comment)
+                if 'long_name : ' in line:
+                    line = '{} long_name : Bias-corrected streamflow at outlet grid cell\n'.format(comment)
+
                 metadata += line
+        
             else:
                 break
     return metadata
@@ -81,7 +91,7 @@ def get_model_ts(infilename, na_values='-9999', comment='#',
     # renaming of columns may seem superfluous if we are converting to a Series
     # anyway, but it allows all the Series to have the same name
     if rename_columns:
-        ts = ts.rename(columns=rename_columns)
+        ts.columns = [column]
     return pd.Series(ts[column])
 
 
@@ -164,7 +174,7 @@ def put_bmorph_ts(outfilename, ts, metadata=''):
     nothing
     '''
     buffer = metadata
-    buffer += ts.to_csv()
+    buffer += ts.to_csv(na_rep='-9999')
     with open(outfilename, 'w') as f:
         f.write(buffer)
     return
