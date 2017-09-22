@@ -39,13 +39,13 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
     raw_x : pandas.Series
         Series of raw values that will be used to determine the quantile `u_t`
     raw_cdf : pandas.Series
-        Sorted series of raw values that represents the CDF that is used to
+        Series of raw values that represents the CDF that is used to
         determine the non-parametric quantile of `raw_x`
     train_cdf: pandas.Series
-        Sorted series of training values that represents the CDF based on
+        Series of training values that represents the CDF based on
         the same process as `raw_cdf`, but overlapping in time with `truth_cdf`
     truth_cdf: pandas.Series
-         Sorted series of truth values that represents the truth CDF and that
+         Series of truth values that represents the truth CDF and that
          overlaps in time with `train_cdf`
 
     Returns
@@ -66,10 +66,10 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
            for x in raw_x]
 
     # Given u_t and train_cdf determine train_x
-    train_x = scipy.stats.scoreatpercentile(train_cdf, u_t)
+    train_x = pd.np.percentile(train_cdf, u_t)
 
     # Given u_t and truth_cdf determine truth_x
-    truth_x = scipy.stats.scoreatpercentile(truth_cdf, u_t)
+    truth_x = pd.np.percentile(truth_cdf, u_t)
 
     # Calculate multiplier
     multiplier = truth_x / train_x
@@ -132,20 +132,19 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     # Create the CDFs that are used for morphing the raw_ts. The mapping is
     # based on the training_window
     truth_cdf = truth_ts[training_window].rolling(
-        window=nsmooth, min_periods=1, center=True).mean().sort_values()
+        window=nsmooth, min_periods=1, center=True).mean()
     train_cdf = train_ts[training_window].rolling(
-        window=nsmooth, min_periods=1, center=True).mean().sort_values()
+        window=nsmooth, min_periods=1, center=True).mean()
 
     # Smooth the raw Series
     raw_smoothed_ts = raw_ts.rolling(
         window=nsmooth, min_periods=1, center=True).mean()
 
-    raw_smoothed_cdf = raw_smoothed_ts[raw_cdf_window].sort_values()
-
     # Calculate the bmorph multipliers based on the smoothed time series and
     # PDFs
     bmorph_multipliers = edcdfm(raw_smoothed_ts[raw_bmorph_window],
-                                raw_smoothed_cdf, train_cdf, truth_cdf)
+                                raw_smoothed_ts[raw_cdf_window],
+                                train_cdf, truth_cdf)
 
     # Apply the bmorph multipliers to the raw time series
     bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
