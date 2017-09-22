@@ -12,6 +12,10 @@ from bmorph.io import tip304
 
 verbose = False
 
+# define a small value to add when there are 0 values in the input. This value
+# is selected to be smaller than the least significant digit in the input.
+tiny = 1.e-4
+
 
 def main():
     """bmorph a time series from the TIP304 project
@@ -179,6 +183,10 @@ def process_single_file(sitedata, io_info, bmorph_info):
     if verbose:
         print('\tReading {}'.format(infile))
     raw_ts = tip304.get_model_ts(infile)
+    # Add tiny random value to raw_ts values that are 0 to avoid divide by
+    # zero when determining multipliers
+    raw_ts[raw_ts==0] = (tiny *
+        pd.np.random.random_sample([raw_ts[raw_ts==0].size, ]))
     metadata = tip304.get_metadata(infile)
     train_ts = raw_ts.copy()
     nrni_ts = tip304.get_nrni_ts_csv(sitedata['site'], io_info['nrni_file'])
