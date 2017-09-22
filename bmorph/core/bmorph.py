@@ -12,6 +12,9 @@ sample. The resulting 'bmorph' sample should then be consistent with the
 import pandas as pd
 import scipy.stats
 
+# Done fail silently on divide by zero, but raise an error instead
+pd.np.seterr(divide='raise')
+
 
 def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
     '''Calculate  multipliers using an adapted version of the EDCDFm technique
