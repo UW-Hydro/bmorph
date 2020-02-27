@@ -6,19 +6,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
 import bmorph
+import constants
 
-sns.set_context('talk')
-mpl.style.use('seaborn-bright')
-mpl.rcParams['figure.figsize'] = (12, 9)
-CFS_TO_CMS = 35.314666212661
-
-import descStats as dst
-import format_data as fd;
-
-colors99p99=['Maroon','Navy','Black','Orange','Yellow','Blue','Grey','Pink','Lavender']
-siteList = fd.sites
-
-def custom_legend(names: list(),colors=colors99p99):
+def custom_legend(names: List,colors=colors99p99):
     """
     Custom Legend
         creates a list of patches to be passed in as
@@ -197,7 +187,6 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
             patch.set_facecolor(color)
         
         position = position+num_models+1
-        #follow plot style: https://stackoverflow.com/questions/16592222/matplotlib-group-boxplots
    
     tick_locaction = list()
     start_tick = int(np.ceil(len(models)/2))
@@ -209,6 +198,7 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
     plt.xticks(rotation = 45)
         
     ax.legend(handles=custom_legend(names,colors),loc='upper left')
+    return fig, ax
 
 def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd.DataFrame):
     """
@@ -266,6 +256,8 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
         
     ax.legend(handles=custom_legend(names,colors),loc='upper left')
     
+    return fig,ax
+    
 def scatter_series_axes(data_x,data_y,label:str,color:str,alpha:float,ax=None) -> plt.axes:
     if ax is None:
         fig, ax = plt.subplots()
@@ -317,6 +309,8 @@ def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list, compare
     plt.title(site)
     plt.axhline(0)
     plt.legend(handles=custom_legend(model_keys,colors))
+    
+    return fig,ax
     
 def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: list, uncor_key: str, 
                sites=siteList, multi=True, colors=colors99p99):
@@ -386,11 +380,11 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
                     if ymin_site < ymin:
                         ymin = ymin_site
                     
-                    scatter_series_axes(x,y,site,colors[i],0.05,ax)
+                    return scatter_series_axes(x,y,site,colors[i],0.05,ax)
         else: #meaning site should be set to a singular value
             #double check that this was actually changed, otherwise picks first value
             site = sites
-            if type(sites) == list:
+            if isinstance(sites,list):
                 site = sites[0]
 
             x = X.loc[:,site]
@@ -408,7 +402,8 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
             if ymin_site < ymin:
                 ymin = ymin_site
             
-            scatter_series_axes(x,y,site,colors[i],0.05,ax)    
+            return scatter_series_axes(x,y,site,colors[i],0.05,ax)    
+        
     
     #Sets up labels based on whether one or more sites were plotted
     plt.xlabel(f'{datum_key}-Uncorrected')
@@ -432,6 +427,8 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
         
     plt.plot([minlin, maxlin], [minlin, maxlin])
     plt.legend(handles=custom_legend(cor_keys,colors))
+    
+    return fig, ax
     
 def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_key: str, 
                sites=siteList, multi=True, colors=colors99p99):

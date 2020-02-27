@@ -1,4 +1,4 @@
-KACimport numpy as np
+import numpy as np
 import xarray as xr
 import pandas as pd
 import seaborn as sns
@@ -8,10 +8,6 @@ import sys
 sys.path.append('..')
 import bmorph
 
-sns.set_context('talk')
-mpl.style.use('seaborn-bright')
-mpl.rcParams['figure.figsize'] = (12, 9)
-CFS_TO_CMS = 35.314666212661
 
 sites = ['KEE','KAC','CLE','YUMW','BUM', 'AMRW','CLFW','NACW','UMTW','AUGW','YGVW','YAK'] #list of gauge sites
 
