@@ -581,6 +581,14 @@ def find_upstream(topo: xr.Dataset, segID: int,return_segs: list=[]):
     upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
     upsegIDs = topo['seg_id'][upsegs].values
     return_segs += list(upsegs)
+    
+def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list=[]) -> np.ndarray:
+    upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
+    upsegIDs = topo['seg_id'][upsegs].values
+    return_segs += list(upsegs)
+    for upsegID in upsegIDs:
+        find_all_upstream(topo, upsegID, return_segs=return_segs)
+    return np.unique(return_segs).flatten()
 
 def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
     """
