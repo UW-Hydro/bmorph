@@ -643,8 +643,27 @@ def organize_nxgraph(topo: nx.Graph):
     pos = nx.drawing.nx_agraph.graphviz_layout(topo,prog='dot')
     return pos
 
+def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series, 
+                       cmap = mpl.cm.get_cmap('coolwarm'))-> dict:
+    """
+    color_cod_nxgraph
+        creates a dictionary mapping of nodes
+        to color values
+    ----
+    graph: nx.graph to be color coded
+    
+    measure: pd.Series with segment ID's as
+        the index and desired measures as values
+    """
+    #sets up color diversity
+    segs = measure.sort_values().index    
+    color_steps = np.arange(0, 1, 1/len(segs))
+    
+    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_steps, segs)}
+    return color_dict
+
 def color_code_nxgraph(graph: nx.graph, measure: pd.Series, 
-                       cmap = mpl.cm.get_cmap('coolwarm'), color_range = (0,1))-> dict:
+                       cmap = mpl.cm.get_cmap('coolwarm'))-> dict:
     """
     color_cod_nxgraph
         creates a dictionary mapping of nodes
@@ -655,15 +674,23 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
     measure: pd.Series with segment ID's as
         the index and desired measures as values
     
-    color_range: tuple as (min,max) values to have
-        as the ends of the cmap (not implemented)
-    """
-    #sets up color diversity
-    segs = measure.sort_values().index    
-    color_steps = np.arange(0, 1, 1/len(segs))
+    cmap: colormap to be used
     
-    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_steps, segs)}
-    return color_dict
+    """
+    
+    #determine colorbar range
+    extreme = abs(measure.max())
+    if np.abs(measure.min()) > extreme:
+        extreme = np.abs(measure.min())
+    
+    
+    #sets up color values
+    segs = measure.index    
+    color_vals = (measure.values-(-1*extreme))/(2*extreme)
+    color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -1*extreme, vmax = extreme))
+    
+    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
+    return color_dict, color_bar
 
 def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm')):
     """
@@ -685,7 +712,8 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
     topo_adj_mat = create_adj_mat(topo)
     topo_graph = create_nxgraph(topo_adj_mat)
     topo_positions = organize_nxgraph(topo_graph)
-    topo_color_dict = color_code_nxgraph(topo_graph,color_measure,cmap)
+    topo_color_dict, topo_color_cbar = color_code_nxgraph(topo_graph,color_measure,cmap)
     topo_nodecolors = [topo_color_dict[f'{node}'] for node in topo_graph.nodes()]
     nx.draw_networkx(topo_graph,topo_positions,node_size = 200, font_size = 8, font_weight = 'bold', 
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = topo_nodecolors)
+    plt.colorbar(topo_color_cbar)
