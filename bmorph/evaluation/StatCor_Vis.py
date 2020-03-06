@@ -618,7 +618,7 @@ def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
         i += 1
     return adj_mat
 
-def create_nxgraph(adj_mat: np.ndarray) -> nx.Graph():
+def create_nxgraph(adj_mat: np.ndarray) -> nx.Graph:
     """
     create_nxGraph
         creates a NetworkX Graph object given an
@@ -644,7 +644,7 @@ def organize_nxgraph(topo: nx.Graph):
     return pos
 
 def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series, 
-                       cmap = mpl.cm.get_cmap('coolwarm'))-> dict:
+                       cmap=mpl.cm.get_cmap('plasma'))-> dict:
     """
     color_cod_nxgraph
         creates a dictionary mapping of nodes
@@ -663,7 +663,7 @@ def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series,
     return color_dict
 
 def color_code_nxgraph(graph: nx.graph, measure: pd.Series, 
-                       cmap = mpl.cm.get_cmap('coolwarm'))-> dict:
+                       cmap=mpl.cm.get_cmap('coolwarm_r'))-> dict:
     """
     color_cod_nxgraph
         creates a dictionary mapping of nodes
@@ -686,13 +686,13 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
     
     #sets up color values
     segs = measure.index    
-    color_vals = (measure.values-(-1*extreme))/(2*extreme)
-    color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -1*extreme, vmax = extreme))
+    color_vals = (measure.values+extreme)/(2*extreme)
+    color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -extreme, vmax = extreme))
     
     color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
     return color_dict, color_bar
 
-def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm')):
+def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm_r')):
     """
     draw_dataset
         draws a networkx graph from a topological
