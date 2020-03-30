@@ -215,7 +215,6 @@ def prep_lstm_training_data(df: pd.DataFrame, lookback: int=7,
 
 
 def make_callbacks(name):
-
     from tensorflow.keras.callbacks import EarlyStopping
     from tensorflow.keras.callbacks import ModelCheckpoint
     mc = ModelCheckpoint(f'best_{name}.h5', monitor='val_accuracy', mode='max',
@@ -247,6 +246,7 @@ def create_lstm(train_shape: tuple, depth: int=1,
         The compiled tensorflow model (using the sequential API)
     """
     from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense
     from tensorflow.keras.layers import LSTM
     from keras.constraints import NonNeg
     model = Sequential()
@@ -276,7 +276,7 @@ def create_bidirectional_lstm(train_shape: tuple, depth: int=1,
     ----------
     train_shape:
         Shape of the training data, should be following the use of the
-        `make_lookback` function.
+        ``make_lookback`` function.
     depth:
         How deep to construct the BiLSTM
     n_nodes:
