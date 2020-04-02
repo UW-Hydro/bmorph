@@ -1,5 +1,6 @@
 import os
 import copy
+import concurrent.futures
 import random
 import pandas as pd
 import numpy as np
@@ -191,7 +192,20 @@ def partition_train_test(df: pd.DataFrame,
 
 def make_lookback(df: pd.DataFrame, lookback: int=7) -> pd.DataFrame:
     """
+    Create a dataset for training or applying a recurrent network.
+    The returned dataset has dimensions ``(samples, lookback, features)``.
     Credit: @jhamman
+
+    Parameters
+    ----------
+    df:
+        Dataframe to create lookback for.
+    lookback:
+        Number of timesteps to create for the ``lookback`` dimension.
+
+    Returns
+    -------
+    A new dataset with the newly created ``lookback`` dimension
     """
     coords = {'features': df.columns}
     da = xr.DataArray(df.values, dims=("samples", "features"), coords=coords)
@@ -205,6 +219,10 @@ def make_lookback(df: pd.DataFrame, lookback: int=7) -> pd.DataFrame:
 
 def prep_lstm_training_data(df: pd.DataFrame, lookback: int=7,
                             target_feature='target_flow') -> Tuple[np.ndarray]:
+    """
+    Takes a dataframe, create the lookback, and separate the
+    training and target data.
+    """
     lookback_ds = make_lookback(df, lookback)
     in_features = list(lookback_ds.features.values)
     in_features.remove(target_feature)
@@ -214,7 +232,8 @@ def prep_lstm_training_data(df: pd.DataFrame, lookback: int=7,
     return lstm_features, lstm_target
 
 
-def make_callbacks(name):
+def make_callbacks(name: str) -> List:
+    """Creates some utilty callbacks for use in training."""
     from tensorflow.keras.callbacks import EarlyStopping
     from tensorflow.keras.callbacks import ModelCheckpoint
     mc = ModelCheckpoint(f'best_{name}.h5', monitor='val_accuracy', mode='max',
@@ -359,3 +378,50 @@ def run_predict(ds: xr.Dataset, transformer_files: List[str],
         return target_flow.flatten().reshape(time_len, -1)
     except Exception as e:
         return e
+
+
+def parallel_predict(ds: xr.Dataset, transformer_files: List[str],
+                     model_file: str, lookback: int, chunk_size: int,
+                     num_workers: int) -> xr.DataArray:
+    """
+    Run a complete prediction workflow in parallel.
+
+    Parameters
+    ----------
+    ds:
+        The mizuRoute output dataset
+    transformer_files:
+        Paths to all of the transformers that were used
+        to transform the training data for the model
+    model_file:
+        Path to the tensorflow model
+    lookback:
+        The number of days of lookback that were used
+        during training
+    chunk_size:
+        Number of stream segments to process at a time
+    num_workers:
+        Number of parallel processes to use for prediction
+
+    Returns
+    -------
+    corrected_flows:
+        The predicted bias corrected local flows ready
+        to be rerouted through mizuRoute
+    """
+    ds = ds.chunk({'time': -1, 'seg': chunk_size})
+    chunks = np.cumsum(ds.chunks[1])
+    starts = chunks[:-1]
+    stops = chunks[1:]
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as exe:
+        out = []
+        for start, stop in zip(starts, stops):
+            seg = ds.sel(seg=slice(start, stop))
+            out.append(exe.submit(run_predict, seg, transformer_files, model_file, lookback))
+        concurrent.futures.wait(out)
+    first = run_predict(seg, transformer_files, model_file, lookback)
+    corrected = np.hstack([o.result() for o in out])
+    corrected = np.hstack([first, corrected])
+    corrected_flows = xr.DataArray(corrected, dims=ds.dims)
+    corrected_flows /= ds['contributing_area']
+    return corrected_flows
