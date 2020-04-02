@@ -357,28 +357,35 @@ def run_predict(ds: xr.Dataset, transformer_files: List[str],
     np.ndarray:
         The predicted bias corrected local flows
     """
+    # Cannot have tensorflow loaded iin before hand,
+    # otherwise parallelism isn't possible
     from tensorflow.keras import backend as K
     from tensorflow.keras.models import load_model
-    from sklearn.externals import joblib
 
-    # TODO: How to implement spatially chunked predictions?
+    # Load in the model and prep the output data
+    model = load_model(model_file)
     transformers = load_transformers(transformer_files)
-    time_len = len(ds.time.values) - lookback + 1
+    corrected_flows = 0.0 * ds['raw_flow'].isel(time=slice(lookback-1, None))
     target_flow_transformer = transformers.pop('target_flow')
-    df = ds[list(transformers.keys())].to_dataframe()
-    transformed = apply_transformers(df, transformers)
-    lookback_ds = make_lookback(df, lookback)
+    lookback_ds_list = []
+
+    # Set up data that will go into the model
+    for seg in ds['seg']:
+        df = ds.sel(seg=seg)[list(transformers.keys())].to_dataframe()
+        transformed = apply_transformers(df, transformers)
+        lookback_ds_list.append(make_lookback(df, lookback))
+    lookback_ds = xr.concat(lookback_ds_list, dim='samples')
     in_features = list(lookback_ds.features.values)
     lstm_features = lookback_ds.sel(features=in_features)
-    try:
-        model = load_model(model_file)
-        pred = model.predict(lstm_features.values)
-        target_flow = target_flow_transformer.inverse_transform(pred.reshape(-1, 1))
-        K.clear_session()
-        return target_flow.flatten().reshape(time_len, -1)
-    except Exception as e:
-        return e
 
+    # Run the predict, invert the data transformation, and reshape it
+    pred = model.predict(lstm_features.values)
+    target_flow = target_flow_transformer.inverse_transform(pred.reshape(-1, 1))
+    corrected_flows.values = target_flow.reshape(corrected_flows.shape)
+
+    # Clear the tensorflow session so things don't go wonky in other processes
+    K.clear_session()
+    return corrected_flows
 
 def parallel_predict(ds: xr.Dataset, transformer_files: List[str],
                      model_file: str, lookback: int, chunk_size: int,
@@ -409,8 +416,9 @@ def parallel_predict(ds: xr.Dataset, transformer_files: List[str],
         The predicted bias corrected local flows ready
         to be rerouted through mizuRoute
     """
+    raise ValueError('This code is currently broken, please use the `run_predict` function instead')
     ds = ds.chunk({'time': -1, 'seg': chunk_size})
-    chunks = np.cumsum(ds.chunks[1])
+    chunks = np.cumsum(ds.chunks['seg'])
     starts = chunks[:-1]
     stops = chunks[1:]
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as exe:
@@ -419,9 +427,9 @@ def parallel_predict(ds: xr.Dataset, transformer_files: List[str],
             seg = ds.sel(seg=slice(start, stop))
             out.append(exe.submit(run_predict, seg, transformer_files, model_file, lookback))
         concurrent.futures.wait(out)
-    first = run_predict(seg, transformer_files, model_file, lookback)
-    corrected = np.hstack([o.result() for o in out])
-    corrected = np.hstack([first, corrected])
-    corrected_flows = xr.DataArray(corrected, dims=ds.dims)
+    first = run_predict(ds.sel(seg=slice(0, starts[0])), transformer_files, model_file, lookback)
+    results = [o.result() for o in out]
+    corrected = xr.concat(results, dim='seg')
+    corrected = xr.concat([first, corrected], dim='seg')
     corrected_flows /= ds['contributing_area']
     return corrected_flows
