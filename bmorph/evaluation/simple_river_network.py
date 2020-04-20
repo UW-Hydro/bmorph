@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from Typing import List
+from typing import List
 from .plotting import find_upstream
 
 class SegNode():
