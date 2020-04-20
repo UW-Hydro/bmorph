@@ -1,12 +1,18 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
-import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
+
+import networkx as nx
+import graphviz as gv
+import pygraphviz as pgv
+from networkx.drawing.nx_agraph import graphviz_layout
+
 import bmorph
 import constants
+
 
 def custom_legend(names: List,colors=colors99p99):
     """
@@ -561,3 +567,153 @@ def rmseFracPlot(data_dict: dict,obs_key:str,sim_keys:list,
         plt.title(f'RMSE Distribution in Descending Sort: {site}')
     plt.axhline(1)
     plt.legend(handles=custom_legend(sim_keys,colors))
+    
+def find_upstream(topo: xr.Dataset, segID: int,return_segs: list=[]):
+    """
+    find_upstream
+        finds what segID is directly upstream from
+        the xarray Dataset
+    ----
+    topo: xarray Dataset of topography
+    segID: current segID of interest
+    return_segs: list of what segID's are upstream    
+    """
+    upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
+    upsegIDs = topo['seg_id'][upsegs].values
+    return_segs += list(upsegs)
+    
+def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list=[]) -> np.ndarray:
+    upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
+    upsegIDs = topo['seg_id'][upsegs].values
+    return_segs += list(upsegs)
+    for upsegID in upsegIDs:
+        find_all_upstream(topo, upsegID, return_segs=return_segs)
+    return np.unique(return_segs).flatten()
+
+def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
+    """
+    create_adj_mat
+        Forms the adjacency matrix for the graph
+        of the topography
+        Note that this is independent of whatever
+        the segments are called, it is a purely a
+        map of the relative object locations
+    ----
+    topo: xarray Dataset containing topographical information
+    
+    return: ndarray that is the adjacency matrix
+    """
+    #creates the empty adjacency matrix
+    N = topo.dims['seg']
+    adj_mat = np.zeros(shape=(N,N),dtype=int)
+    
+    #builds adjacency matrix based on what segements are upstream
+    i = 0
+    for ID in topo['seg_id'].values:
+        adj = list()
+        find_upstream(topo,ID,adj)
+        for dex in adj:
+            #print(i,dex)
+            adj_mat[i,dex] += 1
+        i += 1
+    return adj_mat
+
+def create_nxgraph(adj_mat: np.ndarray) -> nx.Graph:
+    """
+    create_nxGraph
+        creates a NetworkX Graph object given an
+        adjacency matrix
+    ----
+    adj_mat: a numpy ndarray containing the desired
+        adjacency matrix
+    
+    returns: NetworkX Graph of respective nodes
+    """
+    topog = nx.from_numpy_matrix(adj_mat)
+    return topog
+
+def organize_nxgraph(topo: nx.Graph):
+    """
+    organize_nxgraph
+        orders the node positions hierarchical based on
+        the "dot" layout and given topography Dataset
+    ----
+    topo: xarray Dataset containing segment identifications
+    """
+    pos = nx.drawing.nx_agraph.graphviz_layout(topo,prog='dot')
+    return pos
+
+def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series, 
+                       cmap=mpl.cm.get_cmap('plasma'))-> dict:
+    """
+    color_cod_nxgraph
+        creates a dictionary mapping of nodes
+        to color values
+    ----
+    graph: nx.graph to be color coded
+    
+    measure: pd.Series with segment ID's as
+        the index and desired measures as values
+    """
+    #sets up color diversity
+    segs = measure.sort_values().index    
+    color_steps = np.arange(0, 1, 1/len(segs))
+    
+    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_steps, segs)}
+    return color_dict
+
+def color_code_nxgraph(graph: nx.graph, measure: pd.Series, 
+                       cmap=mpl.cm.get_cmap('coolwarm_r'))-> dict:
+    """
+    color_cod_nxgraph
+        creates a dictionary mapping of nodes
+        to color values
+    ----
+    graph: nx.graph to be color coded
+    
+    measure: pd.Series with segment ID's as
+        the index and desired measures as values
+    
+    cmap: colormap to be used
+    
+    """
+    
+    #determine colorbar range
+    extreme = abs(measure.max())
+    if np.abs(measure.min()) > extreme:
+        extreme = np.abs(measure.min())
+    
+    
+    #sets up color values
+    segs = measure.index    
+    color_vals = (measure.values+extreme)/(2*extreme)
+    color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -extreme, vmax = extreme))
+    
+    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
+    return color_dict, color_bar
+
+def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm_r')):
+    """
+    draw_dataset
+        draws a networkx graph from a topological
+        xrarray Dataset and color codes it based on
+        a pandas Series
+    ----
+    topo: xr.Dataset containing topologcial information
+    
+    color_measure: pd.Series where indicies are concurrent
+        with the number of segs in topo. Typically this contains
+        statistical information about the flows that will be
+        color coded by least to greatest value
+        
+    cmap: a mpl colormap to use in conjunction with color_measure.
+        The default is diverging color map, 'coolwarm'
+    """
+    topo_adj_mat = create_adj_mat(topo)
+    topo_graph = create_nxgraph(topo_adj_mat)
+    topo_positions = organize_nxgraph(topo_graph)
+    topo_color_dict, topo_color_cbar = color_code_nxgraph(topo_graph,color_measure,cmap)
+    topo_nodecolors = [topo_color_dict[f'{node}'] for node in topo_graph.nodes()]
+    nx.draw_networkx(topo_graph,topo_positions,node_size = 200, font_size = 8, font_weight = 'bold', 
+                     node_shape = 's', linewidths = 2, font_color = 'w', node_color = topo_nodecolors)
+    plt.colorbar(topo_color_cbar)
