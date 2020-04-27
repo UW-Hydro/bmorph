@@ -88,7 +88,7 @@ def fit_transformers(df: pd.DataFrame, custom_transformers: dict={}):
     fit_transformers = {}
     for key in df.columns:
         # Look for key in transformers, otherwise use 'other' as default
-        fit_transformers[key] = transformers.get(key, 'other')
+        fit_transformers[key] = transformers.get(key, transformers['other'])
         fit_transformers[key].fit(df[[key]])
     return fit_transformers
 
@@ -371,15 +371,13 @@ def run_predict(ds: xr.Dataset, transformer_files: List[str],
 
     # Set up data that will go into the model
     for seg in ds['seg']:
-        df = ds.sel(seg=seg)[list(transformers.keys())].to_dataframe()
+        df = ds.sel(seg=seg, drop=True).to_dataframe()
         transformed = apply_transformers(df, transformers)
-        lookback_ds_list.append(make_lookback(df, lookback))
+        lookback_ds_list.append(make_lookback(transformed, lookback))
     lookback_ds = xr.concat(lookback_ds_list, dim='samples')
-    in_features = list(lookback_ds.features.values)
-    lstm_features = lookback_ds.sel(features=in_features)
 
     # Run the predict, invert the data transformation, and reshape it
-    pred = model.predict(lstm_features.values)
+    pred = model.predict(lookback_ds.values)
     target_flow = target_flow_transformer.inverse_transform(pred.reshape(-1, 1))
     corrected_flows.values = target_flow.reshape(corrected_flows.shape)
 

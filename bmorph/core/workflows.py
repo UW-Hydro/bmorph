@@ -7,7 +7,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
     training_window = slice(*training_window)
     bmorph_window = slice(*bmorph_window)
     reference_window = slice(*reference_window)
-    raw_ts_window = slice(pd.to_datetime(raw_ts.index[0]), pd.to_datetime(raw_ts.index[-1]))
+    raw_ts_window = slice(pd.to_datetime(raw_ts.index.values[0]),
+                          pd.to_datetime(raw_ts.index.values[-1]))
 
     # bmorph the series
     overlap_period = int(window_size / 2)
@@ -33,3 +34,4 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
     bmorph_corr_ts = bmorph.bmorph_correct(raw_ts, bmorph_ts, raw_ts_window,
                                            nrni_mean, train_mean,
                                            n_smooth_long)
+    return bmorph_corr_ts
