@@ -1,7 +1,10 @@
 import numpy as np
 import xarray as xr
+import matplotlib as mpl
 from typing import List
 from plotting import find_upstream
+import plotting
+import networkx as nx
 
 print('-----------------------')
 print(' loaded succesfully')
@@ -41,7 +44,7 @@ class SegNode():
         self.encoded = False
 
     def __repr__(self):
-         return (f" {int(self.seg_id)}")
+         return f'[seg_id: {self.seg_id}, pfaf_code: {self.pfaf_code}]'
 
     def __str__(self):
         upstream_seg_id = list()
@@ -50,11 +53,8 @@ class SegNode():
         return f'seg_id: {self.seg_id}, pfaf_code: {self.pfaf_code}, upstream: {upstream_seg_id}'
 
     def __eq__(self, other):
-        if self.seg_id == other.seg_id:
-            if self.upstream == other.upstream:
-                if self.upstream == other.upstream:
-                    return True
-        return False
+        if isinstance(other,SegNode):
+            return (self.seg_id == other.seg_id) and (self.upstream==other.upstream) and (self.pfaf_code==other.pfaf_code) and (self.basin_area==other.basin_area)
 
 class SimpleRiverNetwork:
     """
@@ -156,6 +156,32 @@ class SimpleRiverNetwork:
         #In Progress Additions:
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
+        
+    #SimpleRiverNetwork Equivalency added:
+    
+    def __eq__(self,other):
+        if isinstance(other, srn_manipulate):
+            return self.branch_eq_(self.outlet,other.outlet)
+            
+    def branch_eq_(self,node_self,node_other,match=True):
+        # we are settng the default agrument to True and
+        # will change it only to false throughout the code
+        # so we know there are no False statements that 
+        # are overriden (i.e. no False Falses)
+        if node_self == node_other and match:
+            if node_self.upstream and node_other.upstream:
+                for upstream_self,upstream_other in zip(node_self.upstream,node_other.upstream):
+                    match = self.branch_eq_(upstream_self,upstream_other,match);
+            elif node_self.upstream or node_other.upstream:
+                # meaning one continues upstream while the other
+                # doesn't and is therefor inequivalent
+                match = False
+        else:
+            # meaning the nodes don't match 
+            # or a mismatch was already found
+            match = False;
+            
+        return match;
 
 
     def parse_upstream(self, node: SegNode):
@@ -330,7 +356,7 @@ class SimpleRiverNetwork:
                 else:
                     return None
 
-    def find_like_pfaf(self, node:SegNode, target_pfaf_digit, degree:int):
+    def find_like_pfaf(self, node:SegNode, target_pfaf_digits: list, degree:int):
         """
         find_like_pfaf
             finds all nodes with the matching digit at the exact
@@ -339,22 +365,22 @@ class SimpleRiverNetwork:
         ----
         node:
             a SegNode to start searching from
-        target_pfaf_digit:
-            a pfaf_digit to search for in the SimpleRiverNetwork
+        target_pfaf_digits:
+            a list of pfaf_digit to search for in the SimpleRiverNetwork
         degree:
             how many pfafstetter levels deep should the function look for
             i.e. if you have degree 2, and a pfaf_code of 1234, it will
             look at "3" to see if is a match
         return:
-            a list of like_pfaf_nodes that match the target_pfaf_digit
+            a list of like_pfaf_nodes that match the target_pfaf_digits
             at the input degree
         """
         like_pfaf_nodes= list()
         if node:
-            if degree < len(node.pfaf_code) and node.pfaf_code[degree] == target_pfaf_digit:
+            if degree < len(node.pfaf_code) and (int(node.pfaf_code[degree]) in target_pfaf_digits):
                 like_pfaf_nodes.append(node)
             for upstream in node.upstream:
-                like_pfaf_nodes.extend(self.find_like_pfaf(upstream, target_pfaf_digit, degree))
+                like_pfaf_nodes.extend(self.find_like_pfaf(upstream, target_pfaf_digits, degree))
         return like_pfaf_nodes
 
     def append_pfaf(self, node: SegNode, pfaf_digit:int):
@@ -587,7 +613,7 @@ class SimpleRiverNetwork:
             pfaf_map.append(f'{int(node.seg_id)}-{node.pfaf_code}')
         return pfaf_map
 
-    def genterate_pfaf_codes(self):
+    def generate_pfaf_codes(self):
         """
         generate_pfaf_codes
             creates a list of pfaf_code values in the order
@@ -615,6 +641,20 @@ class SimpleRiverNetwork:
             area_fraction = area/total_area
             weight_map.append(f'{i}-{area_fraction}')
         return weight_map
+    
+    def generate_mainstream_map(self):
+        """
+        generate_mainstream_map
+            cerates a list of which nodes are part of the
+            mainstream in order of the seg_id_values
+        """
+        mainstream, tributaries = self.sort_streams(self.outlet);
+        mainstream_ids = list();
+        for mainstream_node in mainstream:
+            mainstream_ids.append(mainstream_node.seg_id)
+        all_segs = list(map(int,self.seg_id_values));
+        mainstream_seg_map = pd.Series(all_segs).isin(mainstream_ids).astype(int)
+        return mainstream_seg_map
     
 #In Progress (below):    
     def color_network_graph(self,measure,cmap):
