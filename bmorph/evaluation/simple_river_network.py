@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
+import pandas as pd
 from typing import List
 from plotting import find_upstream
 import plotting
@@ -35,13 +36,14 @@ class SegNode():
             been fully given a unique pfaf_code
     """
     def __init__(self, seg_id, pfaf_code):
-        self.pfaf_code = pfaf_code
-        self.seg_id = seg_id
-        self.upstream: List[SegNode] = None
-        self.basin_area: None
+        self.pfaf_code = pfaf_code;
+        self.seg_id = seg_id;
+        self.aggregated_seg_ids = list();
+        self.upstream: List[SegNode] = None;
+        self.basin_area: None;
 
-        self.end_marker = False
-        self.encoded = False
+        self.end_marker = False;
+        self.encoded = False;
 
     def __repr__(self):
          return f'[seg_id: {self.seg_id}, pfaf_code: {self.pfaf_code}]'
@@ -54,7 +56,8 @@ class SegNode():
 
     def __eq__(self, other):
         if isinstance(other,SegNode):
-            return (self.seg_id == other.seg_id) and (self.upstream==other.upstream) and (self.pfaf_code==other.pfaf_code) and (self.basin_area==other.basin_area)
+            return (self.seg_id == other.seg_id) and (self.pfaf_code==other.pfaf_code) and (self.basin_area==other.basin_area)
+                
 
 class SimpleRiverNetwork:
     """
@@ -175,7 +178,7 @@ class SimpleRiverNetwork:
             elif node_self.upstream or node_other.upstream:
                 # meaning one continues upstream while the other
                 # doesn't and is therefor inequivalent
-                match = False
+                match = False;
         else:
             # meaning the nodes don't match 
             # or a mismatch was already found
@@ -250,9 +253,10 @@ class SimpleRiverNetwork:
         net_area = 0
         if not node.end_marker:
             net_area = node.basin_area
-
-            for upstream_node in node.upstream:
-                net_area += self.net_upstream_area(upstream_node)
+            
+            if node.upstream:
+                for upstream_node in node.upstream:
+                    net_area += self.net_upstream_area(upstream_node)
 
         return net_area
 
