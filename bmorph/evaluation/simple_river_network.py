@@ -160,6 +160,8 @@ class SimpleRiverNetwork:
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
         
+        self.clear_end_markers(self.outlet);
+        
     #SimpleRiverNetwork Equivalency added:
     
     def __eq__(self,other):
@@ -223,6 +225,18 @@ class SimpleRiverNetwork:
         """
         self.adj_mat = np.zeros(shape = (0))
         self.outlet.upstream = list()
+        
+    def clear_end_markers(self,node):
+        """
+        clear_end_markers
+            sets all end_mark in nodes at and upstream of node
+            to False
+        """
+        if node:
+            node.end_marker = False;
+            if node.upstream:
+                for upstream in node.upstream:
+                    self.clear_end_markers(upstream);
 
     def update_node_area(self, node: SegNode):
         """
