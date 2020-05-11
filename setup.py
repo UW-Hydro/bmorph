@@ -11,7 +11,6 @@ setup(name='bmorph',
       url='http://www.github.com/uw-hydro/bmorph',
       packages=find_packages(),
       install_requires=[
-          'python>=3.5',
           'xarray',
           'pandas',
           'netcdf4',
