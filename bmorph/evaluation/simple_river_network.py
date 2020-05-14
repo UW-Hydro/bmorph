@@ -7,10 +7,6 @@ from plotting import find_upstream
 import plotting
 import networkx as nx
 
-print('-----------------------')
-print(' loaded succesfully')
-print('-----------------------')
-
 class SegNode():
     """
     SegNode
@@ -50,8 +46,9 @@ class SegNode():
 
     def __str__(self):
         upstream_seg_id = list()
-        for upstream_SegNode in self.upstream:
-            upstream_seg_id.append(upstream_SegNode.seg_id)
+        if self.upstream:
+            for upstream_SegNode in self.upstream:
+                upstream_seg_id.append(upstream_SegNode.seg_id)
         return f'seg_id: {self.seg_id}, pfaf_code: {self.pfaf_code}, upstream: {upstream_seg_id}'
 
     def __eq__(self, other):
@@ -393,8 +390,9 @@ class SimpleRiverNetwork:
         if node:
             if degree < len(node.pfaf_code) and (int(node.pfaf_code[degree]) in target_pfaf_digits):
                 like_pfaf_nodes.append(node)
-            for upstream in node.upstream:
-                like_pfaf_nodes.extend(self.find_like_pfaf(upstream, target_pfaf_digits, degree))
+            if node.upstream:
+                for upstream in node.upstream:
+                    like_pfaf_nodes.extend(self.find_like_pfaf(upstream, target_pfaf_digits, degree))
         return like_pfaf_nodes
 
     def append_pfaf(self, node: SegNode, pfaf_digit:int):
