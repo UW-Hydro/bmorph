@@ -36,14 +36,14 @@ class SegNode():
             been fully given a unique pfaf_code
     """
     def __init__(self, seg_id, pfaf_code):
-        self.pfaf_code = pfaf_code;
-        self.seg_id = seg_id;
-        self.aggregated_seg_ids = list();
-        self.upstream: List[SegNode] = None;
-        self.basin_area: None;
+        self.pfaf_code = pfaf_code
+        self.seg_id = seg_id
+        self.aggregated_seg_ids = list()
+        self.upstream: List[SegNode] = None
+        self.basin_area: None
 
-        self.end_marker = False;
-        self.encoded = False;
+        self.end_marker = False
+        self.encoded = False
 
     def __repr__(self):
          return f'[seg_id: {self.seg_id}, pfaf_code: {self.pfaf_code}]'
@@ -155,14 +155,10 @@ class SimpleRiverNetwork:
 
         self.parse_upstream(self.outlet)
         self.encode_pfaf(self.outlet)
-        
-        #In Progress Additions:
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
         
-        self.clear_end_markers(self.outlet);
-        
-    #SimpleRiverNetwork Equivalency added:
+        self.clear_end_markers(self.outlet)
     
     def __eq__(self,other):
         if isinstance(other, srn_manipulate):
@@ -176,17 +172,17 @@ class SimpleRiverNetwork:
         if node_self == node_other and match:
             if node_self.upstream and node_other.upstream:
                 for upstream_self,upstream_other in zip(node_self.upstream,node_other.upstream):
-                    match = self.branch_eq_(upstream_self,upstream_other,match);
+                    match = self.branch_eq_(upstream_self,upstream_other,match)
             elif node_self.upstream or node_other.upstream:
                 # meaning one continues upstream while the other
                 # doesn't and is therefor inequivalent
-                match = False;
+                match = False
         else:
             # meaning the nodes don't match 
             # or a mismatch was already found
-            match = False;
+            match = False
             
-        return match;
+        return match
 
 
     def parse_upstream(self, node: SegNode):
@@ -233,10 +229,10 @@ class SimpleRiverNetwork:
             to False
         """
         if node:
-            node.end_marker = False;
+            node.end_marker = False
             if node.upstream:
                 for upstream in node.upstream:
-                    self.clear_end_markers(upstream);
+                    self.clear_end_markers(upstream)
 
     def update_node_area(self, node: SegNode):
         """
@@ -666,29 +662,28 @@ class SimpleRiverNetwork:
             cerates a list of which nodes are part of the
             mainstream in order of the seg_id_values
         """
-        mainstream, tributaries = self.sort_streams(self.outlet);
-        mainstream_ids = list();
+        mainstream, tributaries = self.sort_streams(self.outlet)
+        mainstream_ids = list()
         for mainstream_node in mainstream:
             mainstream_ids.append(mainstream_node.seg_id)
-        all_segs = list(map(int,self.seg_id_values));
+        all_segs = list(map(int,self.seg_id_values))
         mainstream_seg_map = pd.Series(all_segs).isin(mainstream_ids).astype(int)
         return mainstream_seg_map
     
-#In Progress (below):    
     def color_network_graph(self,measure,cmap):
         if not measure.empty:
-            return plotting.color_code_nxgraph(self.network_graph,measure,cmap);
+            return plotting.color_code_nxgraph(self.network_graph,measure,cmap)
         else:
-            color_bar = None;
-            segs = np.arange(0,len(self.seg_id_values));
-            color_vals = segs/len(segs);
-            color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)};
+            color_bar = None
+            segs = np.arange(0,len(self.seg_id_values))
+            color_vals = segs/len(segs)
+            color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
             return color_dict, color_bar
         
     def size_network_graph(self,measure):
-        segs = np.arange(0,len(self.seg_id_values));
-        size_vals = segs/len(segs);
-        size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)};
+        segs = np.arange(0,len(self.seg_id_values))
+        size_vals = segs/len(segs)
+        size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)}
         return size_dict   
         
     def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'), 
@@ -710,16 +705,12 @@ class SimpleRiverNetwork:
                     
         network_nodecolors = [network_color_dict[f'{node}'] for node in self.network_graph.nodes()]
         if node_color:
-            network_nodecolors = node_color;
-            
-        #network_node_dict = self.size_network_graph(None);
-        
-        #node_size = [network_node_dict[f'{node}'] for node in self.network_graph.nodes()];
+            network_nodecolors = node_color
         
         nx.draw_networkx(self.network_graph,self.network_positions,with_labels=with_labels,
                          node_size=node_size,font_size=font_size,font_weight=font_weight,node_shape=node_shape,
                          linewidths=linewidths,font_color=font_color,node_color=network_nodecolors)
         if with_cbar:
-            plt.colorbar(network_color_cbar);
+            plt.colorbar(network_color_cbar)
         if not with_background:
-            plt.axis('off');
+            plt.axis('off')
