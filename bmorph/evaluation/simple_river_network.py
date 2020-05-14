@@ -612,18 +612,18 @@ class SimpleRiverNetwork:
     
     def color_network_graph(self, measure, cmap):
         if not measure.empty:
-            return plotting.color_code_nxgraph(self.network_graph,measure,cmap);
+            return plotting.color_code_nxgraph(self.network_graph,measure,cmap)
         else:
-            color_bar = None;
-            segs = np.arange(0,len(self.seg_id_values));
-            color_vals = segs/len(segs);
-            color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)};
+            color_bar = None
+            segs = np.arange(0,len(self.seg_id_values))
+            color_vals = segs/len(segs)
+            color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
             return color_dict, color_bar
         
     def size_network_graph(self,measure):
-        segs = np.arange(0,len(self.seg_id_values));
+        segs = np.arange(0,len(self.seg_id_values))
         size_vals = segs/len(segs)
-        size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)};
+        size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)}
         return size_dict   
         
     def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'), 
@@ -653,4 +653,4 @@ class SimpleRiverNetwork:
         if with_cbar:
             plt.colorbar(network_color_cbar)
         if not with_background:
-            plt.axis('off');
+            plt.axis('off')
