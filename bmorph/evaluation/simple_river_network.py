@@ -3,10 +3,6 @@ import xarray as xr
 from typing import List
 from plotting import find_upstream
 
-print('-----------------------')
-print(' loaded succesfully')
-print('-----------------------')
-
 class SegNode():
     """
     SegNode
@@ -152,8 +148,6 @@ class SimpleRiverNetwork:
 
         self.parse_upstream(self.outlet)
         self.encode_pfaf(self.outlet)
-        
-        #In Progress Additions:
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
 
@@ -616,8 +610,7 @@ class SimpleRiverNetwork:
             weight_map.append(f'{i}-{area_fraction}')
         return weight_map
     
-#In Progress (below):    
-    def color_network_graph(self,measure,cmap):
+    def color_network_graph(self, measure, cmap):
         if not measure.empty:
             return plotting.color_code_nxgraph(self.network_graph,measure,cmap);
         else:
@@ -629,7 +622,7 @@ class SimpleRiverNetwork:
         
     def size_network_graph(self,measure):
         segs = np.arange(0,len(self.seg_id_values));
-        size_vals = segs/len(segs);
+        size_vals = segs/len(segs)
         size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)};
         return size_dict   
         
@@ -652,16 +645,12 @@ class SimpleRiverNetwork:
                     
         network_nodecolors = [network_color_dict[f'{node}'] for node in self.network_graph.nodes()]
         if node_color:
-            network_nodecolors = node_color;
-            
-        #network_node_dict = self.size_network_graph(None);
-        
-        #node_size = [network_node_dict[f'{node}'] for node in self.network_graph.nodes()];
+            network_nodecolors = node_color
         
         nx.draw_networkx(self.network_graph,self.network_positions,with_labels=with_labels,
                          node_size=node_size,font_size=font_size,font_weight=font_weight,node_shape=node_shape,
                          linewidths=linewidths,font_color=font_color,node_color=network_nodecolors)
         if with_cbar:
-            plt.colorbar(network_color_cbar);
+            plt.colorbar(network_color_cbar)
         if not with_background:
             plt.axis('off');
