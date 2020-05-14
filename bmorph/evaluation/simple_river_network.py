@@ -1,7 +1,10 @@
 import numpy as np
 import xarray as xr
-from Typing import List
-from .plotting import find_upstream
+from typing import List
+from plotting import find_upstream
+print('-----------------------')
+print(' loaded succesfully')
+print('-----------------------')
 
 class SegNode():
     """
