@@ -54,6 +54,12 @@ class SegNode():
     def __eq__(self, other):
         if isinstance(other,SegNode):
             return (self.seg_id == other.seg_id) and (self.pfaf_code==other.pfaf_code) and (self.basin_area==other.basin_area)
+        
+    def __iter__(self):
+        yield self
+        for upstream in self.upstream:
+            for node in upstream:
+                yield node
                 
 
 class SimpleRiverNetwork:
@@ -258,12 +264,16 @@ class SimpleRiverNetwork:
             returns the aggregate upstream_area
         """
         net_area = 0
-        if not node.end_marker:
+        if node and not node.end_marker:
             net_area = node.basin_area
             
-            if node.upstream:
-                for upstream_node in node.upstream:
-                    net_area += self.net_upstream_area(upstream_node)
+            if node.upstream:                                                             
+                for upstream_node in node.upstream:       
+                    try:      
+                        net_area += self.net_upstream_area(upstream_node)              
+                    except RecursionError as e:                  
+                        print(node, '\n', node.upstream,"\n", upstream_node,"\n", net_area)         
+                        raise RecursionError('no')
 
         return net_area
 
@@ -622,7 +632,8 @@ class SimpleRiverNetwork:
         pfaf_map = list()
         for i, seg_id in enumerate(self.seg_id_values):
             node = self.find_node(seg_id, self.outlet)
-            pfaf_map.append(f'{int(node.seg_id)}-{node.pfaf_code}')
+            if node:
+                pfaf_map.append(f'{int(node.seg_id)}-{node.pfaf_code}')
         return pfaf_map
 
     def generate_pfaf_codes(self):
