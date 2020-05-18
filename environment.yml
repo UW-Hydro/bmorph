@@ -21,4 +21,4 @@ dependencies:
     - jupyter
     - pip
     - pip:
-        - tensorflow
+        - tensorflow>=2.0.0
