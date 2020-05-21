@@ -176,7 +176,7 @@ class SimpleRiverNetwork:
     
     
     def __eq__(self,other):
-        if isinstance(other, srn_manipulate):
+        if isinstance(other, SimpleRiverNetwork):
             return self.branch_eq_(self.outlet,other.outlet)
             
             
@@ -226,7 +226,7 @@ class SimpleRiverNetwork:
             self.parse_upstream(upstream_node)
     
     
-    def collect_upstream_nodes(self, node:srn.SegNode):
+    def collect_upstream_nodes(self, node:SegNode):
         """
         collect_upstream_nodes
             finds all nodes upstream of a node and returns
