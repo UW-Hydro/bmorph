@@ -10,7 +10,7 @@ import graphviz as gv
 import pygraphviz as pgv
 from networkx.drawing.nx_agraph import graphviz_layout
 
-from constants import colors99p99
+from bmorph.evaluation.constants import colors99p99
 
 
 def custom_legend(names: List,colors=colors99p99):
