@@ -172,7 +172,6 @@ class SimpleRiverNetwork:
         self.encode_pfaf(self.outlet)
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
-        
         self.clear_end_markers(self.outlet)
     
     
@@ -218,7 +217,6 @@ class SimpleRiverNetwork:
             match = False
             
         return match
-
 
     def parse_upstream(self, node: SegNode):
         """
@@ -870,9 +868,9 @@ class SimpleRiverNetwork:
             for key in network_color_dict.keys():
                 new_network_color_dict[f"{label_map[int(key)]}"] = network_color_dict[key]
 
+
             new_network_graph = nx.relabel_nodes(self.network_graph,
                                                  dict(zip(self.network_graph.nodes(),label_map)),copy=True)
-
             network_color_dict = new_network_color_dict
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
