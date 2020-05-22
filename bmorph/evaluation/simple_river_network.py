@@ -1,7 +1,11 @@
 import numpy as np
 import xarray as xr
+import matplotlib as mpl
+import pandas as pd
 from typing import List
 from plotting import find_upstream
+import plotting
+import networkx as nx
 
 class SegNode():
     """
@@ -30,14 +34,15 @@ class SegNode():
     def __init__(self, seg_id, pfaf_code):
         self.pfaf_code = pfaf_code
         self.seg_id = seg_id
-        self.upstream: List[SegNode] = None
+        self.aggregated_seg_ids = list()
+        self.upstream: List[SegNode] = list()
         self.basin_area: None
 
         self.end_marker = False
         self.encoded = False
 
     def __repr__(self):
-         return (f" {int(self.seg_id)}")
+         return f'[seg_id: {self.seg_id}, pfaf_code: {self.pfaf_code}]'
 
     def __str__(self):
         upstream_seg_id = list()
@@ -46,11 +51,17 @@ class SegNode():
         return f'seg_id: {self.seg_id}, pfaf_code: {self.pfaf_code}, upstream: {upstream_seg_id}'
 
     def __eq__(self, other):
-        if self.seg_id == other.seg_id:
-            if self.upstream == other.upstream:
-                if self.upstream == other.upstream:
-                    return True
-        return False
+        if isinstance(other, SegNode):
+            return (self.seg_id == other.seg_id) 
+        and (self.pfaf_code==other.pfaf_code) 
+        and (self.basin_area==other.basin_area)
+        
+    def __iter__(self):
+        yield self
+        for upstream in self.upstream:
+            for node in upstream:
+                yield node
+                
 
 class SimpleRiverNetwork:
     """
@@ -77,6 +88,9 @@ class SimpleRiverNetwork:
             SegNodes are upstream of the current SegNode
             and updates the current SegNode's upstream list
             while also building the adjacency matrix.
+        collect_upstream_nodes
+            finds all nodes upstream of a node and returns
+            a list of them
         clear_network:
             sets the adjacency matrix to an empty array and
             sets the upstream designation of the outlet to an
@@ -84,6 +98,9 @@ class SimpleRiverNetwork:
             upstream of the outlet. This does not reset
             the topograpghy or seg_id_values, so the original
             shape can be rebuilt.
+        clear_end_markers
+            sets all end_mark in nodes at and upstream of node
+            to False
         update_node_area
             updates the desired node with basin area information
         net_upstream_area
@@ -123,6 +140,9 @@ class SimpleRiverNetwork:
             finds the four tributaries with the largest drainage areas
         encode_pfaf
             recursively encodes pfafstetter codes on a SimpleRiverNetwork
+        sort_by_pfaf
+            sorts a list of SegNode's in decreasing order
+            of a pfaf_digit at the given degree
         generate_pfaf_map
             creates a list of pfaf_code values in the order
             of the seg_id_values, including the seg_id_values.
@@ -136,6 +156,8 @@ class SimpleRiverNetwork:
             to the node's upstream area divided by the overall
             basin_area of the whole SimpleRiverNetwork.
             these are in order of the seg_id_values
+        pfaf_aggregate
+            aggregates the flow network by one pfafstetter level
     """
     def __init__(self, topo: xr.Dataset, pfaf_seed = int):
         self.topo = topo
@@ -150,7 +172,51 @@ class SimpleRiverNetwork:
         self.encode_pfaf(self.outlet)
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
-
+        self.clear_end_markers(self.outlet)
+    
+    
+    def __eq__(self, other):
+        if isinstance(other, SimpleRiverNetwork):
+            return self.branch_eq_(self.outlet,other.outlet)
+            
+            
+    def branch_eq_(self, node_self, node_other, match=True):
+        """
+        branch_eq_
+            used in the __eq__ function for SimpleRiverNetwork as
+            a recursive function to see if two node's upstream
+            structure are equivalent
+        ----
+        node_self:
+            a SegNode to compare with node_other
+        node_other:
+            a SegNode to compare with node_self
+        match:
+            holds the default assumption on whether
+            or not the two upstream structures are equivalent,
+            (warning: this function will only change the assumption
+            to False, changning this may result in a false negative)
+        return:
+            whether or not the upstream structures are equivalent
+        """
+        # we are settng the default agrument to True and
+        # will change it only to false throughout the code
+        # so we know there are no False statements that 
+        # are overriden (i.e. no False Falses)
+        if node_self == node_other and match:
+            if node_self.upstream and node_other.upstream:
+                for upstream_self,upstream_other in zip(node_self.upstream,node_other.upstream):
+                    match = self.branch_eq_(upstream_self,upstream_other,match)
+            elif node_self.upstream or node_other.upstream:
+                # meaning one continues upstream while the other
+                # doesn't and is therefor inequivalent
+                match = False
+        else:
+            # meaning the nodes don't match 
+            # or a mismatch was already found
+            match = False
+            
+        return match
 
     def parse_upstream(self, node: SegNode):
         """
@@ -163,7 +229,6 @@ class SimpleRiverNetwork:
         node:
             a SegNode to start building the network from
         """
-        node.upstream = list()
         upstream_seg_indices = list()
         node_seg_index = np.where(self.seg_id_values == node.seg_id)
         find_upstream(self.topo, node.seg_id,upstream_seg_indices)
@@ -175,6 +240,24 @@ class SimpleRiverNetwork:
             self.update_node_area(upstream_node)
             node.upstream.append(upstream_node)
             self.parse_upstream(upstream_node)
+    
+    
+    def collect_upstream_nodes(self, node:SegNode):
+        """
+        collect_upstream_nodes
+            finds all nodes upstream of a node and returns
+            a list of them
+        ----
+        node:
+            a SegNode to collect upstream nodes from
+        return:
+            a list of all upstream nodes
+        """
+        upstream_nodes = list()
+        upstream_nodes.extend(node.upstream)
+        for upstream in node.upstream:
+            upstream_nodes.extend(self.collect_upstream_nodes(upstream))
+        return upstream_nodes
 
     def clear_network(self):
         """
@@ -188,6 +271,28 @@ class SimpleRiverNetwork:
         """
         self.adj_mat = np.zeros(shape = (0))
         self.outlet.upstream = list()
+    
+    def clear_end_markers(self,node):
+        """
+        clear_end_markers
+            sets all end_mark in nodes at and upstream of node
+            to False
+        """
+        if node:
+            node.end_marker = False
+            for upstream in node.upstream:
+                self.clear_end_markers(upstream)
+        
+    def clear_end_markers(self,node):
+        """
+        clear_end_markers
+            sets all end_mark in nodes at and upstream of node
+            to False
+        """
+        if node:
+            node.end_marker = False
+            for upstream in node.upstream:
+                self.clear_end_markers(upstream)
 
     def update_node_area(self, node: SegNode):
         """
@@ -216,11 +321,15 @@ class SimpleRiverNetwork:
             returns the aggregate upstream_area
         """
         net_area = 0
-        if not node.end_marker:
+        if node and not node.end_marker:
             net_area = node.basin_area
-
-            for upstream_node in node.upstream:
-                net_area += self.net_upstream_area(upstream_node)
+            
+            for upstream_node in node.upstream:       
+                try:      
+                    net_area += self.net_upstream_area(upstream_node)              
+                except RecursionError as e:                  
+                    print(node, '\n', node.upstream,"\n", upstream_node,"\n", net_area)         
+                    raise RecursionError('no')
 
         return net_area
 
@@ -253,7 +362,7 @@ class SimpleRiverNetwork:
                 end_marker_ahead = True
 
         return end_marker_ahead
-
+    
     def count_net_upstream(self,node:SegNode):
         """
         count_net_upstream
@@ -271,7 +380,7 @@ class SimpleRiverNetwork:
             for upstream_node in node.upstream:
                 count += self.count_net_upstream(upstream_node)
         return count
-
+    
     def find_branch(self, node:SegNode):
         """
         find_branch
@@ -323,8 +432,8 @@ class SimpleRiverNetwork:
                     return result
                 else:
                     return None
-
-    def find_like_pfaf(self, node:SegNode, target_pfaf_digit, degree:int):
+                
+    def find_like_pfaf(self, node:SegNode, target_pfaf_digits: list, degree:int):
         """
         find_like_pfaf
             finds all nodes with the matching digit at the exact
@@ -333,22 +442,22 @@ class SimpleRiverNetwork:
         ----
         node:
             a SegNode to start searching from
-        target_pfaf_digit:
-            a pfaf_digit to search for in the SimpleRiverNetwork
+        target_pfaf_digits:
+            a list of pfaf_digit to search for in the SimpleRiverNetwork
         degree:
             how many pfafstetter levels deep should the function look for
             i.e. if you have degree 2, and a pfaf_code of 1234, it will
             look at "3" to see if is a match
         return:
-            a list of like_pfaf_nodes that match the target_pfaf_digit
+            a list of like_pfaf_nodes that match the target_pfaf_digits
             at the input degree
         """
         like_pfaf_nodes= list()
         if node:
-            if degree < len(node.pfaf_code) and node.pfaf_code[degree] == target_pfaf_digit:
+            if degree < len(node.pfaf_code) and (int(node.pfaf_code[degree]) in target_pfaf_digits):
                 like_pfaf_nodes.append(node)
             for upstream in node.upstream:
-                like_pfaf_nodes.extend(self.find_like_pfaf(upstream, target_pfaf_digit, degree))
+                like_pfaf_nodes.extend(self.find_like_pfaf(upstream, target_pfaf_digits, degree))
         return like_pfaf_nodes
 
     def append_pfaf(self, node: SegNode, pfaf_digit:int):
@@ -364,7 +473,7 @@ class SimpleRiverNetwork:
             node.pfaf_code += str(pfaf_digit)
             for upstream_node in node.upstream:
                 self.append_pfaf(upstream_node, pfaf_digit)
-
+                
     def append_sequential(self, sequence, base=''):
         """
         append_sequential
@@ -388,7 +497,6 @@ class SimpleRiverNetwork:
                 seq_node.pfaf_code += str(append_digit) + base
                 seq_node.encoded = True
             append_digit += 2
-
 
     def sort_streams(self, node = SegNode):
         """
@@ -438,7 +546,7 @@ class SimpleRiverNetwork:
                 node = mainstream_node
 
         return mainstreams, tributaries
-
+    
     def find_tributary_basins(self, tributaries):
         """
         find_tributary_basins
@@ -480,7 +588,7 @@ class SimpleRiverNetwork:
             #b) you had excatly the max number (4)
             #c) there were less than 4 and you dont need more
             return tributaries
-
+        
     def encode_pfaf(self, root_node = SegNode, level=0, max_level=42):
         """
         encode_pfaf
@@ -566,7 +674,32 @@ class SimpleRiverNetwork:
 
             for sn in snodes:
                 self.append_sequential(sn, base='')
-
+                
+    def sort_by_pfaf(self,nodes:list,degree=int):
+        """
+        sort_by_pfaf
+            sorts a list of SegNode's in decreasing order
+            of a pfaf_digit at the given degree
+        ----
+        nodes:
+            a list of SegNodes to sort
+        degree:
+            which index in a pfaf_code the nodes
+            are to be sorted by
+        return:
+            returns the list of sorted nodes
+        """
+        sorted_nodes = list()
+        digit = 9
+        while len(nodes) > 0 and digit > -1:
+            index = 0
+            for node in nodes:
+                if int(node.pfaf_code[degree])==digit:
+                    sorted_nodes.append(nodes[index])
+                index += 1
+            digit -= 1
+        return sorted_nodes
+    
     def generate_pfaf_map(self):
         """
         generate_pfaf_map
@@ -578,10 +711,11 @@ class SimpleRiverNetwork:
         pfaf_map = list()
         for i, seg_id in enumerate(self.seg_id_values):
             node = self.find_node(seg_id, self.outlet)
-            pfaf_map.append(f'{int(node.seg_id)}-{node.pfaf_code}')
+            if node:
+                pfaf_map.append(f'{int(node.seg_id)}-{node.pfaf_code}')
         return pfaf_map
-
-    def genterate_pfaf_codes(self):
+    
+    def generate_pfaf_codes(self):
         """
         generate_pfaf_codes
             creates a list of pfaf_code values in the order
@@ -592,7 +726,7 @@ class SimpleRiverNetwork:
             node = self.find_node(seg_id, self.outlet)
             pfaf_map.append(int(node.pfaf_code))
         return pfaf_map
-
+    
     def generate_weight_map(self):
         """
         generate_weight_map
@@ -610,8 +744,104 @@ class SimpleRiverNetwork:
             weight_map.append(f'{i}-{area_fraction}')
         return weight_map
     
-    def color_network_graph(self, measure, cmap):
-        if not measure.empty:
+    def generate_mainstream_map(self):
+        """
+        generate_mainstream_map
+            cerates a list of which nodes are part of the
+            mainstream in order of the seg_id_values
+        """
+        mainstream, tributaries = self.sort_streams(self.outlet)
+        mainstream_ids = list()
+        for mainstream_node in mainstream:
+            mainstream_ids.append(mainstream_node.seg_id)
+        all_segs = list(map(int,self.seg_id_values))
+        mainstream_seg_map = pd.Series(all_segs).isin(mainstream_ids).astype(int)
+        return mainstream_seg_map
+       
+    def pfaf_aggregate(self):
+        """
+        pfaf_aggregate
+            aggregates the flow network by one pfafstetter level
+        """
+        # we will be looking to reduce the total number of levels by 1
+        # in each aggregation cycle
+        # this means that we will look to aggregate the deepest level
+        # and search the flow tree for pfaf_codes matching the length
+        # of the maximum level
+        
+        pfaf_codes = self.generate_pfaf_codes()
+        current_total_levels = max([len(s.pfaf_code) for s in self.outlet])
+        
+        if current_total_levels == 1:
+            raise UserError("The network currently has a maximum Pfaffstetter code of length 1 - cannot aggregate any further!")
+        
+        aggregation_target_nodes = self.find_like_pfaf(self.outlet, list(np.arange(10)), current_total_levels-1)        
+        aggregation_target_nodes = self.sort_by_pfaf(aggregation_target_nodes,current_total_levels-2)
+        
+        search_index = 0
+        if current_total_levels > -1:
+            while search_index < len(aggregation_target_nodes):
+                
+                current_node = aggregation_target_nodes[search_index]
+                
+                # we need to collect which nodes we are going to aggregate
+                summative_basin_area = 0
+                basin_nodes = list()
+                aggregated_seg_ids = list()
+                basin_pfaf_root = current_node.pfaf_code[:-1]
+                
+                for target_node in aggregation_target_nodes:
+                    if target_node.pfaf_code[:-1] == basin_pfaf_root and target_node != current_node:
+                        basin_nodes.append(target_node)
+                        summative_basin_area += target_node.basin_area                        
+
+                        aggregated_seg_ids.append(target_node.seg_id)
+                        aggregated_seg_ids.extend(target_node.aggregated_seg_ids)
+                
+                # since we are going to aggregate these upsteam nodes
+                # into the current node, we need to remove them
+                # from our search list to avoid searching for ghost nodes
+                # also, be sure to check out my new techno-thriller: ghost_nodes         
+                for basin_node in basin_nodes:
+                    aggregation_target_nodes.remove(basin_node)
+                    self.seg_id_values = np.delete(self.seg_id_values,np.where(
+                        self.seg_id_values == basin_node.seg_id))
+                
+                #print(" basin_nodes: ", basin_nodes)
+                
+                basin_upstream = list()
+                for basin_node in basin_nodes:
+                    if basin_node.upstream:
+                        for upstream_node in basin_node.upstream:
+                            if upstream_node not in basin_nodes:
+                                basin_upstream.append(upstream_node)
+                        
+                #print(" basin_upstream: ", basin_upstream)
+                
+                #print('\n')
+                # here we do the numerical aggregation, actually changing the
+                # internal values of the aggregating seg_node
+                #summative_basin_area = self.net_upstream_area(current_node)
+                new_pfaf_code = basin_pfaf_root
+                    
+                current_node.aggregated_seg_ids.extend(aggregated_seg_ids)
+                current_node.pfaf_code = new_pfaf_code
+                current_node.basin_area += summative_basin_area
+                if len(basin_upstream) > 0:
+                    current_node.upstream = basin_upstream
+                else:
+                    current_node.upstream: List[SegNode] = list()
+                aggregation_target_nodes.remove(current_node)         
+                    
+            # Here we need to update various properties of the flow tree
+            # So that our changes are reflected in the net tree's attributes
+            N = len(self.seg_id_values)
+            self.adj_mat = self.reconstruct_adj_mat(node=self.outlet,adj_mat = np.zeros(shape=(N,N), dtype = int))
+            self.network_graph = plotting.create_nxgraph(self.adj_mat)
+            self.network_positions = plotting.organize_nxgraph(self.network_graph)
+    
+    def color_network_graph(self,measure,cmap):
+        if not measure is None:
             return plotting.color_code_nxgraph(self.network_graph,measure,cmap)
         else:
             color_bar = None
@@ -627,7 +857,8 @@ class SimpleRiverNetwork:
         return size_dict   
         
     def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'), 
-                     node_size = 200, font_size = 8, font_weight = 'bold', node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
+                     node_size = 200, font_size = 8, font_weight = 'bold',
+                     node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
                      with_labels=False,with_cbar=False,with_background=True):
         
         network_color_dict, network_color_cbar = self.color_network_graph(color_measure,cmap)
@@ -637,8 +868,9 @@ class SimpleRiverNetwork:
             for key in network_color_dict.keys():
                 new_network_color_dict[f"{label_map[int(key)]}"] = network_color_dict[key]
 
-            new_network_graph = nx.relabel_nodes(self.network_graph,dict(zip(self.network_graph.nodes(),label_map)),copy=True)
 
+            new_network_graph = nx.relabel_nodes(self.network_graph,
+                                                 dict(zip(self.network_graph.nodes(),label_map)),copy=True)
             network_color_dict = new_network_color_dict
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
