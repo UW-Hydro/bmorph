@@ -1,0 +1,24 @@
+name: bmorph
+channels:
+    - conda-forge
+dependencies:
+    - python>=3.5
+    - xarray
+    - pandas
+    - netcdf4
+    - numpy
+    - scipy
+    - dask
+    - toolz
+    - geopandas
+    - seaborn
+    - scikit-learn
+    - tqdm
+    - joblib
+    - networkx
+    - graphviz
+    - pygraphviz
+    - jupyter
+    - pip
+    - pip:
+        - tensorflow>=2.0.0

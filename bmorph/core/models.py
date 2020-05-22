@@ -88,7 +88,7 @@ def fit_transformers(df: pd.DataFrame, custom_transformers: dict={}):
     fit_transformers = {}
     for key in df.columns:
         # Look for key in transformers, otherwise use 'other' as default
-        fit_transformers[key] = transformers.get(key, 'other')
+        fit_transformers[key] = transformers.get(key, transformers['other'])
         fit_transformers[key].fit(df[[key]])
     return fit_transformers
 
@@ -120,29 +120,30 @@ def apply_transformers(df: pd.DataFrame, fit_transformers: dict, inverse=False):
     out = pd.DataFrame(index=df.index)
     if not inverse:
         for key in df:
+            key = str(key)
             out[key] = fit_transformers[key].transform(df[[key]])
     else:
         for key in df:
+            key = str(key)
             out[key] = fit_transformers[key].inverse_transform(df[[key]])
     return out
 
 
-def save_transformers(transformers: dict, path='.') -> List[str]:
+def save_transformers(transformers: dict, path='.') -> dict:
     """Saves transformers to disk"""
-    out_files = []
+    out_files = {}
     for name, tformer in transformers.items():
         of = f'{path}{os.sep}{name}-bmorph-transformer.joblib'
         dump(tformer, of)
-        out_files.append(of)
+        out_files[name] = of
     return out_files
 
 
-def load_transformers(file_list: List[str]) -> dict:
+def load_transformers(file_list: dict) -> dict:
     """Load transformers from disk"""
     transformers = {}
-    for file in file_list:
-        name = file.split(os.sep)[-1].replace('.joblib', '').split('-')[0]
-        transformers[name] = load(file)
+    for var, file in file_list.items():
+        transformers[var] = load(file)
     return transformers
 
 
@@ -232,18 +233,41 @@ def prep_lstm_training_data(df: pd.DataFrame, lookback: int=7,
     return lstm_features, lstm_target
 
 
+def make_metrics() -> List:
+    from tensorflow.keras import backend
+
+    # root mean squared error (rmse) for regression (only for Keras tensors)
+    def rmse(y_true, y_pred):
+        return backend.sqrt(backend.mean(backend.square(y_pred - y_true), axis=-1))
+
+    # mean squared error (mse) for regression  (only for Keras tensors)
+    def mse(y_true, y_pred):
+        return backend.mean(backend.square(y_pred - y_true), axis=-1)
+
+    # coefficient of determination (R^2) for regression  (only for Keras tensors)
+    def r_square(y_true, y_pred):
+        SS_res = backend.sum(backend.square(y_true - y_pred))
+        SS_tot = backend.sum(backend.square(y_true - backend.mean(y_true)))
+        return 1 - SS_res / (SS_tot + backend.epsilon())
+
+    def bias(y_true, y_pred):
+        return backend.mean(y_pred) - backend.mean(y_true)
+    metrics = {'rmse': rmse, 'mse': mse, 'r_square': r_square, 'bias': bias}
+    return metrics
+
+
 def make_callbacks(name: str) -> List:
     """Creates some utilty callbacks for use in training."""
     from tensorflow.keras.callbacks import EarlyStopping
     from tensorflow.keras.callbacks import ModelCheckpoint
-    mc = ModelCheckpoint(f'best_{name}.h5', monitor='val_accuracy', mode='max',
+    mc = ModelCheckpoint(f'best_{name}.h5', monitor='val_loss', mode='min',
                          verbose=0, save_best_only=True)
     es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=25)
     return [es, mc]
 
 
 def create_lstm(train_shape: tuple, depth: int=1,
-                n_nodes: int=10, loss='mse'):
+                n_nodes: int=10, loss='mse', compilation_kwargs={}):
     """
     Helper function to create various LSTM models.
 
@@ -267,7 +291,7 @@ def create_lstm(train_shape: tuple, depth: int=1,
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Dense
     from tensorflow.keras.layers import LSTM
-    from keras.constraints import NonNeg
+    from tensorflow.keras.constraints import NonNeg
     model = Sequential()
     if depth == 1:
         # If single layer, just create it
@@ -282,12 +306,12 @@ def create_lstm(train_shape: tuple, depth: int=1,
 
     # Output layer is just one value
     model.add(Dense(1, kernel_constraint=NonNeg()))
-    model.compile(loss=loss, optimizer='adam')
+    model.compile(loss=loss, optimizer='adam', metrics=make_metrics().values())
     return model
 
 
 def create_bidirectional_lstm(train_shape: tuple, depth: int=1,
-                              n_nodes: int=10, loss='mse'):
+                              n_nodes: int=10, loss='mse', compilation_kwargs={}):
     """
     Helper function to create various bidirectional LSTM models.
 
@@ -312,7 +336,7 @@ def create_bidirectional_lstm(train_shape: tuple, depth: int=1,
     from tensorflow.keras.layers import Dense
     from tensorflow.keras.layers import LSTM
     from tensorflow.keras.layers import Bidirectional
-    from keras.constraints import NonNeg
+    from tensorflow.keras.constraints import NonNeg
     model = Sequential()
     if depth == 1:
         # If single layer, just create it
@@ -329,7 +353,7 @@ def create_bidirectional_lstm(train_shape: tuple, depth: int=1,
 
     # Output layer is just one value
     model.add(Dense(1, kernel_constraint=NonNeg()))
-    model.compile(loss=loss, optimizer='adam')
+    model.compile(loss=loss, optimizer='adam', metrics=make_metrics().values())
     return model
 
 
@@ -363,7 +387,7 @@ def run_predict(ds: xr.Dataset, transformer_files: List[str],
     from tensorflow.keras.models import load_model
 
     # Load in the model and prep the output data
-    model = load_model(model_file)
+    model = load_model(model_file, custom_objects=make_metrics())
     transformers = load_transformers(transformer_files)
     corrected_flows = 0.0 * ds['raw_flow'].isel(time=slice(lookback-1, None))
     target_flow_transformer = transformers.pop('target_flow')
@@ -371,15 +395,13 @@ def run_predict(ds: xr.Dataset, transformer_files: List[str],
 
     # Set up data that will go into the model
     for seg in ds['seg']:
-        df = ds.sel(seg=seg)[list(transformers.keys())].to_dataframe()
+        df = ds.sel(seg=seg, drop=True).to_dataframe()
         transformed = apply_transformers(df, transformers)
-        lookback_ds_list.append(make_lookback(df, lookback))
+        lookback_ds_list.append(make_lookback(transformed, lookback))
     lookback_ds = xr.concat(lookback_ds_list, dim='samples')
-    in_features = list(lookback_ds.features.values)
-    lstm_features = lookback_ds.sel(features=in_features)
 
     # Run the predict, invert the data transformation, and reshape it
-    pred = model.predict(lstm_features.values)
+    pred = model.predict(lookback_ds.values)
     target_flow = target_flow_transformer.inverse_transform(pred.reshape(-1, 1))
     corrected_flows.values = target_flow.reshape(corrected_flows.shape)
 

@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 
 def find_local_segment(lats, lons, target_latlon, n_return=10,
-        metric='euclidian', gridsearch=False) -> Dict[str, np.ndarray]:
+        metric='euclidean', gridsearch=False) -> Dict[str, np.ndarray]:
     """
     Finds the closest coordinates to a given target. Can return multiple coordinates,
     in ascending order from closest to furthest.
@@ -61,8 +61,8 @@ def flow_fraction_multiplier(total_flow: pd.Series, local_flow: pd.Series,
     nsmooth:
         Number of timesteps to use
     """
-    smoothed_total_flow = total_flow.rolling(window=nsmooth, min_periods=1, center=True).mean()
-    smoothed_local_flow = local_flow.rolling(window=nsmooth, min_periods=1, center=True).mean()
+    smoothed_total_flow = total_flow.rolling(time=nsmooth, min_periods=1, center=True).mean()
+    smoothed_local_flow = local_flow.rolling(time=nsmooth, min_periods=1, center=True).mean()
     return smoothed_local_flow / smoothed_total_flow
 
 
