@@ -159,10 +159,11 @@ class SimpleRiverNetwork:
         pfaf_aggregate
             aggregates the flow network by one pfafstetter level
     """
-    def __init__(self, topo: xr.Dataset, pfaf_seed = int):
+    def __init__(self, topo: xr.Dataset, pfaf_seed = int, outlet_index = 0):
         self.topo = topo
         self.seg_id_values = topo['seg_id'].values
-        self.outlet = SegNode(seg_id=self.seg_id_values[0], pfaf_code=str(pfaf_seed))
+        self.outlet = SegNode(seg_id=self.seg_id_values[outlet_index], pfaf_code=str(pfaf_seed))
+            
         self.update_node_area(self.outlet)
 
         N = topo.dims['seg']
