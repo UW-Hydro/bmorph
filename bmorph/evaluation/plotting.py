@@ -664,7 +664,7 @@ def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series,
 def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
                        cmap=mpl.cm.get_cmap('coolwarm_r'))-> dict:
     """
-    color_cod_nxgraph
+    color_code_nxgraph
         creates a dictionary mapping of nodes
         to color values
     ----
@@ -676,20 +676,32 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
     cmap: colormap to be used
 
     """
+    if np.where(measure<0)[0].size == 0:
+        # meaning we have only positive values and do not need to establish
+        # zero at the center of the color bar
+        segs = measure.index
+        minimum = measure.min()
+        maximum = measure.max()
 
-    #determine colorbar range
-    extreme = abs(measure.max())
-    if np.abs(measure.min()) > extreme:
-        extreme = np.abs(measure.min())
+        color_vals = (measure.values)/(maximum)
+        color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = minimum, vmax = maximum))
+
+        color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
+        return color_dict, color_bar
+    else:
+        #determine colorbar range
+        extreme = abs(measure.max())
+        if np.abs(measure.min()) > extreme:
+            extreme = np.abs(measure.min())
 
 
-    #sets up color values
-    segs = measure.index
-    color_vals = (measure.values+extreme)/(2*extreme)
-    color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -extreme, vmax = extreme))
+        #sets up color values
+        segs = measure.index
+        color_vals = (measure.values+extreme)/(2*extreme)
+        color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -extreme, vmax = extreme))
 
-    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
-    return color_dict, color_bar
+        color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
+        return color_dict, color_bar
 
 def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm_r')):
     """

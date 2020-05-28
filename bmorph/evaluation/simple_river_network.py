@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import pandas as pd
 from typing import List
 from plotting import find_upstream
@@ -156,6 +157,8 @@ class SimpleRiverNetwork:
             to the node's upstream area divided by the overall
             basin_area of the whole SimpleRiverNetwork.
             these are in order of the seg_id_values
+        reconstruct_adj_mat
+            rebuilds the adjacency matrix from an existing flow tree
         pfaf_aggregate
             aggregates the flow network by one pfafstetter level
     """
@@ -745,12 +748,12 @@ class SimpleRiverNetwork:
             area = self.net_upstream_area(node)
             area_fraction = area/total_area
             weight_map.append(f'{i}-{area_fraction}')
-        return weight_map
+        return weight_maps
     
     def generate_mainstream_map(self):
         """
         generate_mainstream_map
-            cerates a list of which nodes are part of the
+            creates a list of which nodes are part of the
             mainstream in order of the seg_id_values
         """
         mainstream, tributaries = self.sort_streams(self.outlet)
@@ -760,6 +763,44 @@ class SimpleRiverNetwork:
         all_segs = list(map(int,self.seg_id_values))
         mainstream_seg_map = pd.Series(all_segs).isin(mainstream_ids).astype(int)
         return mainstream_seg_map
+    
+    def generate_pfaf_color_map(self):
+        """
+        generate_pfaf_color_map
+            creates a pd.Series to assign a unqiue color to each
+            first level pfafstetter basin
+        """
+        pfaf_color_map = list()
+        for i,seg_id in enumerate(self.seg_id_values):
+            node = self.find_node(seg_id, self.outlet)
+            first_pfaf_digit = int(node.pfaf_code[0])
+            pfaf_color_map.append(first_pfaf_digit)
+        return pd.Series(pfaf_color_map)
+    
+    def reconstruct_adj_mat(self, node, adj_mat: np.ndarray):
+        """
+        reconstruct_adj_mat
+            rebuilds the adjacency matrix from an existing flow tree
+        ----
+        node:
+            a node to construct the adjacency matrix from
+        adj_mat:
+            a square numpy ndarray of zeros originally, the size equal to
+            len(seg_id_values) by len(seg_id_values), to be filled
+        return:
+            returns the reconstructed adjacenecy matrix that needs
+            to be set as the network's adjacency matrix to actually
+            alter the flow tree        
+        """
+        if node and node.upstream:
+            node_seg_index = np.where(self.seg_id_values == node.seg_id)
+            
+            for upstream_node in node.upstream:
+                upstream_seg_index = np.where(self.seg_id_values == upstream_node.seg_id)
+                adj_mat[node_seg_index, upstream_seg_index] += 1           
+                adj_mat = self.reconstruct_adj_mat(upstream_node,adj_mat)
+            
+        return adj_mat
        
     def pfaf_aggregate(self):
         """
@@ -844,7 +885,7 @@ class SimpleRiverNetwork:
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
     
     def color_network_graph(self,measure,cmap):
-        if not measure is None:
+        if type(measure) != type(None):
             return plotting.color_code_nxgraph(self.network_graph,measure,cmap)
         else:
             color_bar = None
