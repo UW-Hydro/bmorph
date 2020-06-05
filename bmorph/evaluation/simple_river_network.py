@@ -162,7 +162,7 @@ class SimpleRiverNetwork:
         pfaf_aggregate
             aggregates the flow network by one pfafstetter level
     """
-    def __init__(self, topo: xr.Dataset, pfaf_seed = int, outlet_index = 0):
+    def __init__(self, topo: xr.Dataset, pfaf_seed = int, outlet_index = 0, max_pfaf_level=42):
         self.topo = topo
         self.seg_id_values = topo['seg_id'].values
         self.outlet = SegNode(seg_id=self.seg_id_values[outlet_index], pfaf_code=str(pfaf_seed))
@@ -173,7 +173,7 @@ class SimpleRiverNetwork:
         self.adj_mat = np.zeros(shape=(N, N), dtype=int)
 
         self.parse_upstream(self.outlet)
-        self.encode_pfaf(self.outlet)
+        self.encode_pfaf(self.outlet,max_level=max_pfaf_level)
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
         
@@ -930,3 +930,163 @@ class SimpleRiverNetwork:
             plt.colorbar(network_color_cbar)
         if not with_background:
             plt.axis('off')
+            
+    def aggregate_measure_sum(self, measure: xr.Dataset, variable: str)-> pd.Series:
+        """
+        aggregate_measure_sum
+            sums the measure values for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        measure:
+            an xr.Dataset that contains the variable to be aggregated as
+            mapped to seg_id's
+        variable:
+            a string that contains the variable name to be aggregated
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+        
+        # we need to start by pulling all the data values we want incorporated
+        # as specified by the given variable along with their associated seg_id
+        
+        measure_var_series = pd.Series(data = measure[variable][0].values, index = measure['seg_id'][0].values)
+        new_measure_data = list()
+        
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            measure_var_seg = measure_var_series.loc[seg_id]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                measure_var_seg += measure_var_series.loc[aggregated_seg_id]
+            new_measure_data.append(measure_var_seg)
+                
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+    
+    def aggregate_measure_mean(self, measure: xr.Dataset, variable: str)-> pd.Series:
+        """
+        aggregate_measure_mean
+            averages the measure values for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        measure:
+            an xr.Dataset that contains the variable to be aggregated as
+            mapped to seg_id's
+        variable:
+            a string that contains the variable name to be aggregated
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+        
+        # we need to start by pulling all the data values we want incorporated
+        # as specified by the given variable along with their associated seg_id
+        
+        measure_var_series = pd.Series(data = measure[variable][0].values, index = measure['seg_id'][0].values)
+        new_measure_data = list()
+        
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            measure_var_seg = [measure_var_series.loc[seg_id]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                measure_var_seg.append(measure_var_series.loc[aggregated_seg_id])
+            new_measure_data.append(sum(measure_var_seg)/len(measure_var_seg))
+                
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+    
+    def aggregate_measure_median(self, measure: xr.Dataset, variable: str)-> pd.Series:
+        """
+        aggregate_measure_median
+            determines the median measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        measure:
+            an xr.Dataset that contains the variable to be aggregated as
+            mapped to seg_id's
+        variable:
+            a string that contains the variable name to be aggregated
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+        
+        # we need to start by pulling all the data values we want incorporated
+        # as specified by the given variable along with their associated seg_id
+        
+        measure_var_series = pd.Series(data = measure[variable][0].values, index = measure['seg_id'][0].values)
+        new_measure_data = list()
+        
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            measure_var_seg = [measure_var_series.loc[seg_id]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                measure_var_seg.append(measure_var_series.loc[aggregated_seg_id])
+            new_measure_data.append(np.median(measure_var_seg))
+                
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))      
+        
+    def aggregate_measure_max(self, measure: xr.Dataset, variable: str)-> pd.Series:
+        """
+        aggregate_measure_median
+            determines the maximum measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        measure:
+            an xr.Dataset that contains the variable to be aggregated as
+            mapped to seg_id's
+        variable:
+            a string that contains the variable name to be aggregated
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+        
+        # we need to start by pulling all the data values we want incorporated
+        # as specified by the given variable along with their associated seg_id
+        
+        measure_var_series = pd.Series(data = measure[variable][0].values, index = measure['seg_id'][0].values)
+        new_measure_data = list()
+        
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            measure_var_seg = [measure_var_series.loc[seg_id]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                measure_var_seg.append(measure_var_series.loc[aggregated_seg_id])
+            new_measure_data.append(measure_var_seg.max())
+                
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+    
+    def aggregate_measure_min(self, measure: xr.Dataset, variable: str)-> pd.Series:
+        """
+        aggregate_measure_median
+            determines the minimum measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        measure:
+            an xr.Dataset that contains the variable to be aggregated as
+            mapped to seg_id's
+        variable:
+            a string that contains the variable name to be aggregated
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+        
+        # we need to start by pulling all the data values we want incorporated
+        # as specified by the given variable along with their associated seg_id
+        
+        measure_var_series = pd.Series(data = measure[variable][0].values, index = measure['seg_id'][0].values)
+        new_measure_data = list()
+        
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            measure_var_seg = [measure_var_series.loc[seg_id]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                measure_var_seg.append(measure_var_series.loc[aggregated_seg_id])
+            new_measure_data.append(measure_var_seg.min())
+                
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
