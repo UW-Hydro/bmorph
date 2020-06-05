@@ -971,7 +971,43 @@ class SimpleRiverNetwork:
                 
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
     
-    def aggregate_measure_mean(self, measure: xr.Dataset, variable: str)-> pd.Series:
+    def aggregate_measure_sum(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
+        """
+        aggregate_measure_sum
+            determines the sum measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable 
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids 
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+        
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+            
+        new_measure_data = list()
+        
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(np.sum(measure_var_seg))
+                
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+    
+    def aggregate_measure_mean(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
         """
         aggregate_measure_mean
             determines the mean measure value for the given variable based on how 
@@ -1043,7 +1079,7 @@ class SimpleRiverNetwork:
                 
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))      
         
-    def aggregate_measure_max(self, measure: xr.Dataset, variable: str)-> pd.Series:
+    def aggregate_measure_max(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
         """
         aggregate_measure_max
             determines the maximum measure value for the given variable based on how 
@@ -1079,7 +1115,7 @@ class SimpleRiverNetwork:
                 
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
     
-    def aggregate_measure_min(self, measure: xr.Dataset, variable: str)-> pd.Series:
+    def aggregate_measure_min(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
         """
         aggregate_measure_min
             determines the minimum measure value for the given variable based on how 
