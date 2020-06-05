@@ -1150,3 +1150,42 @@ class SimpleRiverNetwork:
             new_measure_data.append(np.min(measure_var_seg))
                 
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+    
+    def aggregate_measure(self, dataset_seg_ids: np.ndarray, variable: np.ndarray, aggregation_function)-> pd.Series:
+        """
+        aggregate_measure
+            aggregates the measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable 
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids
+        aggregation_function:
+            a function to be passed in on how the aggregated segs should have this variable
+            combined, recommended as a numpy function like np.sum, np.median, np.mean ...
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+        
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+            
+        new_measure_data = list()
+        
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(aggregation_function(measure_var_seg))
+                
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
