@@ -680,7 +680,7 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
         # meaning we have only positive values and do not need to establish
         # zero at the center of the color bar
         segs = measure.index
-        minimum = measure.min()
+        minimum = 0 #set to zero to preserve the coloring of the scale
         maximum = measure.max()
 
         color_vals = (measure.values)/(maximum)
@@ -699,7 +699,7 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
         segs = measure.index
         color_vals = (measure.values+extreme)/(2*extreme)
         color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -extreme, vmax = extreme))
-
+        
         color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
         return color_dict, color_bar
 
