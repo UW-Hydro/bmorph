@@ -157,10 +157,43 @@ class SimpleRiverNetwork:
             to the node's upstream area divided by the overall
             basin_area of the whole SimpleRiverNetwork.
             these are in order of the seg_id_values
+        generate_mainstream_map
+            creates a list of which nodes are part of the
+            mainstream in order of the seg_id_values
+        generate_pfaf_color_map
+            creates a pd.Series to assign a unqiue color to each
+            first level pfafstetter basin
+        generate_node_highlight_map
+            takes a list of seg_ids and creats a pd.Series
+            that highlights the nodes in the list
         reconstruct_adj_mat
             rebuilds the adjacency matrix from an existing flow tree
         pfaf_aggregate
             aggregates the flow network by one pfafstetter level
+        aggregate_measure_sum
+            determines the sum measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_mean
+            determines the mean measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_median
+            determines the median measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_max
+            determines the maximum measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_min
+            determines the minimum measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure
+            aggregates the measure value for the given variable based on how 
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
     """
     def __init__(self, topo: xr.Dataset, pfaf_seed = int, outlet_index = 0, max_pfaf_level=42):
         self.topo = topo
@@ -777,6 +810,21 @@ class SimpleRiverNetwork:
             pfaf_color_map.append(first_pfaf_digit)
         return pd.Series(pfaf_color_map)
     
+    def generate_node_highlight_map(self,seg_ids:list):
+        """
+        generate_node_highlight_map
+            takes a list of seg_ids and creats a pd.Series
+            that highlights the nodes in the list
+        ----
+        seg_ids:
+            a list of seg_id values that are to be marked
+            apart from the rest of the seg_ids
+        return:
+            a list that will identify these highlighted
+            nodes for draw_network
+        """
+        return pd.Series(self.seg_id_values).isin(seg_ids).astype(int)
+    
     def reconstruct_adj_mat(self, node, adj_mat: np.ndarray):
         """
         reconstruct_adj_mat
@@ -934,42 +982,6 @@ class SimpleRiverNetwork:
             plt.colorbar(network_color_cbar)
         if not with_background:
             plt.axis('off')
-            
-    def aggregate_measure_sum(self, measure: xr.Dataset, variable: str)-> pd.Series:
-        """
-        aggregate_measure_sum
-            determines the sum measure value for the given variable based on how 
-            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
-            the SimpleRiverNetwork
-        ----
-        dataset_seg_ids:
-            a np.ndarray containing all the seg_id values according to the original
-            topology. this should be in the same order seg order as variable 
-        variable:
-            a np.ndarray containing all the variable values according to the original
-            topology. this should be in the same order seg order as dataset_seg_ids 
-        return:
-            a pd.Series formated as: (seg_id_values_index, aggregated measure)
-        """
-        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
-        
-        if len(dataset_seg_ids.shape) != 1:
-            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
-        if len(variable.shape) != 1:
-            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
-            
-        new_measure_data = list()
-        
-        for seg_id in self.seg_id_values:
-            node = self.find_node(seg_id, self.outlet)
-            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
-            measure_var_seg = [variable[seg_id_index]]
-            for aggregated_seg_id in node.aggregated_seg_ids:
-                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
-                measure_var_seg.append(variable[aggregated_seg_id_index])
-            new_measure_data.append(np.sum(measure_var_seg))
-                
-        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
     
     def aggregate_measure_sum(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
         """
