@@ -954,7 +954,7 @@ class SimpleRiverNetwork:
     def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'), 
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
-                     with_labels=False,with_cbar=False,with_background=True):
+                     with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10):
         
         if type(color_measure) != type(None):
             if len(color_measure) != len(self.seg_id_values):
@@ -982,7 +982,8 @@ class SimpleRiverNetwork:
                          node_size=node_size,font_size=font_size,font_weight=font_weight,node_shape=node_shape,
                          linewidths=linewidths,font_color=font_color,node_color=network_nodecolors)
         if with_cbar:
-            plt.colorbar(network_color_cbar)
+            cbar = plt.colorbar(network_color_cbar)
+            cbar.ax.tick_params(labelsize=cbar_labelsize)
         if not with_background:
             plt.axis('off')
     
