@@ -1229,4 +1229,4 @@ class SimpleRiverNetwork:
             spawn_seg_indexes.append(seg_index)
             
         spawn_topo = self.topo.isel(seg=spawn_seg_indexes)
-        return srn_statapp(spawn_topo,"")
+        return SimpleRiverNetwork(spawn_topo,"")
