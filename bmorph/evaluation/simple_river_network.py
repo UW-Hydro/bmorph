@@ -194,6 +194,9 @@ class SimpleRiverNetwork:
             aggregates the measure value for the given variable based on how 
             SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
             the SimpleRiverNetwork
+        spawn_srn
+            creates a new SimpleRiverNetwork from that
+            given network and upstream of it
     """
     def __init__(self, topo: xr.Dataset, pfaf_seed = int, outlet_index = 0, max_pfaf_level=42):
         self.topo = topo
@@ -1201,3 +1204,28 @@ class SimpleRiverNetwork:
             new_measure_data.append(aggregation_function(measure_var_seg))
                 
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+    
+    def spawn_srn(self, spawn_outlet):
+        """
+        spawn_srn
+            creates a new SimpleRiverNetwork from that
+            given network and upstream of it
+        ----
+        spawn_outlet:
+            the seg_id of an outlet that the new tree
+            is to be spawned from
+        return:
+            a new SimpleRiverNetwork
+        """
+        self.clear_end_markers
+        spawn_segIDs = list()
+        for node in spawn_outlet:
+            spawn_segIDs.append(node.seg_id)
+        
+        spawn_seg_indexes = list()
+        for segID in spawn_segIDs:
+            seg_index = np.where(self.seg_id_values == segID)[0][0]
+            spawn_seg_indexes.append(seg_index)
+            
+        spawn_topo = self.topo.isel(seg=spawn_seg_indexes)
+        return srn_statapp(spawn_topo,"")
