@@ -52,9 +52,10 @@ class SegNode():
 
     def __eq__(self, other):
         if isinstance(other, SegNode):
-            return (self.seg_id == other.seg_id) 
+            return ((self.seg_id == other.seg_id) 
         and (self.pfaf_code==other.pfaf_code) 
-        and (self.basin_area==other.basin_area)
+        and (self.basin_area==other.basin_area))
+
         
     def __iter__(self):
         yield self
