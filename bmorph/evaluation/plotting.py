@@ -11,7 +11,7 @@ import pygraphviz as pgv
 from networkx.drawing.nx_agraph import graphviz_layout
 
 from bmorph.evaluation.constants import colors99p99
-
+from bmorph.evaluation import descriptive_statistics as dst
 
 def custom_legend(names: List,colors=colors99p99):
     """
@@ -200,7 +200,7 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
         tick_location.append(start_tick+j*tick_spacing)
 
     ax.set(xticks = tick_location, xticklabels = sites)
-    plt.xticks(rotation = 45)
+    plt.xticks(rotation = 90)
 
     ax.legend(handles=custom_legend(names,colors),loc='upper left')
     return fig, ax
@@ -385,7 +385,7 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
                     if ymin_site < ymin:
                         ymin = ymin_site
 
-                    return scatter_series_axes(x,y,site,colors[i],0.05,ax)
+                    scatter_series_axes(x,y,site,colors[i],0.05,ax)
         else: #meaning site should be set to a singular value
             #double check that this was actually changed, otherwise picks first value
             site = sites
@@ -407,7 +407,7 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
             if ymin_site < ymin:
                 ymin = ymin_site
 
-            return scatter_series_axes(x,y,site,colors[i],0.05,ax)
+            scatter_series_axes(x,y,site,colors[i],0.05,ax)
 
 
     #Sets up labels based on whether one or more sites were plotted
@@ -436,7 +436,7 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
     return fig, ax
 
 def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_key: str,
-               sites=[], multi=True, colors=colors99p99):
+               sites=[], multi=True, colors=colors99p99,show_legend=True):
     """
     Anomaly Plot 2D
         Plots two correction models against each other after
@@ -499,7 +499,8 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
     plt.title("Statistical Correction Anomolies")
     plt.axhline(0)
     plt.axvline(0)
-    plt.legend(handles=custom_legend(sites,colors))
+    if show_legend:
+        plt.legend(handles=custom_legend(sites,colors))
 
 def rmseFracPlot(data_dict: dict,obs_key:str,sim_keys:list,
                 sites=[],multi=True,colors=colors99p99):

@@ -946,23 +946,45 @@ class SimpleRiverNetwork:
             color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
             return color_dict, color_bar
 
-    def size_network_graph(self,measure):
-        segs = np.arange(0,len(self.seg_id_values))
-        size_vals = segs/len(segs)
-        size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)}
-        return size_dict
-
     def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'),
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
-                     with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10):
+                     with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10,edge_color='k'):
 
         if type(color_measure) != type(None):
-            if len(color_measure) != len(self.seg_id_values):
-                raise Exception("Color_meausure length does not match number of nodes, double check measure aggregation.")
+            if type(color_measure) != pd.Series:
+                raise Exception("Color_measure is not a pandas Series")
+            elif color_measure.size != len(self.seg_id_values):
+                raise Exception("Color_measure size does not match number of nodes, double check measure aggregation.")
 
         network_color_dict, network_color_cbar = self.color_network_graph(color_measure,cmap)
 
+        # we need to make sure that if the nodes have been relabeled by a previous
+        # draw_network call, that we then restore
+        
+        print('HELLO')
+
+        expected_labels = list()
+        current_labels = list()
+        match = True
+        for expected_label, current_label in zip(network_color_dict.keys(),self.network_graph.nodes):
+            expected_labels.append(int(expected_label))
+            current_labels.append(current_label)
+            if match and (int(expected_label) != current_label):
+        
+        if not match:
+            # if the nodes have been relabeled from what we expect them to be
+            # then we will adjust relabel them to their original values
+            # since we have already checked that they are the same length
+            standard_label_map = np.arange(len(expected_labels))
+            new_network_graph = nx.relabel_nodes(self.network_graph,
+                                             dict(zip(self.network_graph.nodes(),standard_label_map)),copy=True)
+            self.network_graph = new_network_graph
+            self.network_positions = plotting.organize_nxgraph(self.network_graph)        
+
+        # if we want to relabel the nodes in this function call,
+        # then we will do so here
+            
         if len(label_map) > 0:
             new_network_color_dict = dict()
             for key in network_color_dict.keys():
@@ -972,6 +994,7 @@ class SimpleRiverNetwork:
             network_color_dict = new_network_color_dict
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
+            
 
         network_nodecolors = [network_color_dict[f'{node}'] for node in self.network_graph.nodes()]
         if node_color:
@@ -979,7 +1002,7 @@ class SimpleRiverNetwork:
 
         nx.draw_networkx(self.network_graph,self.network_positions,with_labels=with_labels,
                          node_size=node_size,font_size=font_size,font_weight=font_weight,node_shape=node_shape,
-                         linewidths=linewidths,font_color=font_color,node_color=network_nodecolors)
+                         linewidths=linewidths,font_color=font_color,node_color=network_nodecolors,edge_color=edge_color)
         if with_cbar:
             cbar = plt.colorbar(network_color_cbar)
             cbar.ax.tick_params(labelsize=cbar_labelsize)
