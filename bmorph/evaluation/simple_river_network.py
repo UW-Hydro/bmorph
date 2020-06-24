@@ -159,6 +159,11 @@ class SimpleRiverNetwork:
             these are in order of the seg_id_values
         pfaf_aggregate
             aggregates the flow network by one pfafstetter level
+        draw_network
+                plots the network through networkx
+        draw_multi_measure
+                plots several networkx plots of user specified transparency for a single
+                SimpleRiverNetwork to compare mutliple measures at once
         generate_mainstream_map
             creates a list of which nodes are part of the
             mainstream in order of the seg_id_values
@@ -949,7 +954,12 @@ class SimpleRiverNetwork:
     def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'),
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
-                     with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10,edge_color='k'):
+                     with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10,
+                     edge_color='k', alpha=1):
+        """
+            draw_network
+                plots the network through networkx
+        """
 
         if type(color_measure) != type(None):
             if type(color_measure) != pd.Series:
@@ -958,11 +968,10 @@ class SimpleRiverNetwork:
                 raise Exception("Color_measure size does not match number of nodes, double check measure aggregation.")
 
         network_color_dict, network_color_cbar = self.color_network_graph(color_measure,cmap)
-
-        # we need to make sure that if the nodes have been relabeled by a previous
-        # draw_network call, that we then restore
         
-        print('HELLO')
+        # we need to make sure that if the nodes have been relabeled by a previous
+        # draw_network call, that we then restore them to their original labels
+        # for future relabling
 
         expected_labels = list()
         current_labels = list()
@@ -971,7 +980,7 @@ class SimpleRiverNetwork:
             expected_labels.append(int(expected_label))
             current_labels.append(current_label)
             if match and (int(expected_label) != current_label):
-        
+                match = False
         if not match:
             # if the nodes have been relabeled from what we expect them to be
             # then we will adjust relabel them to their original values
@@ -982,6 +991,8 @@ class SimpleRiverNetwork:
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)        
 
+        
+        
         # if we want to relabel the nodes in this function call,
         # then we will do so here
             
@@ -1002,12 +1013,41 @@ class SimpleRiverNetwork:
 
         nx.draw_networkx(self.network_graph,self.network_positions,with_labels=with_labels,
                          node_size=node_size,font_size=font_size,font_weight=font_weight,node_shape=node_shape,
-                         linewidths=linewidths,font_color=font_color,node_color=network_nodecolors,edge_color=edge_color)
+                         linewidths=linewidths,font_color=font_color,node_color=network_nodecolors,
+                         edge_color=edge_color, alpha=alpha)
         if with_cbar:
             cbar = plt.colorbar(network_color_cbar)
             cbar.ax.tick_params(labelsize=cbar_labelsize)
         if not with_background:
             plt.axis('off')
+            
+    def draw_multi_measure(self, color_dict, label_map = [], 
+                     node_size = 200, font_size = 8, font_weight = 'bold', node_shape = 's', 
+                     linewidths = 2, font_color = 'w', alpha = 1.0,
+                     with_labels=False, with_cbar=False, with_background=True):
+        """
+            draw_multi_measure
+                plots several networkx plots of user specified transparency for a single
+                SimpleRiverNetwork to compare mutliple measures at once.
+            ----
+            color_dict:
+                a dictionary set up as {name: [pd.Series,cmap, alpha]}
+        """
+        # first we will double check that the alpha's do not sum to more than 1, for this
+        # may muddle the data
+
+        alpha_sum = 0
+        for color_key in color_dict.keys():
+            alpha_sum += color_dict[color_key][2]
+        
+        if alpha_sum > 1.0:
+            raise Exception("alpha values sum to more than 1.0, this may cover up data please revise")
+        else:
+            for color_key in color_dict.keys():
+                self.draw_network(label_map = label_map, color_measure=color_dict[color_key][0], cmap = color_dict[color_key][1], 
+                                  node_size=node_size, font_size=font_size, font_weight=font_weight, node_shape=node_shape, 
+                                  linewidths=linewidths, font_color=font_color, alpha=color_dict[color_key][2], with_labels=with_labels, 
+                                  with_cbar=with_cbar, with_background=with_background)
 
     def aggregate_measure_sum(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
         """
