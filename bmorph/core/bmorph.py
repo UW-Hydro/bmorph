@@ -70,6 +70,7 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
 
     # Given u_t and train_cdf determine train_x
     train_x = pd.np.percentile(train_cdf, u_t)
+    train_x[train_x < 1e-6] = 1e-6
 
     # Given u_t and truth_cdf determine truth_x
     truth_x = pd.np.percentile(truth_cdf, u_t)
