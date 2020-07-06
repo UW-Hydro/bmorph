@@ -3,7 +3,7 @@ import pandas as pd
 
 def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window,
-        window_size, n_smooth_long, n_smooth_short, train_on_year=False):
+        window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False):
     training_window = slice(*training_window)
     bmorph_window = slice(*bmorph_window)
     reference_window = slice(*reference_window)
@@ -32,9 +32,12 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
                                                    obs_ts, train_ts, training_window,
                                                    n_smooth_short))
     # Apply the correction
-    nrni_mean = obs_ts[reference_window].mean()
-    train_mean = train_ts[reference_window].mean()
-    bmorph_corr_ts = bmorph.bmorph_correct(raw_ts, bmorph_ts, raw_ts_window,
-                                           nrni_mean, train_mean,
-                                           n_smooth_long)
+    if n_smooth_long:
+        nrni_mean = obs_ts[reference_window].mean()
+        train_mean = train_ts[reference_window].mean()
+        bmorph_corr_ts = bmorph.bmorph_correct(raw_ts, bmorph_ts, raw_ts_window,
+                                               nrni_mean, train_mean,
+                                               n_smooth_long)
+    else:
+        bmorph_corr_ts = bmorph_ts
     return bmorph_corr_ts
