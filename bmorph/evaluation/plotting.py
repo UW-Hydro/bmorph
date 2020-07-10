@@ -729,3 +729,151 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
     nx.draw_networkx(topo_graph,topo_positions,node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = topo_nodecolors)
     plt.colorbar(topo_color_cbar)
+
+def plot_mean_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list, 
+                        raw_var='raw_flow', ref_var = 'reference_flow', bc_var = 'bias_corrected_total_flow',
+                        raw_name = 'Mizuroute Raw', ref_name = 'NRNI Reference', bc_name = 'BMORPH BC',
+                        fontsize_title=80, fontsize_legend=68, fontsize_subplot=60, 
+                        fontsize_tick = 45, fontcolor = 'black'):
+    """
+    Plot Mean Day of Year Flows
+        creates a series of subplots that plot an average year's flows
+        per gauge site
+    ---
+    flow_dataset: xr.Dataset
+        contatains raw, reference, and bias corrected flows
+    gauges_sites: list
+        a list of gauge sites to be plotted, cannot exceed 12
+    """
+    # since spacing parameters and font defaults are customized to the figure size,
+    # which is how the subplot grid is determined, we want to make sure we don't have
+    # more subplots to plot than we can plot
+    if len(gauge_sites) > 12:
+        raise Exception('Too many gauge sites entered. Please enter no more than 12 gauge sites.')
+    
+    raw_flow_yak_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).mean()
+    reference_flow_yak_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).mean()
+    bc_flow_yak_doy = flow_dataset[bc_var].groupby(flow_dataset['index'].dt.dayofyear).mean()
+
+    doy = raw_flow_yak_doy['dayofyear'].values
+    outlet_names = flow_dataset['outlet'].values
+    raw_flow_doy_df = pd.DataFrame(data=np.transpose(raw_flow_yak_doy.values), index=doy,columns=outlet_names)
+    reference_flow_doy_df = pd.DataFrame(data=reference_flow_yak_doy.values, index=doy,columns=outlet_names)
+    bc_flow_doy_df = pd.DataFrame(data=np.transpose(bc_flow_yak_doy.values), index=doy,columns=outlet_names)
+    
+    mpl.rcParams['figure.figsize'] = (70,30)
+    fig, axs = plt.subplots(4,3)
+
+    fig.suptitle(f'Annual Mean Flows (WY1952 to WY2007)', fontsize = fontsize_title, color=fontcolor, y=1.05)
+
+    for site, ax in zip(gauge_sites, axs.ravel()):
+        ax.plot(raw_flow_doy_df[site],color='grey', alpha = 0.8, lw=4)
+        ax.plot(reference_flow_doy_df[site],color='black', alpha = 0.8, lw=4)
+        ax.plot(bc_flow_doy_df[site],color='red', lw=4)
+        ax.set_title(site, fontsize=fontsize_subplot, color=fontcolor)
+        plt.setp(ax.spines.values(),color=fontcolor)
+        ax.tick_params(axis='both',colors=fontcolor,labelsize=fontsize_tick)
+        
+    if len(gauge_sites) < 12:
+        for ax_index in np.arange(len(gauge_sites),12):
+            axs.ravel().tolist()[ax_index].axis('off')
+
+    fig.text(0.5, -0.02, 'Day of Year', fontsize=fontsize_title, ha='center')
+    fig.text(-0.02, 0.5, 'Mean Day of Year Flow 'r'$(m^3/s)$', fontsize=fontsize_title, va='center',rotation='vertical')
+    plt.subplots_adjust(wspace=0.2, hspace= 0.5, left = 0.05, right = 0.8, top = 0.95)
+
+    fig.legend([raw_name, ref_name, bc_name],fontsize=fontsize_legend, loc='center right');
+    
+def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, start_year:str, end_year:str, 
+                                  relative_locations_triu: pd.DataFrame, basin_map_png, 
+                                  cmap=mpl.cm.get_cmap('coolwarm_r'), blank_plot_color='white', fontcolor='black',
+                                  fontsize_title=60, fontsize_tick = 30, fontsize_label = 45):
+    """
+    Plot Differences in Spearman Rank
+        creates a site-to-site rank correlation difference comparioson
+        plot with a map of the given basin
+    ----
+    flow_dataset: xr.Dataset
+        contains raw as 'raw_flow' and bias corrected as 'bias_corrected_total_flow'
+        flow values, times of the flow values, and the names of the sites where those
+        flow values exist
+    gauge_sites: list
+        a list of gauge sites to be plotted
+    start_year: str
+        string formatted as 'yyyy-mm-dd' to start rank correlation window
+    end_year: str
+        string formatted as 'yyyy-mm-dd' to end rank correlation winodw
+    relative_locations_triu: pd.DataFrame
+        denotes which sites are connected with a '1' and has the lower
+        triangle set to '0'
+    basin_map_png:
+        a png file containing the basin map with site values marked    
+    """
+    
+    
+    mpl.rcParams['figure.figsize'] = (40, 20)
+    cmap.set_under(color=blank_plot_color)
+
+    fig, ax = plt.subplots()
+    
+    if int(end_year[:4])-int(start_year[:4]) == 1:
+        fig.suptitle(f'WY{start_year[:4]}: 'r'$r_{s}(Q_{raw}) - r_{s}(Q_{bc})$', 
+                     fontsize=fontsize_title, color=fontcolor,x=0.6,y=0.95)
+    elif int(end_year[:4])-int(start_year[:4]) > 1:
+        end_WY = int(end_year[:4])-1
+        fig.suptitle(f'WY{start_year[:4]} to WY{end_WY}: 'r'$r_{s}(Q_{raw}) - r_{s}(Q_{bc})$', 
+                     fontsize=fontsize_title, color=fontcolor,x=0.6,y=0.95)
+    else:
+        raise Exception('Please check end_year is later than start_year')
+        
+    time_span = flow_dataset['time'].values
+    outlet_names = flow_dataset['outlet'].values
+        
+    raw_flow = pd.DataFrame(data=np.transpose(flow_dataset['raw_flow'].values), 
+                            index=time_span, columns=outlet_names)
+    ref_flow = pd.DataFrame(data=flow_dataset['reference_flow'].values, 
+                            index=time_span,columns=outlet_names)
+    bc_flow = pd.DataFrame(data=np.transpose(flow_dataset['bias_corrected_total_flow'].values), 
+                           index=time_span, columns=outlet_names)
+
+    raw_flow_spearman = filter_rank_corr(raw_flow.loc[start_year:end_year].corr(method='spearman'), 
+                                         rel_loc=relative_locations_triu)
+    bc_flow_spearman = filter_rank_corr(bc_flow.loc[start_year:end_year].corr(method='spearman'), 
+                                        rel_loc=relative_locations_triu)
+    raw_minus_bc_spearman = raw_flow_spearman - bc_flow_spearman
+
+    vmin = np.min(raw_minus_bc_spearman.min())
+    vmax = np.max(raw_minus_bc_spearman.max())
+    vextreme = vmax
+    if np.abs(vmin) > vextreme:
+        vextreme = np.abs(vmin)
+        
+    # -10 is used to ensure that the squares not to be plotted are marked as such by 
+    # the cmap's under values
+    vunder = np.abs(vmin)*-10
+
+    im = ax.imshow(raw_minus_bc_spearman.fillna(vunder), vmin=-vextreme, vmax=vextreme, cmap=cmap)
+    plt.setp(ax.spines.values(),color=fontcolor)
+    ax.tick_params(axis='both',colors=fontcolor)
+    ax.set_xticks(np.arange(0,12,1.0))
+    ax.set_yticks(np.arange(0,12,1.0))
+    ax.set_ylim(11.5,-0.5)
+    ax.set_xticklabels(gauge_sites,rotation='vertical',fontsize=fontsize_label)
+    ax.set_yticklabels(gauge_sites,fontsize=fontsize_tick);
+
+    cb = fig.colorbar(im, pad=0.01)
+    cb.ax.yaxis.set_tick_params(color=fontcolor, labelcolor=fontcolor,labelsize=fontsize_tick)
+    cb.outline.set_edgecolor(None)
+
+    fig.text(0.6, -0.02, 'Site Abbreviation', fontsize=fontsize_label, ha='center')
+    fig.text(0.32, 0.4, 'Site Abbreviation', fontsize=fontsize_label, va='center',rotation='vertical')
+
+    newax = fig.add_axes([0.295, 0.4, 0.49, 0.49], anchor = 'NE', zorder = 2)
+    newax.imshow(big_map_yak)
+    newax.axis('off')
+    newax.tick_params(axis='both')
+    newax.set_xticks([])
+    newax.set_yticks([])
+
+    plt.tight_layout
+    plt.show()
