@@ -875,5 +875,104 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, sta
     newax.set_xticks([])
     newax.set_yticks([])
 
-    plt.tight_layout
+    plt.tight_layout()
     plt.show()
+    
+def determine_row_col(n:int, pref_rows = True):
+    """
+    Determine Rows and Columns
+        calculates a rectangular subplot layout that
+        contains at least n subplots, some may need to
+        be turned off in plotting
+    ----
+    n: int
+        total number of plots
+    pref_rows: boolean
+        If True, and only a rectangular arrangment
+        is possible, then put the longer dimension
+        in n_rows. If False, then it is
+        placed in the n_columns
+    return: int, int
+        n_rows, n_columns
+    """
+    if n < 0:
+        raise Exception("Please enter a positive n")
+    
+    # use square root to test because we want a square
+    # arrangment
+    sqrt_n = np.sqrt(n)
+    int_sqrt_n = int(sqrt_n)
+    if sqrt_n == float(int_sqrt_n):
+        return int_sqrt_n, int_sqrt_n
+    elif int_sqrt_n*(int_sqrt_n+1)>=n:
+        # see if a rectangular orientation would work
+        # eg. sqrt(12) = 3.464, int(3.464) = 3
+        # 3*(3+1) = 3*4 = 12
+        if pref_rows:
+            return int_sqrt_n+1, int_sqrt_n 
+        else:
+            return int_sqrt_n, int_sqrt_n+1 
+    else:
+        # since sqrt(n)*sqrt(n) = n,
+        # (sqrt(n)+1)*sqrt(n) < n,
+        # then (sqrt(n)+1)^2 > n
+        return int_sqrt_n+1, int_sqrt_n+1 
+    
+def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, bc_flow: pd.DataFrame, 
+                       colors: list, title= 'Flow Residuals', fontsize_title=80, fontsize_legend=68, 
+                       fontsize_subplot=60, fontsize_tick = 45, fontcolor = 'black'):
+    """
+    Correction Scatter
+        Plots differences between the raw and reference flows on the horizontal
+        and differences between the bias corrected and refrerence on the vertical.
+        This compares corrections needed before and after the bias correction method
+        is applied.
+    ----
+    site_dict: dict {subgroup name: list of segments in subgroup}
+        how sites are to be seperated
+    raw_flow: pd.DataFrame
+        accesses the raw flows in the flow_dataset
+    ref_flow: pd.DataFrame
+        accesses the reference flows in the flow_dataset
+    bc_flow: pd.DataFrame
+        accesses the bias corrected flows in the flow_dataset
+    colors
+    """
+    num_plots = len(site_dict.keys())
+    n_rows, n_cols = determine_row_col(num_plots)
+    
+    mpl.rcParams['figure.figsize']=(60,40)
+                                       
+    fig,axs = plt.subplots(nrows=n_rows, ncols=n_cols)
+    plt.suptitle(title, fontsize= fontsize_title, color=fontcolor, y=1.05)
+                                       
+    ax_list = axs.ravel().tolist()
+    
+    before_bc = ref_flow-raw_flow
+    after_bc = ref_flow-bc_flow
+    
+    for i, site_group_key in enumerate(site_dict.keys()):
+        site_group = site_dict[site_group_key]
+        group_before_bc = before_bc.loc[:,site_group]
+        group_after_bc = after_bc.loc[:,site_group]
+        scatter_series_axes(group_before_bc,group_after_bc,label=site_group_key,
+                                     alpha=0.05, color=colors[i],ax=ax_list[i])
+        ax_list[i].set_title(site_group_key, fontsize=fontsize_subplot)
+        plt.setp(ax_list[i].spines.values(),color=fontcolor)
+        ax_list[i].tick_params(axis='both', colors=fontcolor, labelsize=fontsize_tick)
+        
+    # add 1:1 analysis line and hide plots that are not in use 
+    for i, ax in enumerate(axs.ravel()):
+        if i < num_plots:
+            bottom, top = ax.get_ylim()
+            left, right = ax.get_xlim()
+            ref_line_max = np.max([bottom, top, left, right])
+            ax.plot([0,ref_line_max], [0,ref_line_max], color='k', linestyle='--')
+        else:
+            ax.axis('off')
+    
+    fig.text(0.5, -0.04, r'$Q_{ref} - Q_{raw} \quad (m^3/s)$', ha='center', va = 'bottom', fontsize=fontsize_title);
+    fig.text(-0.02, 0.5, r'$Q_{ref} - Q_{bc} \quad (m^3/s)$', va='center', rotation = 'vertical', fontsize=fontsize_title);    
+    
+    plt.tight_layout()
+    plt.show
