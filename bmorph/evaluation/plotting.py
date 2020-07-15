@@ -730,9 +730,11 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = topo_nodecolors)
     plt.colorbar(topo_color_cbar)
 
-def plot_mean_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list, 
+def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list, 
+                        reduce_func=np.mean, vertical_label=f'Mean Day of Year Flow 'r'$(m^3/s)$',
                         raw_var='raw_flow', ref_var = 'reference_flow', bc_var = 'bias_corrected_total_flow',
                         raw_name = 'Mizuroute Raw', ref_name = 'NRNI Reference', bc_name = 'BMORPH BC',
+                        transpose_raw = True, transpose_ref = False, transpose_bc = True,
                         fontsize_title=80, fontsize_legend=68, fontsize_subplot=60, 
                         fontsize_tick = 45, fontcolor = 'black'):
     """
@@ -744,6 +746,22 @@ def plot_mean_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
         contatains raw, reference, and bias corrected flows
     gauges_sites: list
         a list of gauge sites to be plotted, cannot exceed 12
+    reduce_func: function
+        a function to apply to flows grouped by dayofyear,
+        default = np.mean
+    vertical_label: str
+        a string label for the vertical axis representing
+        the reduce_func, defaults as:
+        f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit np.mean
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    ref_var: str
+        the string to access the reference flows in flow_dataset
+    bc_var: str
+        the string to access the bias corrected flows in flow_dataset
+    transpose_*: boolean
+        does this flow Dataset need to be transposed to fit? (no need to
+        change unless prompted by error)
     """
     # since spacing parameters and font defaults are customized to the figure size,
     # which is how the subplot grid is determined, we want to make sure we don't have
@@ -751,15 +769,25 @@ def plot_mean_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
     if len(gauge_sites) > 12:
         raise Exception('Too many gauge sites entered. Please enter no more than 12 gauge sites.')
     
-    raw_flow_yak_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).mean()
-    reference_flow_yak_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).mean()
-    bc_flow_yak_doy = flow_dataset[bc_var].groupby(flow_dataset['index'].dt.dayofyear).mean()
+    raw_flow_yak_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+    reference_flow_yak_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+    bc_flow_yak_doy = flow_dataset[bc_var].groupby(flow_dataset['index'].dt.dayofyear).reduce(reduce_func)
 
     doy = raw_flow_yak_doy['dayofyear'].values
     outlet_names = flow_dataset['outlet'].values
-    raw_flow_doy_df = pd.DataFrame(data=np.transpose(raw_flow_yak_doy.values), index=doy,columns=outlet_names)
-    reference_flow_doy_df = pd.DataFrame(data=reference_flow_yak_doy.values, index=doy,columns=outlet_names)
-    bc_flow_doy_df = pd.DataFrame(data=np.transpose(bc_flow_yak_doy.values), index=doy,columns=outlet_names)
+    
+    if transpose_raw:
+        raw_flow_doy_df = pd.DataFrame(data=np.transpose(raw_flow_yak_doy.values), index=doy,columns=outlet_names)
+    else:
+        raw_flow_doy_df = pd.DataFrame(data=raw_flow_yak_doy.values, index=doy,columns=outlet_names)
+    if transpose_ref:
+        reference_flow_doy_df = pd.DataFrame(data=np.transpose(reference_flow_yak_doy.values), index=doy,columns=outlet_names)
+    else:
+        reference_flow_doy_df = pd.DataFrame(data=reference_flow_yak_doy.values, index=doy,columns=outlet_names)
+    if transpose_bc:
+        bc_flow_doy_df = pd.DataFrame(data=np.transpose(bc_flow_yak_doy.values), index=doy,columns=outlet_names)
+    else:
+        bc_flow_doy_df = pd.DataFrame(data=bc_flow_yak_doy.values, index=doy,columns=outlet_names)
     
     mpl.rcParams['figure.figsize'] = (70,30)
     fig, axs = plt.subplots(4,3)
@@ -779,7 +807,8 @@ def plot_mean_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
             axs.ravel().tolist()[ax_index].axis('off')
 
     fig.text(0.5, -0.02, 'Day of Year', fontsize=fontsize_title, ha='center')
-    fig.text(-0.02, 0.5, 'Mean Day of Year Flow 'r'$(m^3/s)$', fontsize=fontsize_title, va='center',rotation='vertical')
+    fig.text(-0.02, 0.5, vertical_label, 
+             fontsize=fontsize_title, va='center',rotation='vertical')
     plt.subplots_adjust(wspace=0.2, hspace= 0.5, left = 0.05, right = 0.8, top = 0.95)
 
     fig.legend([raw_name, ref_name, bc_name],fontsize=fontsize_legend, loc='center right');
