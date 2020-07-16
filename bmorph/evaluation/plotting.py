@@ -732,6 +732,7 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
 
 def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list, 
                         reduce_func=np.mean, vertical_label=f'Mean Day of Year Flow 'r'$(m^3/s)$',
+                        title_label=f'Annual Mean Flows (WY1952 to WY2007)',
                         raw_var='raw_flow', ref_var = 'reference_flow', bc_var = 'bias_corrected_total_flow',
                         raw_name = 'Mizuroute Raw', ref_name = 'NRNI Reference', bc_name = 'BMORPH BC',
                         transpose_raw = True, transpose_ref = False, transpose_bc = True,
@@ -763,11 +764,6 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
         does this flow Dataset need to be transposed to fit? (no need to
         change unless prompted by error)
     """
-    # since spacing parameters and font defaults are customized to the figure size,
-    # which is how the subplot grid is determined, we want to make sure we don't have
-    # more subplots to plot than we can plot
-    if len(gauge_sites) > 12:
-        raise Exception('Too many gauge sites entered. Please enter no more than 12 gauge sites.')
     
     raw_flow_yak_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
     reference_flow_yak_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
@@ -790,9 +786,10 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
         bc_flow_doy_df = pd.DataFrame(data=bc_flow_yak_doy.values, index=doy,columns=outlet_names)
     
     mpl.rcParams['figure.figsize'] = (70,30)
-    fig, axs = plt.subplots(4,3)
+    n_rows, n_cols = determine_row_col(len(gauge_sites))
+    fig, axs = plt.subplots(n_rows,n_cols)
 
-    fig.suptitle(f'Annual Mean Flows (WY1952 to WY2007)', fontsize = fontsize_title, color=fontcolor, y=1.05)
+    fig.suptitle(title_label, fontsize = fontsize_title, color=fontcolor, y=1.05)
 
     for site, ax in zip(gauge_sites, axs.ravel()):
         ax.plot(raw_flow_doy_df[site],color='grey', alpha = 0.8, lw=4)
@@ -802,8 +799,8 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
         plt.setp(ax.spines.values(),color=fontcolor)
         ax.tick_params(axis='both',colors=fontcolor,labelsize=fontsize_tick)
         
-    if len(gauge_sites) < 12:
-        for ax_index in np.arange(len(gauge_sites),12):
+    if len(gauge_sites) < n_rows*n_cols:
+        for ax_index in np.arange(len(gauge_sites),n_rows*n_cols):
             axs.ravel().tolist()[ax_index].axis('off')
 
     fig.text(0.5, -0.02, 'Day of Year', fontsize=fontsize_title, ha='center')
