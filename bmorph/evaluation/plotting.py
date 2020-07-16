@@ -884,9 +884,10 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, sta
     im = ax.imshow(raw_minus_bc_spearman.fillna(vunder), vmin=-vextreme, vmax=vextreme, cmap=cmap)
     plt.setp(ax.spines.values(),color=fontcolor)
     ax.tick_params(axis='both',colors=fontcolor)
-    ax.set_xticks(np.arange(0,12,1.0))
-    ax.set_yticks(np.arange(0,12,1.0))
-    ax.set_ylim(11.5,-0.5)
+    tick_tot = len(gauge_sites)
+    ax.set_xticks(np.arange(0,tick_tot,1.0))
+    ax.set_yticks(np.arange(0,tick_tot,1.0))
+    ax.set_ylim(tick_tot-0.5,-0.5)
     ax.set_xticklabels(gauge_sites,rotation='vertical',fontsize=fontsize_label)
     ax.set_yticklabels(gauge_sites,fontsize=fontsize_tick);
 
@@ -904,7 +905,7 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, sta
     newax.set_xticks([])
     newax.set_yticks([])
 
-    plt.tight_layout()
+    plt.tight_layout
     plt.show()
     
 def determine_row_col(n:int, pref_rows = True):
