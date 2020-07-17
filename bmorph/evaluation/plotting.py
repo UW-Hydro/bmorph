@@ -982,24 +982,27 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.Dat
         site_group = site_dict[site_group_key]
         group_before_bc = before_bc.loc[:,site_group]
         group_after_bc = after_bc.loc[:,site_group]
-        scatter_series_axes(group_before_bc,group_after_bc,label=site_group_key,
+        plotting.scatter_series_axes(group_before_bc,group_after_bc,label=site_group_key,
                                      alpha=0.05, color=colors[i],ax=ax_list[i])
         ax_list[i].set_title(site_group_key, fontsize=fontsize_subplot)
         plt.setp(ax_list[i].spines.values(),color=fontcolor)
         ax_list[i].tick_params(axis='both', colors=fontcolor, labelsize=fontsize_tick)
         
-    # add 1:1 analysis line and hide plots that are not in use 
+    # add horizontal axis at 0 line and hide plots that are not in use 
     for i, ax in enumerate(axs.ravel()):
         if i < num_plots:
             bottom, top = ax.get_ylim()
             left, right = ax.get_xlim()
             ref_line_max = np.max([bottom, top, left, right])
-            ax.plot([0,ref_line_max], [0,ref_line_max], color='k', linestyle='--')
+            ref_line_min = np.min([bottom, top, left, right])
+            ax.plot([ref_line_min,ref_line_max], [0,0], color='k', linestyle='--')
         else:
             ax.axis('off')
     
-    fig.text(0.5, -0.04, r'$Q_{ref} - Q_{raw} \quad (m^3/s)$', ha='center', va = 'bottom', fontsize=fontsize_title);
-    fig.text(-0.02, 0.5, r'$Q_{ref} - Q_{bc} \quad (m^3/s)$', va='center', rotation = 'vertical', fontsize=fontsize_title);    
+    fig.text(0.5, -0.04, r'$Q_{ref} - Q_{raw} \quad (m^3/s)$', ha='center', va = 'bottom', 
+             fontsize=fontsize_title, color=fontcolor);
+    fig.text(-0.02, 0.5, r'$Q_{ref} - Q_{bc} \quad (m^3/s)$', va='center', rotation = 'vertical', 
+             fontsize=fontsize_title, color=fontcolor);    
     
     plt.tight_layout()
     plt.show
