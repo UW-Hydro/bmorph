@@ -1104,3 +1104,63 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
     fig.text(-0.02, 0.5, 'Frequencey', 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
     plt.tight_layout()
+    
+    def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_site: str,
+                          start_year: int, end_year: int, ax=None, fontsize_title=40, 
+                          fontsize_labels=60, fontsize_tick= 30):
+    """
+    Plot Residual Overlay
+        plots residuals from each hydrologic year on top of each
+        other with a refence line at q=0
+    ----
+    flows: pd.DataFrame
+        contains all flows to be used in plotting
+    upstream_sites: list
+        contains strings of the site names stored in flows to
+        aggregate
+    downstream_sites: str
+        the name of the downstream site stored in flows that will
+        have the upstream_sites subtracted from it
+    start_year: int
+        the starting year to plot
+    end_year: int
+        the year to conclude on
+        
+    Returns: ax containing this plot
+    """
+    
+    mpl.rcParams['figure.figsize']=(20,20)
+    
+    if type(ax) == type(None): 
+        fig,ax = plt.subplots()
+
+    start_date='-10-01'
+    end_date='-09-30'
+
+    year = start_year
+    upstream_site_string = ""
+    
+    residual_flow = pd.DataFrame(index=flows.index, columns=['Residuals'])
+    
+    residual_flow['Residuals'] = flows[downstream_site].values
+    for upstream_site in upstream_sites:
+        residual_flow['Residuals'] -= flows[upstream_site].values
+        upstream_site_string += upstream_site + ", "
+        
+    upstream_site_string = upstream_site_string[:len(upstream_site_string)-2]
+    
+    while year<end_year:
+        values = residual_flow[f'{str(year)}{start_date}':f'{str(year+1)}{end_date}'].values
+        doy = np.arange(1,len(values)+1,1)
+        ax.plot(doy,values,color='red',alpha=0.3)
+        year += 1
+
+    ax.plot([1,366],[0,0],color='k',linestyle='--', lw=4)
+    ax.set_ylabel(r"$Q_{downstream}-\sum{Q_{upstream}}$""  "r"$(m^3/s)$", fontsize=fontsize_label);
+    ax.set_xlabel("Day of Year", fontsize=fontsize_label);
+    ax.set_title(f"Upstream: {upstream_site_string} | Downstream: {downstream_site}", 
+                 fontsize=fontsize_title, y=1.04);
+    ax.tick_params(axis='both',labelsize=fontsize_tick)
+    
+    return ax
+    
