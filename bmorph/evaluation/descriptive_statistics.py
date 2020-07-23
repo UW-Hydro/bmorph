@@ -55,6 +55,26 @@ def pbias(observe: pd.DataFrame, predict: pd.DataFrame) -> pd.DataFrame:
     pbdf = pbdf.to_frame().T
     return pbdf
 
+def pbias_by_index(observe:pd.DataFrame, predict:pd.DataFrame):
+    """
+    Percent by Index
+        computes percent bias at the same regularity
+        as the index using predict-obsererve assuming
+        aggregation has already been performed on both
+        DataFrames
+    ----
+    observe: pd.DataFrame
+        the observations
+    predict: pd.DataFrame
+        the predictions
+    
+    Returns: precent bias of predictions according to index
+        provided
+    """
+    pbdf = predict-observe
+    pbdf = 100*(pbdf/observe)
+    return pbdf
+
 
 def normalize_flow(data: pd.DataFrame) -> pd.DataFrame:
     """

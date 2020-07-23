@@ -947,7 +947,8 @@ def determine_row_col(n:int, pref_rows = True):
     
 def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, bc_flow: pd.DataFrame, 
                        colors: list, title= 'Flow Residuals', fontsize_title=80, fontsize_legend=68, 
-                       fontsize_subplot=60, fontsize_tick = 45, fontcolor = 'black'):
+                       fontsize_subplot=60, fontsize_tick = 45, fontcolor = 'black',
+                       pos_cone_guide=False, neg_cone_guide=False):
     """
     Correction Scatter
         Plots differences between the raw and reference flows on the horizontal
@@ -982,7 +983,7 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.Dat
         site_group = site_dict[site_group_key]
         group_before_bc = before_bc.loc[:,site_group]
         group_after_bc = after_bc.loc[:,site_group]
-        plotting.scatter_series_axes(group_before_bc,group_after_bc,label=site_group_key,
+        scatter_series_axes(group_before_bc,group_after_bc,label=site_group_key,
                                      alpha=0.05, color=colors[i],ax=ax_list[i])
         ax_list[i].set_title(site_group_key, fontsize=fontsize_subplot)
         plt.setp(ax_list[i].spines.values(),color=fontcolor)
@@ -995,7 +996,22 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.Dat
             left, right = ax.get_xlim()
             ref_line_max = np.max([bottom, top, left, right])
             ref_line_min = np.min([bottom, top, left, right])
-            ax.plot([ref_line_min,ref_line_max], [0,0], color='k', linestyle='--')
+            ref_line_ext = ref_line_max
+            if np.abs(ref_line_min) > ref_line_ext:
+                ref_line_ext = np.abs(ref_line_min)
+            ax.plot([-ref_line_ext,ref_line_ext], [0,0], color='k', linestyle='--')
+            
+            if pos_cone_guide and neg_cone_guide:
+                ax.plot([-ref_line_ext,ref_line_ext],[-ref_line_ext,ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext,ref_line_ext],[ref_line_ext,-ref_line_max], color='k', linestyle='--')
+            elif pos_cone_guide:
+                ax.plot([0,ref_line_ext],[0,ref_line_ext], color='k', linestyle='--')
+                ax.plot([0,ref_line_ext],[0,-ref_line_ext], color='k', linestyle='--')
+            elif neg_cone_guide:
+                ax.plot([0,-ref_line_ext],[0,ref_line_ext], color='k', linestyle='--')
+                ax.plot([0,-ref_line_ext],[0,-ref_line_ext], color='k', linestyle='--')
+            
+            
         else:
             ax.axis('off')
     
@@ -1006,3 +1022,85 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.Dat
     
     plt.tight_layout()
     plt.show
+
+def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, 
+                      bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='M'), total_bins=None,
+                      title_freq='Monthly', fontsize_title=90, fontsize_subplot_title=60, 
+                    fontsize_tick=40,fontsize_labels=84):
+    """
+    Percent Bias Difference Histogram
+        creates a number of histogram subplots by each given site that 
+        plot the difference in percent bias before and after bias correction 
+    ----
+    sites: list
+        a list of sites that are the columns of the flow DataFrames
+    colors: list
+        a list of colors to plot the sites with, (do not have to be different),
+        that are used in the same order as the list of sites
+    raw_flow: pd.DataFrame
+        contains the flows before bias correction
+    ref_flow: pd.DataFrame
+        contains the reference flows for comparison
+    bc_flow: pd.DataFrame
+        contains the flows after bias correction
+    grouper: pd.Grouper(freq='M')
+        how flows should be grouped for bia correction
+    total_bins: None
+        number of bins to use in the histogram plots. if none specified,
+        defaults to the square root of the number of pbias difference
+        values
+    title_freq: 'Monthly'
+        an adjective description of the frequency with which the flows are
+        grouped
+    """
+    
+    if len(sites) != len(colors):
+        raise Exception('Please enter the same number of colors as sites')
+    
+    mpl.rcParams['figure.figsize']=(60,40)
+
+    n_rows,n_cols = bmorph.plotting.determine_row_col(len(sites))
+
+    bc_m_pbias = pbias_by_index(
+        observe=ref_flow.groupby(grouper).sum(),
+        predict=bc_flow.groupby(grouper).sum())
+    raw_m_pbias = pbias_by_index(
+        observe=ref_flow.groupby(grouper).sum(),
+        predict=raw_flow.groupby(grouper).sum())
+
+    bc_pbias_impact = bc_m_pbias-raw_m_pbias
+    
+    if type(total_bins)==type(None):
+        total_bins=int(np.sqrt(len(bc_pbias_impact.index)))
+
+    fig, axs = plt.subplots(n_rows,n_cols)
+    axs_list = axs.ravel().tolist()
+
+    plt.suptitle(f"Change in Percent Bias from Bias Correction on a {title_freq} Basis",
+                 fontsize=fontsize_title,y=1.05)
+    i=0
+    for site in sites:
+        ax = axs_list[i]
+        site_bc_pbias_impact=bc_pbias_impact[site]
+        impact_extreme = np.max(np.abs(site_bc_pbias_impact))
+        bin_step = (2*impact_extreme/total_bins)
+        bin_range = np.arange(-impact_extreme,impact_extreme+bin_step,bin_step)
+
+        site_bc_pbias_impact.plot.hist(ax=ax,bins=bin_range,color=colors[i])
+        ax.vlines(0,0,ax.get_ylim()[1], color='k',linestyle='--',lw=4)
+        ax.set_xlim(left=-150,right=150)
+
+        ax.set_title(site,fontsize=fontsize_subplot_title)
+        ax.set_ylabel("")
+        ax.tick_params(axis='both',labelsize=fontsize_tick)
+        i+=1
+
+    while i < len(axs_list):
+        axs_list[i].axis('off')
+        i+=1
+
+    fig.text(0.5, -0.04, r'$(PBias_{BC})-(PBias_{raw}) \quad (\%)$', 
+             ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.02, 0.5, 'Frequencey', 
+             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+    plt.tight_layout()
