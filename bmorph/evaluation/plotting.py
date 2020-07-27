@@ -765,25 +765,25 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
         change unless prompted by error)
     """
     
-    raw_flow_yak_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    reference_flow_yak_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    bc_flow_yak_doy = flow_dataset[bc_var].groupby(flow_dataset['index'].dt.dayofyear).reduce(reduce_func)
+    raw_flow_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+    reference_flow_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+    bc_flow_doy = flow_dataset[bc_var].groupby(flow_dataset['index'].dt.dayofyear).reduce(reduce_func)
 
-    doy = raw_flow_yak_doy['dayofyear'].values
+    doy = raw_flow_doy['dayofyear'].values
     outlet_names = flow_dataset['outlet'].values
     
     if transpose_raw:
-        raw_flow_doy_df = pd.DataFrame(data=np.transpose(raw_flow_yak_doy.values), index=doy,columns=outlet_names)
+        raw_flow_doy_df = pd.DataFrame(data=np.transpose(raw_flow_doy.values), index=doy,columns=outlet_names)
     else:
-        raw_flow_doy_df = pd.DataFrame(data=raw_flow_yak_doy.values, index=doy,columns=outlet_names)
+        raw_flow_doy_df = pd.DataFrame(data=raw_flow_doy.values, index=doy,columns=outlet_names)
     if transpose_ref:
-        reference_flow_doy_df = pd.DataFrame(data=np.transpose(reference_flow_yak_doy.values), index=doy,columns=outlet_names)
+        reference_flow_doy_df = pd.DataFrame(data=np.transpose(reference_flow_doy.values), index=doy,columns=outlet_names)
     else:
-        reference_flow_doy_df = pd.DataFrame(data=reference_flow_yak_doy.values, index=doy,columns=outlet_names)
+        reference_flow_doy_df = pd.DataFrame(data=reference_flow_doy.values, index=doy,columns=outlet_names)
     if transpose_bc:
-        bc_flow_doy_df = pd.DataFrame(data=np.transpose(bc_flow_yak_doy.values), index=doy,columns=outlet_names)
+        bc_flow_doy_df = pd.DataFrame(data=np.transpose(bc_flow_doy.values), index=doy,columns=outlet_names)
     else:
-        bc_flow_doy_df = pd.DataFrame(data=bc_flow_yak_doy.values, index=doy,columns=outlet_names)
+        bc_flow_doy_df = pd.DataFrame(data=bc_flow_doy.values, index=doy,columns=outlet_names)
     
     mpl.rcParams['figure.figsize'] = (70,30)
     n_rows, n_cols = determine_row_col(len(gauge_sites))
@@ -896,7 +896,7 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, sta
     fig.text(0.32, 0.4, 'Site Abbreviation', fontsize=fontsize_label, va='center',rotation='vertical')
 
     newax = fig.add_axes([0.295, 0.4, 0.49, 0.49], anchor = 'NE', zorder = 2)
-    newax.imshow(big_map_yak)
+    newax.imshow(basin_map_png)
     newax.axis('off')
     newax.tick_params(axis='both')
     newax.set_xticks([])
@@ -1059,7 +1059,7 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
     
     mpl.rcParams['figure.figsize']=(60,40)
 
-    n_rows,n_cols = bmorph.plotting.determine_row_col(len(sites))
+    n_rows,n_cols = determine_row_col(len(sites))
 
     bc_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
@@ -1105,7 +1105,7 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
     plt.tight_layout()
     
-    def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_site: str,
+def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_site: str,
                           start_year: int, end_year: int, ax=None, fontsize_title=40, 
                           fontsize_labels=60, fontsize_tick= 30):
     """
@@ -1163,4 +1163,65 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
     ax.tick_params(axis='both',labelsize=fontsize_tick)
     
     return ax
+
+def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.DataFrame, colors = list,
+                            fontsize_title=60, fontsize_labels=40, fontsize_tick= 30):
+    """
+    Normalized Change in Annual Flow Volume
+        plots a series of subplots containing bar charts that depict
+        the differnece in normalized annual flow volume due to bias correction
+    ----
+    sites: list
+        contatins the string names of all the sites to be plotted, matching sites
+        contained in the DataFrames
+    before_bc: pd.DataFrame
+        contains flows, (not aggregated) before bias correction is applied
+    after_bc: pd.DataFrame
+        contains flows, (not aggregated) after bias correction is applied
+    colors: list
+        contains the colors to be used for each site's subplot in the same order
+        as sites, (does not have to be unique)    
+    """
     
+    mpl.rcParams['figure.figsize']=(30,20)    
+
+    WY_grouper = calc_water_year(before_bc)
+    after_bc_annual = after_bc.groupby(WY_grouper).sum()
+    before_bc_annual = before_bc.groupby(WY_grouper).sum()
+
+    after_bc_annual, before_bc_annual = dst.normalize_flow_pair(data=after_bc_annual, norming_data=before_bc_annual)
+
+    diff_annual = after_bc_annual - before_bc_annual
+
+    n_rows, n_cols = determine_row_col(len(sites))
+
+    fig, axs = plt.subplots(n_rows, n_cols)
+
+    plt.suptitle("Change in Annual Flow Volume from Bias Correction",
+                     fontsize=fontsize_title, y=1.05)
+
+    axs_list = axs.ravel().tolist()
+
+    i=0
+    for site in sites:
+        ax = axs_list[i]
+        ax.bar(diff_annual.index, diff_annual[site].values, color=color_list[i])
+        ax.set_title(site)
+        bottom, top = ax.get_ylim()
+        extreme = np.abs(top)
+        if np.abs(bottom) > extreme:
+            extreme = np.abs(bottom)
+        ax.set_ylim(top = extreme, bottom=-extreme)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+        i += 1
+
+    while i < len(axs_list):
+        axs_list[i].axis('off')
+        i += 1
+
+    fig.text(0.5, -0.04, 'Hydrologic Year', 
+                 ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.04, 0.5, "Normalized Change in Annual Flow Volume", 
+                 va='center', rotation = 'vertical', fontsize=fontsize_labels);
+
+    plt.tight_layout()

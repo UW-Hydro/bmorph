@@ -955,7 +955,7 @@ class SimpleRiverNetwork:
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
                      with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10,
-                     edge_color='k', alpha=1):
+                     edge_color='k', alpha=1, cbar_title = '', cbar_label_pad=40):
         """
             draw_network
                 plots the network through networkx
@@ -1018,6 +1018,7 @@ class SimpleRiverNetwork:
         if with_cbar:
             cbar = plt.colorbar(network_color_cbar)
             cbar.ax.tick_params(labelsize=cbar_labelsize)
+            cbar.set_label(cbar_title, rotation=270, labelpad=cbar_label_pad)
         if not with_background:
             plt.axis('off')
             
