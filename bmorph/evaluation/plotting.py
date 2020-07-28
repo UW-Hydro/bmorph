@@ -1107,7 +1107,7 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
     
 def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_site: str,
                           start_year: int, end_year: int, ax=None, fontsize_title=40, 
-                          fontsize_labels=60, fontsize_tick= 30):
+                          fontsize_labels=60, fontsize_tick= 30, linecolor='k', alpha=0.3):
     """
     Plot Residual Overlay
         plots residuals from each hydrologic year on top of each
@@ -1152,10 +1152,11 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
     while year<end_year:
         values = residual_flow[f'{str(year)}{start_date}':f'{str(year+1)}{end_date}'].values
         doy = np.arange(1,len(values)+1,1)
-        ax.plot(doy,values,color='red',alpha=0.3)
+        ax.plot(doy,values,color=linecolor,alpha=alpha)
         year += 1
 
     ax.plot([1,366],[0,0],color='k',linestyle='--', lw=4)
+    ax.set_xlim(left=1,right=366)
     ax.set_ylabel(r"$Q_{downstream}-\sum{Q_{upstream}}$""  "r"$(m^3/s)$", fontsize=fontsize_label);
     ax.set_xlabel("Day of Year", fontsize=fontsize_label);
     ax.set_title(f"Upstream: {upstream_site_string} | Downstream: {downstream_site}", 
@@ -1163,6 +1164,7 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
     ax.tick_params(axis='both',labelsize=fontsize_tick)
     
     return ax
+    
 
 def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.DataFrame, colors = list,
                             fontsize_title=60, fontsize_labels=40, fontsize_tick= 30):
