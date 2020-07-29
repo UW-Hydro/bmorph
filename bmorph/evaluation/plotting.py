@@ -1261,7 +1261,7 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
     
     mpl.rcParams['figure.figsize']=(60,40)
 
-    n_rows,n_cols = determine_row_col(len(sites))
+    n_rows,n_cols = bmorph.plotting.determine_row_col(len(sites))
 
     bc_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
@@ -1269,6 +1269,7 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
     raw_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
         predict=raw_flow.groupby(grouper).sum())
+    
     
     if type(total_bins)==type(None):
         total_bins=int(np.sqrt(len(bc_m_pbias.index)))
@@ -1286,7 +1287,7 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
         before_extreme = np.max(np.abs(before_pbias))
         after_extreme = np.max(np.abs(after_pbias))
         extreme=np.max([before_extreme,after_extreme])
-        bin_step = (2*extreme/bin_number)
+        bin_step = (2*extreme/total_bins)
         bin_range = np.arange(-extreme,extreme+bin_step,bin_step)
 
         before_pbias.plot.hist(ax=ax,bins=bin_range,color='red',edgecolor='black',alpha=0.5)
@@ -1308,8 +1309,8 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
              ha='center', va = 'bottom', fontsize=fontsize_labels);
     fig.text(-0.02, 0.5, 'Frequencey', 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
-    plt.legend(handles=custom_legend(['Before BC','After BC', 'Overlap'],['red','blue','purple']),
-               loc='lower right',fontsize=fontsize_labels)
+    plt.legend(handles=bmorph.plotting.custom_legend(['Before BC','After BC', 'Overlap'],['red','blue','purple']),
+           loc='lower right',fontsize=fontsize_labels)
     plt.tight_layout()
     
 def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list, 
@@ -1333,7 +1334,7 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
         the string to access the bias corrected flows in flow_dataset
     """
     
-    n_rows, n_cols = determine_row_col(len(gauge_sites))
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(gauge_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=False)
     axes = axes.flatten()
@@ -1378,7 +1379,7 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
         the string to access the bias corrected flows in flow_dataset
     """
     
-    n_rows, n_cols = determine_row_col(len(gauge_sites))
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(gauge_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=False)
     axes = axes.flatten()
@@ -1386,22 +1387,23 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
     fig.suptitle("Cumulative Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
 
     for i, site in enumerate(gauge_sites):
+        ax=axes[i]
         cmp = flow_dataset.sel(outlet=site)
         raw = ECDF(np.log(cmp[raw_var].values))
         ref = ECDF(np.log(cmp[ref_var].values))
         cor = ECDF(np.log(cmp[bc_var].values))
-        axes[i].plot(raw.x, raw.y, color='grey', label=raw_name)
-        axes[i].plot(ref.x, ref.y, color='black', label=ref_name)
-        axes[i].plot(cor.x, cor.y, color='red', label=bc_name)
-        axes[i].set_title(site)
+        ax.plot(raw.x, raw.y, color='grey', label=raw_name)
+        ax.plot(ref.x, ref.y, color='black', label=ref_name)
+        ax.plot(cor.x, cor.y, color='red', label=bc_name)
+        ax.set_title(site)
         ax.set_title(site, fontsize=fontsize_labels)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
 
     axes[-1].axis('off')
     axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
     
-    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_label)
+    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_labels)
     fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
-             rotation='vertical', fontsize=fontsize_label)
+             rotation='vertical', fontsize=fontsize_labels)
     
     plt.subplots_adjust(wspace=0.35, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
