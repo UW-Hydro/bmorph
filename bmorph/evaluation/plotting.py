@@ -13,6 +13,9 @@ from networkx.drawing.nx_agraph import graphviz_layout
 from bmorph.evaluation.constants import colors99p99
 from bmorph.evaluation import descriptive_statistics as dst
 
+from statsmodels.distributions.empirical_distribution import ECDF
+
+
 def custom_legend(names: List,colors=colors99p99):
     """
     Custom Legend
@@ -1227,3 +1230,178 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
                  va='center', rotation = 'vertical', fontsize=fontsize_labels);
 
     plt.tight_layout()
+
+def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, 
+                      bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='M'), total_bins=None,
+                      title_freq='Monthly', fontsize_title=90, fontsize_subplot_title=60, 
+                    fontsize_tick=40,fontsize_labels=84, x_extreme=150):
+    """
+    Percent Bias Comparison Histogram
+        creates a number of histogram subplots by each given sites that
+        plot percent bias both before and after bias correction
+    ----
+    sites: list
+        a list of sites that are the columns of the flow DataFrames
+    raw_flow: pd.DataFrame
+        contains the flows before bias correction
+    ref_flow: pd.DataFrame
+        contains the reference flows for comparison
+    bc_flow: pd.DataFrame
+        contains the flows after bias correction
+    grouper: pd.Grouper(freq='M')
+        how flows should be grouped for bia correction
+    total_bins: None
+        number of bins to use in the histogram plots. if none specified,
+        defaults to the square root of the number of pbias difference
+        values
+    title_freq: 'Monthly'
+        an adjective description of the frequency with which the flows are
+        grouped
+    """
+    
+    mpl.rcParams['figure.figsize']=(60,40)
+
+    n_rows,n_cols = determine_row_col(len(sites))
+
+    bc_m_pbias = pbias_by_index(
+        observe=ref_flow.groupby(grouper).sum(),
+        predict=bc_flow.groupby(grouper).sum())
+    raw_m_pbias = pbias_by_index(
+        observe=ref_flow.groupby(grouper).sum(),
+        predict=raw_flow.groupby(grouper).sum())
+    
+    if type(total_bins)==type(None):
+        total_bins=int(np.sqrt(len(bc_m_pbias.index)))
+
+    fig, axs = plt.subplots(n_rows,n_cols)
+    axs_list = axs.ravel().tolist()
+
+    plt.suptitle(f"Change in Percent Bias from Bias Correction on a {title_freq} Basis",
+                 fontsize=fontsize_title,y=1.05)
+    i=0
+    for site in sites:
+        ax = axs_list[i]
+        before_pbias=raw_m_pbias[site]
+        after_pbias=bc_m_pbias[site]
+        before_extreme = np.max(np.abs(before_pbias))
+        after_extreme = np.max(np.abs(after_pbias))
+        extreme=np.max([before_extreme,after_extreme])
+        bin_step = (2*extreme/bin_number)
+        bin_range = np.arange(-extreme,extreme+bin_step,bin_step)
+
+        before_pbias.plot.hist(ax=ax,bins=bin_range,color='red',edgecolor='black',alpha=0.5)
+        after_pbias.plot.hist(ax=ax,bins=bin_range,color='blue',edgecolor='black',alpha=0.5)
+        ax.vlines(0,0,ax.get_ylim()[1], color='k',linestyle='--',lw=4)
+        x_extreme = np.abs(x_extreme)
+        ax.set_xlim(left=-x_extreme,right=x_extreme)
+
+        ax.set_title(site,fontsize=fontsize_subplot_title)
+        ax.set_ylabel("")
+        ax.tick_params(axis='both',labelsize=fontsize_tick)
+        i+=1
+
+    while i < len(axs_list):
+        axs_list[i].axis('off')
+        i+=1
+
+    fig.text(0.5, -0.04, r'$PBias_{monthly} \quad (\%)$', 
+             ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.02, 0.5, 'Frequencey', 
+             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+    plt.legend(handles=custom_legend(['Before BC','After BC', 'Overlap'],['red','blue','purple']),
+               loc='lower right',fontsize=fontsize_labels)
+    plt.tight_layout()
+    
+def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list, 
+                raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
+                raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
+                fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
+    """
+    Compare Probability Distribution Functions
+        plots the PDF's of the raw, reference, and bias corrected flows
+        for each gauge site
+    ----
+    flow_dataset: xr.Dataset
+        contatains raw, reference, and bias corrected flows
+    gauges_sites: list
+        a list of gauge sites to be plotted
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    ref_var: str
+        the string to access the reference flows in flow_dataset
+    bc_var: str
+        the string to access the bias corrected flows in flow_dataset
+    """
+    
+    n_rows, n_cols = determine_row_col(len(gauge_sites))
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=False)
+    axes = axes.flatten()
+
+    fig.suptitle("Probability Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
+
+    for i, site in enumerate(gauge_sites):
+        cmp = flow_dataset.sel(outlet=site)
+        ax=axes[i]
+        sns.kdeplot(np.log(cmp[raw_var].values), ax=ax, color='grey', legend=False, label=raw_name)
+        sns.kdeplot(np.log(cmp[ref_var].values), ax=ax, color='black', legend=False, label=ref_name)
+        sns.kdeplot(np.log(cmp[bc_var].values), ax=ax, color='red', legend=False, label=bc_name)
+        ax.set_title(site, fontsize=fontsize_labels)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+
+    axes[-1].axis('off')
+    axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
+    
+    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_labels)
+    fig.text(-0.04, 0.5, r'Density', va='center', rotation='vertical', fontsize=fontsize_labels)
+    
+    plt.subplots_adjust(wspace=0.3, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
+    
+def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list, 
+                raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
+                raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
+                fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
+    """
+    Compare Probability Distribution Functions
+        plots the CDF's of the raw, reference, and bias corrected flows
+        for each gauge site
+    ----
+    flow_dataset: xr.Dataset
+        contatains raw, reference, and bias corrected flows
+    gauges_sites: list
+        a list of gauge sites to be plotted
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    ref_var: str
+        the string to access the reference flows in flow_dataset
+    bc_var: str
+        the string to access the bias corrected flows in flow_dataset
+    """
+    
+    n_rows, n_cols = determine_row_col(len(gauge_sites))
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=False)
+    axes = axes.flatten()
+
+    fig.suptitle("Cumulative Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
+
+    for i, site in enumerate(gauge_sites):
+        cmp = flow_dataset.sel(outlet=site)
+        raw = ECDF(np.log(cmp[raw_var].values))
+        ref = ECDF(np.log(cmp[ref_var].values))
+        cor = ECDF(np.log(cmp[bc_var].values))
+        axes[i].plot(raw.x, raw.y, color='grey', label=raw_name)
+        axes[i].plot(ref.x, ref.y, color='black', label=ref_name)
+        axes[i].plot(cor.x, cor.y, color='red', label=bc_name)
+        axes[i].set_title(site)
+        ax.set_title(site, fontsize=fontsize_labels)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+
+    axes[-1].axis('off')
+    axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
+    
+    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_label)
+    fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
+             rotation='vertical', fontsize=fontsize_label)
+    
+    plt.subplots_adjust(wspace=0.35, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
