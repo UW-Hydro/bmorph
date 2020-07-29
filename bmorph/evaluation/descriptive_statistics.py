@@ -55,6 +55,26 @@ def pbias(observe: pd.DataFrame, predict: pd.DataFrame) -> pd.DataFrame:
     pbdf = pbdf.to_frame().T
     return pbdf
 
+def pbias_by_index(observe:pd.DataFrame, predict:pd.DataFrame):
+    """
+    Percent by Index
+        computes percent bias at the same regularity
+        as the index using predict-obsererve assuming
+        aggregation has already been performed on both
+        DataFrames
+    ----
+    observe: pd.DataFrame
+        the observations
+    predict: pd.DataFrame
+        the predictions
+    
+    Returns: precent bias of predictions according to index
+        provided
+    """
+    pbdf = predict-observe
+    pbdf = 100*(pbdf/observe)
+    return pbdf
+
 
 def normalize_flow(data: pd.DataFrame) -> pd.DataFrame:
     """
@@ -77,6 +97,37 @@ def normalize_flow(data: pd.DataFrame) -> pd.DataFrame:
         normal_df[column] = column_series
 
     return normal_df
+
+def normalize_flow_pair(data: pd.DataFrame, norming_data: pd.DataFrame):
+    """
+    Normalize Flow By
+        normalizes two pd.DataFrames by one of them and returns
+        both normalized
+    ----
+    data: pd.DataFrame
+        contains flows to be normalized by the norming_data
+    norming_data: pd.DataFrame
+        contains flows to be normalized and to normalize data by
+    
+    Return: data_normed, norming_data_normed
+    """
+    data_normed = pd.DataFrame(index = data.index, columns = data.columns)
+    norming_normed = pd.DataFrame(index = norming_data.index, columns = norming_data.columns)
+    
+    for data_column, norming_column in zip(data.columns, norming_data.columns):
+        data_column_series = data[data_column]
+        norming_column_series = norming_data[data_column]
+        
+        min_x = norming_column_series.min()
+        max_x = norming_column_series.max()
+        
+        data_column_series = (data_column_series-min_x)/(max_x-min_x)
+        norming_column_series = (norming_column_series-min_x)/(max_x-min_x)
+        
+        data_normed[data_column] = data_column_series
+        norming_normed[norming_column] = norming_column_series
+    
+    return data_normed, norming_normed
 
 
 def mean_standardize_flow(data: pd.DataFrame) -> pd.DataFrame:

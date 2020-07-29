@@ -305,8 +305,8 @@ def create_lstm(train_shape: tuple, depth: int=1,
         model.add(LSTM(n_nodes))
 
     # Output layer is just one value
-    model.add(Dense(1, kernel_constraint=NonNeg()))
-    model.compile(loss=loss, optimizer='adam', metrics=make_metrics().values())
+    model.add(Dense(1, activation='relu', kernel_constraint=NonNeg()))
+    model.compile(loss=loss, optimizer='adam', metrics=list(make_metrics().values()))
     return model
 
 
@@ -352,8 +352,8 @@ def create_bidirectional_lstm(train_shape: tuple, depth: int=1,
         model.add(Bidirectional(LSTM(n_nodes)))
 
     # Output layer is just one value
-    model.add(Dense(1, kernel_constraint=NonNeg()))
-    model.compile(loss=loss, optimizer='adam', metrics=make_metrics().values())
+    model.add(Dense(1, activation='relu', kernel_constraint=NonNeg()))
+    model.compile(loss=loss, optimizer='adam', metrics=list(make_metrics().values()))
     return model
 
 
