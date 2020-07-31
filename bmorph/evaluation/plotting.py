@@ -1305,7 +1305,7 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
         axs_list[i].axis('off')
         i+=1
 
-    fig.text(0.5, -0.04, r'$PBias_{monthly} \quad (\%)$', 
+    fig.text(0.5, -0.04, f'PBias {title_freq}'r'$ \quad (\%)$', 
              ha='center', va = 'bottom', fontsize=fontsize_labels);
     fig.text(-0.02, 0.5, 'Frequencey', 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
