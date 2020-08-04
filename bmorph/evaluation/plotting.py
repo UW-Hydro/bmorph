@@ -1340,20 +1340,24 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     axes = axes.flatten()
 
     fig.suptitle("Probability Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
+    
 
     for i, site in enumerate(gauge_sites):
         cmp = flow_dataset.sel(outlet=site)
         ax=axes[i]
-        sns.kdeplot(np.log(cmp[raw_var].values), ax=ax, color='grey', legend=False, label=raw_name)
-        sns.kdeplot(np.log(cmp[ref_var].values), ax=ax, color='black', legend=False, label=ref_name)
-        sns.kdeplot(np.log(cmp[bc_var].values), ax=ax, color='red', legend=False, label=bc_name)
+        sns.kdeplot(np.log10(cmp[raw_var].values), ax=ax, color='grey', legend=False, label=raw_name)
+        sns.kdeplot(np.log10(cmp[ref_var].values), ax=ax, color='black', legend=False, label=ref_name)
+        sns.kdeplot(np.log10(cmp[bc_var].values), ax=ax, color='red', legend=False, label=bc_name)
         ax.set_title(site, fontsize=fontsize_labels)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
+        # relabel axis in scientific notation
+        labels = ax.get_xticks()
+        ax.set(xticklabels=["$10^{" + str(j) + "}$" for j in labels])
 
     axes[-1].axis('off')
     axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
     
-    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_labels)
+    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
     fig.text(-0.04, 0.5, r'Density', va='center', rotation='vertical', fontsize=fontsize_labels)
     
     plt.subplots_adjust(wspace=0.3, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
@@ -1389,20 +1393,23 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
     for i, site in enumerate(gauge_sites):
         ax=axes[i]
         cmp = flow_dataset.sel(outlet=site)
-        raw = ECDF(np.log(cmp[raw_var].values))
-        ref = ECDF(np.log(cmp[ref_var].values))
-        cor = ECDF(np.log(cmp[bc_var].values))
+        raw = ECDF(np.log10(cmp[raw_var].values))
+        ref = ECDF(np.log10(cmp[ref_var].values))
+        cor = ECDF(np.log10(cmp[bc_var].values))
         ax.plot(raw.x, raw.y, color='grey', label=raw_name)
         ax.plot(ref.x, ref.y, color='black', label=ref_name)
         ax.plot(cor.x, cor.y, color='red', label=bc_name)
         ax.set_title(site)
         ax.set_title(site, fontsize=fontsize_labels)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
+        # relabel axis in scientific notation
+        labels = ax.get_xticks()
+        ax.set(xticklabels=["$10^{" + str(j) + "}$" for j in labels])
 
     axes[-1].axis('off')
     axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
     
-    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_labels)
+    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
     fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
              rotation='vertical', fontsize=fontsize_labels)
     
