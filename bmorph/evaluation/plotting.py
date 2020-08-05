@@ -1524,3 +1524,72 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
               fontsize=fontsize_labels, loc='lower right')
 
     plt.tight_layout()
+    
+def compare_CDF_logit(flow_dataset:xr.Dataset, gauge_sites = list, 
+                raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
+                raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
+                fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
+    """
+    Compare Probability Distribution Functions
+        plots the CDF's of the raw, reference, and bias corrected flows
+        for each gauge site
+    ----
+    flow_dataset: xr.Dataset
+        contatains raw, reference, and bias corrected flows
+    gauges_sites: list
+        a list of gauge sites to be plotted
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    ref_var: str
+        the string to access the reference flows in flow_dataset
+    bc_var: str
+        the string to access the bias corrected flows in flow_dataset
+    """
+    
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(gauge_sites))
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=True)
+    axes = axes.flatten()
+
+    fig.suptitle("Cumulative Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
+
+    for i, site in enumerate(gauge_sites):
+        ax=axes[i]
+        cmp = flow_dataset.sel(outlet=site)
+        raw = ECDF(np.log10(cmp[raw_var].values))
+        ref = ECDF(np.log10(cmp[ref_var].values))
+        cor = ECDF(np.log10(cmp[bc_var].values))
+        markersize = 1
+        linewidth = markersize/2
+        alpha = 0.3
+        ax.plot(raw.x, raw.y, color='grey', label=raw_name, lw=linewidth,
+                linestyle='--', marker='o', markersize=markersize, alpha=alpha)
+        ax.plot(ref.x, ref.y, color='black', label=ref_name, lw=linewidth,
+                linestyle='--', marker='x', markersize=markersize, alpha=alpha)
+        ax.plot(cor.x, cor.y, color='red', label=bc_name, lw=linewidth,
+                linestyle='--', marker='*', markersize=markersize, alpha=alpha)
+        ax.set_title(site, fontsize=fontsize_labels)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+        # relabel axis in scientific notation
+        xlabels = ax.get_xticks()
+        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in xlabels], rotation=30)
+        
+        ax.set_yscale('logit')
+        ax.minorticks_off()
+        ax.yaxis.set_major_formatter(mpl.ticker.LogitFormatter())
+        ylabels = ax.get_yticks()
+        new_ylabels = list()
+        for j, ylabel in enumerate(ylabels):
+            if j%3 == 0:
+                new_ylabels.append(ylabel)
+        ax.set_yticks(ticks=new_ylabels)
+
+    axes[-1].axis('off')
+    axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
+    
+    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
+    fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
+             rotation='vertical', fontsize=fontsize_labels)
+    
+    
+    plt.subplots_adjust(hspace= 0.35, left = 0.05, right = 0.8, top = 0.95)
