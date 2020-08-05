@@ -4,6 +4,7 @@ import pandas as pd
 from typing import List
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import scipy
 
 import networkx as nx
 import graphviz as gv
@@ -1197,6 +1198,10 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     after_bc_annual, before_bc_annual = dst.normalize_flow_pair(data=after_bc_annual, norming_data=before_bc_annual)
 
     diff_annual = after_bc_annual - before_bc_annual
+    
+    max_mag = np.abs(np.max(diff_annual.max()))
+    min_mag = np.abs(np.min(diff_annual.min()))
+    extreme_mag = np.max([max_mag, min_mag])
 
     n_rows, n_cols = determine_row_col(len(sites))
 
@@ -1211,12 +1216,8 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     for site in sites:
         ax = axs_list[i]
         ax.bar(diff_annual.index, diff_annual[site].values, color=color_list[i])
-        ax.set_title(site)
-        bottom, top = ax.get_ylim()
-        extreme = np.abs(top)
-        if np.abs(bottom) > extreme:
-            extreme = np.abs(bottom)
-        ax.set_ylim(top = extreme, bottom=-extreme)
+        ax.set_title(site, fontsize=fontsize_tick)
+        ax.set_ylim(top = extreme_mag, bottom=-extreme_mag)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
         i += 1
 
@@ -1350,9 +1351,9 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
         sns.kdeplot(np.log10(cmp[bc_var].values), ax=ax, color='red', legend=False, label=bc_name)
         ax.set_title(site, fontsize=fontsize_labels)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
-        # relabel axis in scientific notation
+        # relabel axis in standard base 10
         labels = ax.get_xticks()
-        ax.set(xticklabels=["$10^{" + str(j) + "}$" for j in labels])
+        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in labels], rotation=30)
 
     axes[-1].axis('off')
     axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
@@ -1360,7 +1361,7 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
     fig.text(-0.04, 0.5, r'Density', va='center', rotation='vertical', fontsize=fontsize_labels)
     
-    plt.subplots_adjust(wspace=0.3, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
+    plt.subplots_adjust(wspace=0.3, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
     
 def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list, 
                 raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
@@ -1404,7 +1405,7 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
         ax.tick_params(axis='both', labelsize=fontsize_tick)
         # relabel axis in scientific notation
         labels = ax.get_xticks()
-        ax.set(xticklabels=["$10^{" + str(j) + "}$" for j in labels])
+        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in labels], rotation=30)
 
     axes[-1].axis('off')
     axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
@@ -1413,4 +1414,54 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
     fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
              rotation='vertical', fontsize=fontsize_labels)
     
-    plt.subplots_adjust(wspace=0.35, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
+    plt.subplots_adjust(wspace=0.35, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
+    
+def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFrame, site_pairings,
+                                 fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
+
+    
+    if np.where(raw_flows.index != bc_flows.index)[0].size != 0:
+        raise Exception('Please ensure raw_flows and bc_flows have the same index')
+        
+    WY_grouper = calc_water_year(raw_flows)
+
+    annual_spearman_difference = pd.DataFrame(index=np.arange(WY_grouper[0], WY_grouper[-1],1),
+                                             columns=[str(pairing) for pairing in site_pairings])
+    
+    for WY in annual_spearman_difference.index:
+        for site_pairing in site_pairings:
+            downstream = site_pairing[0]
+            upstream = site_pairing[1]
+
+            raw_flow_WY = raw_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
+            bc_flow_WY = bc_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
+
+            downstream_raw = raw_flow_WY[downstream]
+            upstream_raw = raw_flow_WY[upstream]
+            downstream_bc = bc_flow_WY[downstream]
+            upstream_bc = bc_flow_WY[upstream]
+
+            raw_spearman, raw_pvalue = scipy.stats.spearmanr(a=downstream_raw.values,b=upstream_raw.values)
+            bc_spearman, bc_pvalue = scipy.stats.spearmanr(a=downstream_bc.values,b=upstream_bc.values)
+            annual_spearman_difference.loc[WY][str(site_pairing)] = raw_spearman-bc_spearman
+
+    fig, ax = plt.subplots(figsize=(20,20))
+    plt.suptitle('Annual Change in Spearman Rank', fontsize=fontsize_title, y=1.05)
+
+    max_vert = np.max(annual_spearman_difference.max().values)*1.1
+    min_vert = np.min(annual_spearman_difference.min().values)*1.1
+    ax.axhline(y=0, color='black', linestyle='--')
+    ax.boxplot([annual_spearman_difference[site_pairing].values for 
+                site_pairing in annual_spearman_difference.columns],
+               labels=[f'{site_pairing[0]},\n{site_pairing[1]}' for site_pairing in site_pairings],
+              medianprops={'color':'red', 'lw':4}, boxprops={'lw':4}, whiskerprops={'lw':4}, capprops={'lw':4})
+
+    ax.set_ylim(top=max_vert, bottom=min_vert)
+    ax.tick_params(axis='both', labelsize=fontsize_tick)
+    
+    fig.text(0.5, -0.04, "Gauge Site Pairs: Downstream, Upstream", 
+                 ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.04, 0.5, r'$r_s(Q_{raw})-r_s(Q_{bc})$', 
+             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+
+    plt.tight_layout()
