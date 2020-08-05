@@ -1465,3 +1465,62 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
 
     plt.tight_layout()
+    
+def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFrame, bc_flows: pd.DataFrame,
+                                 sites: list, fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
+
+    WY_grouper = bmorph.plotting.calc_water_year(raw_flows)
+    WY_array = np.arange(WY_grouper[0], WY_grouper[-1], 1)
+
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(sites))
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(30,20), sharex=True,sharey=True)
+    axs_list = axs.ravel().tolist()
+
+    kldiv_refraw_annual = pd.DataFrame(index=WY_array, columns=yakima_sites)
+    kldiv_refbc_annual = pd.DataFrame(index=WY_array, columns=yakima_sites)
+    
+    plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize=fontsize_title, y=1.05)
+
+    for WY in WY_array:
+        raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        ref_flow_WY = ref_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        bc_flow_WY = bc_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        total_bins = int(np.sqrt(len(raw_flow_WY.index)))
+
+        for site in sites:
+            raw_WY_site_vals = raw_flow_WY[site].values
+            ref_WY_site_vals = ref_flow_WY[site].values
+            bc_WY_site_vals = bc_flow_WY[site].values
+
+            raw_WY_site_pdf = np.histogram(raw_WY_site_vals, bins=total_bins)[1]
+            ref_WY_site_pdf = np.histogram(ref_WY_site_vals, bins=total_bins)[1]
+            bc_WY_site_pdf = np.histogram(bc_WY_site_vals, bins=total_bins)[1]
+
+            kldiv_refraw_annual.loc[WY][site] = scipy.stats.entropy(pk=ref_WY_site_pdf, qk=raw_WY_site_pdf)
+            kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk=ref_WY_site_pdf, qk=bc_WY_site_pdf)
+
+    for i, site in enumerate(sites):
+        ax=axs_list[i]
+        kldiv_refraw_annual[site].plot(ax=ax, color='red', lw=3)
+        kldiv_refbc_annual[site].plot(ax=ax, color='blue', lw=3)
+        ax.set_title(site,fontsize=fontsize_labels)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+    
+    # gets rid of any spare axes
+    i += 1
+    while i < len(axs_list):
+        axs_list[i].axis('off')
+        i += 1
+    # ensures last axes is off to make room for the legend
+    axs_list[-1].axis('off')
+
+    fig.text(0.5, -0.04, "Hydrologic Year", 
+                 ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.04, 0.5, "Annual KL Divergence", 
+             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+    
+    plt.legend(handles=bmorph.plotting.custom_legend(
+        names=[r'$KL(P_{ref} || P_{raw})$', r'$KL( P_{ref} || P_{bc})$'], colors=['red','blue']),
+              fontsize=fontsize_labels, loc='lower right')
+
+    plt.tight_layout()
