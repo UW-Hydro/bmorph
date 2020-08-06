@@ -1233,8 +1233,8 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     plt.tight_layout()
 
 def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, 
-                      bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='M'), total_bins=None,
-                      title_freq='Monthly', fontsize_title=90, fontsize_subplot_title=60, 
+                      bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='Y'), total_bins=None,
+                      title_freq='Yearly', fontsize_title=90, fontsize_subplot_title=60, 
                     fontsize_tick=40,fontsize_labels=84, x_extreme=150):
     """
     Percent Bias Comparison Histogram
@@ -1418,7 +1418,19 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
     
 def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFrame, site_pairings,
                                  fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
-
+    
+    """
+    Spearman Rank Difference Boxplots Annual
+        creates box plots for each stide pairing determing the difference in spearman
+        rank for each year between the raw and bias corrected data
+    ----
+    raw_flows: pd.DataFrame
+        contains the raw flows with sites in the columns and time in the index
+    bc_flows: pd.DataFrame
+        conains the bias corrected flows with sites in the columns and time in the index
+    site_pairings: list of list of string site pairs
+        e.g. [['downstream_name','upstream_name'],...]
+    """
     
     if np.where(raw_flows.index != bc_flows.index)[0].size != 0:
         raise Exception('Please ensure raw_flows and bc_flows have the same index')
@@ -1429,12 +1441,12 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
                                              columns=[str(pairing) for pairing in site_pairings])
     
     for WY in annual_spearman_difference.index:
+        raw_flow_WY = raw_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
+        bc_flow_WY = bc_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
+            
         for site_pairing in site_pairings:
             downstream = site_pairing[0]
             upstream = site_pairing[1]
-
-            raw_flow_WY = raw_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
-            bc_flow_WY = bc_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
 
             downstream_raw = raw_flow_WY[downstream]
             upstream_raw = raw_flow_WY[upstream]
@@ -1468,6 +1480,21 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
     
 def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFrame, bc_flows: pd.DataFrame,
                                  sites: list, fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
+    """
+    Kullback Liebler Divergence Annual Comparison
+        plots the KL divergence for each year per site as
+        KL(P_{ref} || P_{raw}) and KL( P_{ref} || P_{bc})
+    ----
+    raw_flows: pd.DataFrame
+        contains the raw flows with sites in the columns and time in the index
+    ref_flows: pd.DataFrame
+        contains the reference flows with sites in the columns and time in the index
+    bc_flows: pd.DataFrame
+        contains the bias corrected flows with sites in the columns and time in the index
+    sites: list
+        contains all the sites to be plotted, (note that if the number of sites to be plotted
+        is square or rectangular, the last site will not be plotted to save room for the legend)    
+    """
 
     WY_grouper = bmorph.plotting.calc_water_year(raw_flows)
     WY_array = np.arange(WY_grouper[0], WY_grouper[-1], 1)
@@ -1530,9 +1557,9 @@ def compare_CDF_logit(flow_dataset:xr.Dataset, gauge_sites = list,
                 raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
                 fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
     """
-    Compare Probability Distribution Functions
+    Compare Probability Distribution Functions Logit
         plots the CDF's of the raw, reference, and bias corrected flows
-        for each gauge site
+        for each gauge site with a logit vertical axis
     ----
     flow_dataset: xr.Dataset
         contatains raw, reference, and bias corrected flows
