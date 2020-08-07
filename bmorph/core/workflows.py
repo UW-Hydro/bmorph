@@ -125,17 +125,5 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         
         bc_multipliers = bc_multipliers.append(bc_multiplier)
         bc_totals = bc_totals.append(bc_total)
-        
-    """
-    # Apply the correction
-    if n_smooth_long:
-        nrni_mean = obs_ts[reference_window].mean()
-        train_mean = train_ts[reference_window].mean()
-        bmorph_corr_ts = bmorph.bmorph_correct(raw_ts, bmorph_ts, raw_ts_window,
-                                               nrni_mean, train_mean,
-                                               n_smooth_long)
-    else:
-        bmorph_corr_ts = bmorph_ts
-    """
     
     return bc_totals, bc_multipliers

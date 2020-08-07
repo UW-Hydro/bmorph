@@ -1269,8 +1269,7 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
         predict=bc_flow.groupby(grouper).sum())
     raw_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
-        predict=raw_flow.groupby(grouper).sum())    
-
+        predict=raw_flow.groupby(grouper).sum())
     if type(total_bins)==type(None):
         total_bins=int(np.sqrt(len(bc_m_pbias.index)))
 
