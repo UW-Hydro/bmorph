@@ -951,6 +951,12 @@ class SimpleRiverNetwork:
             color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
             return color_dict, color_bar
 
+    def size_network_graph(self,measure):
+        segs = np.arange(0,len(self.seg_id_values))
+        size_vals = segs/len(segs)
+        size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)}
+        return size_dict
+
     def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'),
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
@@ -990,12 +996,10 @@ class SimpleRiverNetwork:
                                              dict(zip(self.network_graph.nodes(),standard_label_map)),copy=True)
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)        
-
-        
-        
+            
         # if we want to relabel the nodes in this function call,
         # then we will do so here
-            
+        
         if len(label_map) > 0:
             new_network_color_dict = dict()
             for key in network_color_dict.keys():
@@ -1005,7 +1009,6 @@ class SimpleRiverNetwork:
             network_color_dict = new_network_color_dict
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
-            
 
         network_nodecolors = [network_color_dict[f'{node}'] for node in self.network_graph.nodes()]
         if node_color:

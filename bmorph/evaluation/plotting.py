@@ -1234,7 +1234,7 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
 
 def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, 
                       bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='Y'), total_bins=None,
-                      title_freq='Yearly', fontsize_title=90, fontsize_subplot_title=60, 
+                      title_freq='Yearly', fontsize_title=90, fontsize_subplot_title=60,
                     fontsize_tick=40,fontsize_labels=84, x_extreme=150):
     """
     Percent Bias Comparison Histogram
@@ -1262,16 +1262,15 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
     
     mpl.rcParams['figure.figsize']=(60,40)
 
-    n_rows,n_cols = bmorph.plotting.determine_row_col(len(sites))
+    n_rows,n_cols = determine_row_col(len(sites))
 
     bc_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
         predict=bc_flow.groupby(grouper).sum())
     raw_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
-        predict=raw_flow.groupby(grouper).sum())
-    
-    
+        predict=raw_flow.groupby(grouper).sum())    
+
     if type(total_bins)==type(None):
         total_bins=int(np.sqrt(len(bc_m_pbias.index)))
 
@@ -1306,12 +1305,12 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
         axs_list[i].axis('off')
         i+=1
 
-    fig.text(0.5, -0.04, f'PBias {title_freq}'r'$ \quad (\%)$', 
+    fig.text(0.5, -0.04, r'$PBias_{monthly} \quad (\%)$', 
              ha='center', va = 'bottom', fontsize=fontsize_labels);
     fig.text(-0.02, 0.5, 'Frequencey', 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
-    plt.legend(handles=bmorph.plotting.custom_legend(['Before BC','After BC', 'Overlap'],['red','blue','purple']),
-           loc='lower right',fontsize=fontsize_labels)
+    plt.legend(handles=custom_legend(['Before BC','After BC', 'Overlap'],['red','blue','purple']),
+               loc='lower right',fontsize=fontsize_labels)
     plt.tight_layout()
     
 def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list, 
@@ -1335,13 +1334,12 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
         the string to access the bias corrected flows in flow_dataset
     """
     
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(gauge_sites))
+    n_rows, n_cols = determine_row_col(len(gauge_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=False)
     axes = axes.flatten()
 
     fig.suptitle("Probability Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
-    
 
     for i, site in enumerate(gauge_sites):
         cmp = flow_dataset.sel(outlet=site)
@@ -1384,7 +1382,7 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
         the string to access the bias corrected flows in flow_dataset
     """
     
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(gauge_sites))
+    n_rows, n_cols = determine_row_col(len(gauge_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=False)
     axes = axes.flatten()
@@ -1617,6 +1615,4 @@ def compare_CDF_logit(flow_dataset:xr.Dataset, gauge_sites = list,
     fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
     fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
              rotation='vertical', fontsize=fontsize_labels)
-    
-    
     plt.subplots_adjust(hspace= 0.35, left = 0.05, right = 0.8, top = 0.95)
