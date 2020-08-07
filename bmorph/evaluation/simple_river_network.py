@@ -996,11 +996,10 @@ class SimpleRiverNetwork:
                                              dict(zip(self.network_graph.nodes(),standard_label_map)),copy=True)
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)        
-
-        
-        
+            
         # if we want to relabel the nodes in this function call,
         # then we will do so here
+        
         if len(label_map) > 0:
             new_network_color_dict = dict()
             for key in network_color_dict.keys():

@@ -4,6 +4,7 @@ import pandas as pd
 from typing import List
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import scipy
 
 import networkx as nx
 import graphviz as gv
@@ -1197,6 +1198,10 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     after_bc_annual, before_bc_annual = dst.normalize_flow_pair(data=after_bc_annual, norming_data=before_bc_annual)
 
     diff_annual = after_bc_annual - before_bc_annual
+    
+    max_mag = np.abs(np.max(diff_annual.max()))
+    min_mag = np.abs(np.min(diff_annual.min()))
+    extreme_mag = np.max([max_mag, min_mag])
 
     n_rows, n_cols = determine_row_col(len(sites))
 
@@ -1211,12 +1216,8 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     for site in sites:
         ax = axs_list[i]
         ax.bar(diff_annual.index, diff_annual[site].values, color=color_list[i])
-        ax.set_title(site)
-        bottom, top = ax.get_ylim()
-        extreme = np.abs(top)
-        if np.abs(bottom) > extreme:
-            extreme = np.abs(bottom)
-        ax.set_ylim(top = extreme, bottom=-extreme)
+        ax.set_title(site, fontsize=fontsize_tick)
+        ax.set_ylim(top = extreme_mag, bottom=-extreme_mag)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
         i += 1
 
@@ -1232,8 +1233,8 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     plt.tight_layout()
 
 def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, 
-                      bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='M'), total_bins=None,
-                      title_freq='Monthly', fontsize_title=90, fontsize_subplot_title=60, 
+                      bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='Y'), total_bins=None,
+                      title_freq='Yearly', fontsize_title=90, fontsize_subplot_title=60,
                     fontsize_tick=40,fontsize_labels=84, x_extreme=150):
     """
     Percent Bias Comparison Histogram
@@ -1269,7 +1270,6 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
     raw_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
         predict=raw_flow.groupby(grouper).sum())
-    
     if type(total_bins)==type(None):
         total_bins=int(np.sqrt(len(bc_m_pbias.index)))
 
@@ -1286,7 +1286,7 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
         before_extreme = np.max(np.abs(before_pbias))
         after_extreme = np.max(np.abs(after_pbias))
         extreme=np.max([before_extreme,after_extreme])
-        bin_step = (2*extreme/bin_number)
+        bin_step = (2*extreme/total_bins)
         bin_range = np.arange(-extreme,extreme+bin_step,bin_step)
 
         before_pbias.plot.hist(ax=ax,bins=bin_range,color='red',edgecolor='black',alpha=0.5)
@@ -1343,19 +1343,22 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     for i, site in enumerate(gauge_sites):
         cmp = flow_dataset.sel(outlet=site)
         ax=axes[i]
-        sns.kdeplot(np.log(cmp[raw_var].values), ax=ax, color='grey', legend=False, label=raw_name)
-        sns.kdeplot(np.log(cmp[ref_var].values), ax=ax, color='black', legend=False, label=ref_name)
-        sns.kdeplot(np.log(cmp[bc_var].values), ax=ax, color='red', legend=False, label=bc_name)
+        sns.kdeplot(np.log10(cmp[raw_var].values), ax=ax, color='grey', legend=False, label=raw_name)
+        sns.kdeplot(np.log10(cmp[ref_var].values), ax=ax, color='black', legend=False, label=ref_name)
+        sns.kdeplot(np.log10(cmp[bc_var].values), ax=ax, color='red', legend=False, label=bc_name)
         ax.set_title(site, fontsize=fontsize_labels)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
+        # relabel axis in standard base 10
+        labels = ax.get_xticks()
+        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in labels], rotation=30)
 
     axes[-1].axis('off')
     axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
     
-    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_labels)
+    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
     fig.text(-0.04, 0.5, r'Density', va='center', rotation='vertical', fontsize=fontsize_labels)
     
-    plt.subplots_adjust(wspace=0.3, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
+    plt.subplots_adjust(wspace=0.3, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
     
 def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list, 
                 raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
@@ -1386,22 +1389,229 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
     fig.suptitle("Cumulative Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
 
     for i, site in enumerate(gauge_sites):
+        ax=axes[i]
         cmp = flow_dataset.sel(outlet=site)
-        raw = ECDF(np.log(cmp[raw_var].values))
-        ref = ECDF(np.log(cmp[ref_var].values))
-        cor = ECDF(np.log(cmp[bc_var].values))
-        axes[i].plot(raw.x, raw.y, color='grey', label=raw_name)
-        axes[i].plot(ref.x, ref.y, color='black', label=ref_name)
-        axes[i].plot(cor.x, cor.y, color='red', label=bc_name)
-        axes[i].set_title(site)
+        raw = ECDF(np.log10(cmp[raw_var].values))
+        ref = ECDF(np.log10(cmp[ref_var].values))
+        cor = ECDF(np.log10(cmp[bc_var].values))
+        ax.plot(raw.x, raw.y, color='grey', label=raw_name)
+        ax.plot(ref.x, ref.y, color='black', label=ref_name)
+        ax.plot(cor.x, cor.y, color='red', label=bc_name)
+        ax.set_title(site)
         ax.set_title(site, fontsize=fontsize_labels)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
+        # relabel axis in scientific notation
+        labels = ax.get_xticks()
+        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in labels], rotation=30)
 
     axes[-1].axis('off')
     axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
     
-    fig.text(0.4, 0.04, r'log(Q) [$m/s^3$]', ha='center', fontsize=fontsize_label)
+    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
     fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
-             rotation='vertical', fontsize=fontsize_label)
+             rotation='vertical', fontsize=fontsize_labels)
     
-    plt.subplots_adjust(wspace=0.35, hspace= 0.4, left = 0.05, right = 0.8, top = 0.95)
+    plt.subplots_adjust(wspace=0.35, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
+    
+def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFrame, site_pairings,
+                                 fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
+    
+    """
+    Spearman Rank Difference Boxplots Annual
+        creates box plots for each stide pairing determing the difference in spearman
+        rank for each year between the raw and bias corrected data
+    ----
+    raw_flows: pd.DataFrame
+        contains the raw flows with sites in the columns and time in the index
+    bc_flows: pd.DataFrame
+        conains the bias corrected flows with sites in the columns and time in the index
+    site_pairings: list of list of string site pairs
+        e.g. [['downstream_name','upstream_name'],...]
+    """
+    
+    if np.where(raw_flows.index != bc_flows.index)[0].size != 0:
+        raise Exception('Please ensure raw_flows and bc_flows have the same index')
+        
+    WY_grouper = calc_water_year(raw_flows)
+
+    annual_spearman_difference = pd.DataFrame(index=np.arange(WY_grouper[0], WY_grouper[-1],1),
+                                             columns=[str(pairing) for pairing in site_pairings])
+    
+    for WY in annual_spearman_difference.index:
+        raw_flow_WY = raw_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
+        bc_flow_WY = bc_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
+            
+        for site_pairing in site_pairings:
+            downstream = site_pairing[0]
+            upstream = site_pairing[1]
+
+            downstream_raw = raw_flow_WY[downstream]
+            upstream_raw = raw_flow_WY[upstream]
+            downstream_bc = bc_flow_WY[downstream]
+            upstream_bc = bc_flow_WY[upstream]
+
+            raw_spearman, raw_pvalue = scipy.stats.spearmanr(a=downstream_raw.values,b=upstream_raw.values)
+            bc_spearman, bc_pvalue = scipy.stats.spearmanr(a=downstream_bc.values,b=upstream_bc.values)
+            annual_spearman_difference.loc[WY][str(site_pairing)] = raw_spearman-bc_spearman
+
+    fig, ax = plt.subplots(figsize=(20,20))
+    plt.suptitle('Annual Change in Spearman Rank', fontsize=fontsize_title, y=1.05)
+
+    max_vert = np.max(annual_spearman_difference.max().values)*1.1
+    min_vert = np.min(annual_spearman_difference.min().values)*1.1
+    ax.axhline(y=0, color='black', linestyle='--')
+    ax.boxplot([annual_spearman_difference[site_pairing].values for 
+                site_pairing in annual_spearman_difference.columns],
+               labels=[f'{site_pairing[0]},\n{site_pairing[1]}' for site_pairing in site_pairings],
+              medianprops={'color':'red', 'lw':4}, boxprops={'lw':4}, whiskerprops={'lw':4}, capprops={'lw':4})
+
+    ax.set_ylim(top=max_vert, bottom=min_vert)
+    ax.tick_params(axis='both', labelsize=fontsize_tick)
+    
+    fig.text(0.5, -0.04, "Gauge Site Pairs: Downstream, Upstream", 
+                 ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.04, 0.5, r'$r_s(Q_{raw})-r_s(Q_{bc})$', 
+             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+
+    plt.tight_layout()
+    
+def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFrame, bc_flows: pd.DataFrame,
+                                 sites: list, fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
+    """
+    Kullback Liebler Divergence Annual Comparison
+        plots the KL divergence for each year per site as
+        KL(P_{ref} || P_{raw}) and KL( P_{ref} || P_{bc})
+    ----
+    raw_flows: pd.DataFrame
+        contains the raw flows with sites in the columns and time in the index
+    ref_flows: pd.DataFrame
+        contains the reference flows with sites in the columns and time in the index
+    bc_flows: pd.DataFrame
+        contains the bias corrected flows with sites in the columns and time in the index
+    sites: list
+        contains all the sites to be plotted, (note that if the number of sites to be plotted
+        is square or rectangular, the last site will not be plotted to save room for the legend)    
+    """
+
+    WY_grouper = bmorph.plotting.calc_water_year(raw_flows)
+    WY_array = np.arange(WY_grouper[0], WY_grouper[-1], 1)
+
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(sites))
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(30,20), sharex=True,sharey=True)
+    axs_list = axs.ravel().tolist()
+
+    kldiv_refraw_annual = pd.DataFrame(index=WY_array, columns=yakima_sites)
+    kldiv_refbc_annual = pd.DataFrame(index=WY_array, columns=yakima_sites)
+    
+    plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize=fontsize_title, y=1.05)
+
+    for WY in WY_array:
+        raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        ref_flow_WY = ref_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        bc_flow_WY = bc_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        total_bins = int(np.sqrt(len(raw_flow_WY.index)))
+
+        for site in sites:
+            raw_WY_site_vals = raw_flow_WY[site].values
+            ref_WY_site_vals = ref_flow_WY[site].values
+            bc_WY_site_vals = bc_flow_WY[site].values
+
+            raw_WY_site_pdf = np.histogram(raw_WY_site_vals, bins=total_bins)[1]
+            ref_WY_site_pdf = np.histogram(ref_WY_site_vals, bins=total_bins)[1]
+            bc_WY_site_pdf = np.histogram(bc_WY_site_vals, bins=total_bins)[1]
+
+            kldiv_refraw_annual.loc[WY][site] = scipy.stats.entropy(pk=ref_WY_site_pdf, qk=raw_WY_site_pdf)
+            kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk=ref_WY_site_pdf, qk=bc_WY_site_pdf)
+
+    for i, site in enumerate(sites):
+        ax=axs_list[i]
+        kldiv_refraw_annual[site].plot(ax=ax, color='red', lw=3)
+        kldiv_refbc_annual[site].plot(ax=ax, color='blue', lw=3)
+        ax.set_title(site,fontsize=fontsize_labels)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+    
+    # gets rid of any spare axes
+    i += 1
+    while i < len(axs_list):
+        axs_list[i].axis('off')
+        i += 1
+    # ensures last axes is off to make room for the legend
+    axs_list[-1].axis('off')
+
+    fig.text(0.5, -0.04, "Hydrologic Year", 
+                 ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.04, 0.5, "Annual KL Divergence", 
+             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+    
+    plt.legend(handles=bmorph.plotting.custom_legend(
+        names=[r'$KL(P_{ref} || P_{raw})$', r'$KL( P_{ref} || P_{bc})$'], colors=['red','blue']),
+              fontsize=fontsize_labels, loc='lower right')
+
+    plt.tight_layout()
+    
+def compare_CDF_logit(flow_dataset:xr.Dataset, gauge_sites = list, 
+                raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
+                raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
+                fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
+    """
+    Compare Probability Distribution Functions Logit
+        plots the CDF's of the raw, reference, and bias corrected flows
+        for each gauge site with a logit vertical axis
+    ----
+    flow_dataset: xr.Dataset
+        contatains raw, reference, and bias corrected flows
+    gauges_sites: list
+        a list of gauge sites to be plotted
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    ref_var: str
+        the string to access the reference flows in flow_dataset
+    bc_var: str
+        the string to access the bias corrected flows in flow_dataset
+    """
+    
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(gauge_sites))
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=True)
+    axes = axes.flatten()
+
+    fig.suptitle("Cumulative Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
+
+    for i, site in enumerate(gauge_sites):
+        ax=axes[i]
+        cmp = flow_dataset.sel(outlet=site)
+        raw = ECDF(np.log10(cmp[raw_var].values))
+        ref = ECDF(np.log10(cmp[ref_var].values))
+        cor = ECDF(np.log10(cmp[bc_var].values))
+        markersize = 1
+        linewidth = markersize/2
+        alpha = 0.3
+        ax.plot(raw.x, raw.y, color='grey', label=raw_name, lw=linewidth,
+                linestyle='--', marker='o', markersize=markersize, alpha=alpha)
+        ax.plot(ref.x, ref.y, color='black', label=ref_name, lw=linewidth,
+                linestyle='--', marker='x', markersize=markersize, alpha=alpha)
+        ax.plot(cor.x, cor.y, color='red', label=bc_name, lw=linewidth,
+                linestyle='--', marker='*', markersize=markersize, alpha=alpha)
+        ax.set_title(site, fontsize=fontsize_labels)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+        # relabel axis in scientific notation
+        xlabels = ax.get_xticks()
+        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in xlabels], rotation=30)
+        
+        ax.set_yscale('logit')
+        ax.minorticks_off()
+        ax.yaxis.set_major_formatter(mpl.ticker.LogitFormatter())
+        ylabels = ax.get_yticks()
+        new_ylabels = list()
+        for j, ylabel in enumerate(ylabels):
+            if j%3 == 0:
+                new_ylabels.append(ylabel)
+        ax.set_yticks(ticks=new_ylabels)
+
+    axes[-1].axis('off')
+    axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
+    
+    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
+    fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
+             rotation='vertical', fontsize=fontsize_labels)
+    plt.subplots_adjust(hspace= 0.35, left = 0.05, right = 0.8, top = 0.95)
