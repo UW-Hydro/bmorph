@@ -110,21 +110,21 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                                                 truth_upstream_ts, train_upstream_ts,
                                                 training_window, n_smooth_short
                                                )
-        bc_up_multipliers = bc_up_multipliers.append(bc_up_mult.to_xarray())
-        bc_up_totals = bc_up_totals.append(bc_up_total.to_xarray())
+        bc_up_multipliers = bc_up_multipliers.append(bc_up_mult)
+        bc_up_totals = bc_up_totals.append(bc_up_total)
         
         bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
                                                     raw_bmorph_window,
                                                     truth_dowsntream_ts, train_downstream_ts,
                                                    training_window, n_smooth_short)
-        bc_down_multipliers = bc_down_multipliers.append(bc_down_mult.to_xarray())
-        bc_down_totals = bc_down_totals.append(bc_down_total.to_xarray())
+        bc_down_multipliers = bc_down_multipliers.append(bc_down_mult)
+        bc_down_totals = bc_down_totals.append(bc_down_total)
         
         bc_multiplier = (blend_factor * bc_up_mult) + ((1 - blend_factor) * bc_down_mult)
         bc_total = (blend_factor * bc_up_total) + ((1 - blend_factor) * bc_down_total)
         
-        bc_multipliers = bc_multipliers.append(bc_multiplier.to_xarray())
-        bc_totals = bc_totals.append(bc_total.to_xarray())
+        bc_multipliers = bc_multipliers.append(bc_multiplier)
+        bc_totals = bc_totals.append(bc_total)
         
     """
     # Apply the correction
