@@ -9,11 +9,72 @@ sample. The resulting 'bmorph' sample should then be consistent with the
 'truth' sample.
 """
 
+import numpy as np
 import pandas as pd
 import scipy.stats
+from sklearn.neighbors import KernelDensity
 
 # Done fail silently on divide by zero, but raise an error instead
 pd.np.seterr(divide='raise')
+
+
+
+def kde2D(x, y, xbins=200, ybins=10, **kwargs):
+    """ Estimate a 2 dimensional pdf via kernel density estimation """
+    xx, yy = np.mgrid[x.min():x.max():(xbins * 1j), y.min():y.max():(ybins * 1j)]
+    xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
+    xy_train  = np.vstack([y, x]).T
+    kde = KernelDensity(**kwargs)
+    kde.fit(xy_train)
+    # should this be exponential'd?
+    z = np.exp(kde.score_samples(xy_sample))
+    return xx[:, 0], yy[0, :], np.reshape(z, yy.shape)
+
+
+def pdf_to_cdf(z):
+    """Take an un-normalized density function and turn it into a CDF"""
+    z = np.cumsum(z)
+    z /= z[-1]
+    return z
+
+
+def marginalize_cdf(x, y, z, val):
+    """Find the marginalized cdf by computing cumsum(P(x|y=val))"""
+    loc = np.argmin(np.abs(val - y))
+    z_vals = pdf_to_cdf(z[:, loc])
+    return z_vals
+
+
+def mdcdedcdfm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
+               raw_y: pd.Series, train_y: pd.Series, truth_y: pd.Series=None,
+               bw=3, xbins=200, ybins=10) -> pd.Series:
+    """
+    multiDimensional ConDitional EquiDistant CDF matching function
+    \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
+                            - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
+    """
+    if truth_y is None:
+        truth_y = train_y
+
+    x_raw, y_raw, z_raw = kde2D(raw_x, raw_y, xbins=xbins, ybins=ybins, bandwidth=bw)
+    x_train, y_train, z_train = kde2D(train_x, train_y, xbins=xbins, ybins=ybins, bandwidth=bw)
+    x_truth, y_truth, z_truth = kde2D(truth_x, truth_y, xbins=xbins, ybins=ybins, bandwidth=bw)
+
+    raw_marginal_cdfs = np.vstack([marginalize_cdf(x_raw, y_raw, z_raw, m) for m in raw_y]).T
+    u_t = [raw_marginal_cdfs[np.argmin(np.abs(x - x_raw)), i] for i, x in enumerate(raw_x)]
+
+    train_marginal_cdfs = np.vstack([marginalize_cdf(x_train, y_train, z_train, m)
+                                     for m in train_y])
+    mapped_train_x = np.array([x_train[np.argmin(np.abs(u - train_marginal_cdfs[i, :]))]
+                               for i, u in enumerate(u_t)])
+
+    truth_marginal_cdfs = np.vstack([marginalize_cdf(x_truth, y_truth, z_truth, m)
+                                     for m in truth_y])
+    mapped_truth_x = np.array([x_truth[np.argmin(np.abs(u - truth_marginal_cdfs[i, :]))]
+                               for i, u in enumerate(u_t)])
+
+    multiplier = pd.Series(mapped_truth_x / mapped_train_x, index=raw_x.index)
+    return multiplier
 
 
 def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
