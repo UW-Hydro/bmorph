@@ -1,10 +1,11 @@
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import pandas as pd
 from typing import List
-from plotting import find_upstream
-import plotting
+from bmorph.evaluation.plotting import find_upstream
+from bmorph.evaluation import plotting
 import networkx as nx
 
 class SegNode():
@@ -52,16 +53,16 @@ class SegNode():
 
     def __eq__(self, other):
         if isinstance(other, SegNode):
-            return (self.seg_id == other.seg_id) 
-        and (self.pfaf_code==other.pfaf_code) 
-        and (self.basin_area==other.basin_area)
-        
+            return ((self.seg_id == other.seg_id)
+                    and (self.pfaf_code==other.pfaf_code)
+                    and (self.basin_area==other.basin_area))
+
     def __iter__(self):
         yield self
         for upstream in self.upstream:
             for node in upstream:
                 yield node
-                
+
 
 class SimpleRiverNetwork:
     """
@@ -158,28 +159,75 @@ class SimpleRiverNetwork:
             these are in order of the seg_id_values
         pfaf_aggregate
             aggregates the flow network by one pfafstetter level
+        draw_network
+                plots the network through networkx
+        draw_multi_measure
+                plots several networkx plots of user specified transparency for a single
+                SimpleRiverNetwork to compare mutliple measures at once
+        generate_mainstream_map
+            creates a list of which nodes are part of the
+            mainstream in order of the seg_id_values
+        generate_pfaf_color_map
+            creates a pd.Series to assign a unqiue color to each
+            first level pfafstetter basin
+        generate_node_highlight_map
+            takes a list of seg_ids and creats a pd.Series
+            that highlights the nodes in the list
+        reconstruct_adj_mat
+            rebuilds the adjacency matrix from an existing flow tree
+        pfaf_aggregate
+            aggregates the flow network by one pfafstetter level
+        aggregate_measure_sum
+            determines the sum measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_mean
+            determines the mean measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_median
+            determines the median measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_max
+            determines the maximum measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure_min
+            determines the minimum measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        aggregate_measure
+            aggregates the measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        spawn_srn
+            creates a new SimpleRiverNetwork from that
+            given network and upstream of it
     """
-    def __init__(self, topo: xr.Dataset, pfaf_seed = int):
+    def __init__(self, topo: xr.Dataset, pfaf_seed = int, outlet_index = 0, max_pfaf_level=42):
         self.topo = topo
         self.seg_id_values = topo['seg_id'].values
-        self.outlet = SegNode(seg_id=self.seg_id_values[0], pfaf_code=str(pfaf_seed))
+        self.outlet = SegNode(seg_id=self.seg_id_values[outlet_index], pfaf_code=str(pfaf_seed))
+
         self.update_node_area(self.outlet)
 
         N = topo.dims['seg']
         self.adj_mat = np.zeros(shape=(N, N), dtype=int)
 
         self.parse_upstream(self.outlet)
-        self.encode_pfaf(self.outlet)
+        self.encode_pfaf(self.outlet,max_level=max_pfaf_level)
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
+
         self.clear_end_markers(self.outlet)
-    
-    
+
+
     def __eq__(self, other):
         if isinstance(other, SimpleRiverNetwork):
             return self.branch_eq_(self.outlet,other.outlet)
-            
-            
+
+
     def branch_eq_(self, node_self, node_other, match=True):
         """
         branch_eq_
@@ -201,7 +249,7 @@ class SimpleRiverNetwork:
         """
         # we are settng the default agrument to True and
         # will change it only to false throughout the code
-        # so we know there are no False statements that 
+        # so we know there are no False statements that
         # are overriden (i.e. no False Falses)
         if node_self == node_other and match:
             if node_self.upstream and node_other.upstream:
@@ -212,10 +260,10 @@ class SimpleRiverNetwork:
                 # doesn't and is therefor inequivalent
                 match = False
         else:
-            # meaning the nodes don't match 
+            # meaning the nodes don't match
             # or a mismatch was already found
             match = False
-            
+
         return match
 
     def parse_upstream(self, node: SegNode):
@@ -240,8 +288,8 @@ class SimpleRiverNetwork:
             self.update_node_area(upstream_node)
             node.upstream.append(upstream_node)
             self.parse_upstream(upstream_node)
-    
-    
+
+
     def collect_upstream_nodes(self, node:SegNode):
         """
         collect_upstream_nodes
@@ -271,7 +319,7 @@ class SimpleRiverNetwork:
         """
         self.adj_mat = np.zeros(shape = (0))
         self.outlet.upstream = list()
-    
+
     def clear_end_markers(self,node):
         """
         clear_end_markers
@@ -282,7 +330,7 @@ class SimpleRiverNetwork:
             node.end_marker = False
             for upstream in node.upstream:
                 self.clear_end_markers(upstream)
-        
+
     def clear_end_markers(self,node):
         """
         clear_end_markers
@@ -323,12 +371,12 @@ class SimpleRiverNetwork:
         net_area = 0
         if node and not node.end_marker:
             net_area = node.basin_area
-            
-            for upstream_node in node.upstream:       
-                try:      
-                    net_area += self.net_upstream_area(upstream_node)              
-                except RecursionError as e:                  
-                    print(node, '\n', node.upstream,"\n", upstream_node,"\n", net_area)         
+
+            for upstream_node in node.upstream:
+                try:
+                    net_area += self.net_upstream_area(upstream_node)
+                except RecursionError as e:
+                    print(node, '\n', node.upstream,"\n", upstream_node,"\n", net_area)
                     raise RecursionError('no')
 
         return net_area
@@ -362,7 +410,7 @@ class SimpleRiverNetwork:
                 end_marker_ahead = True
 
         return end_marker_ahead
-    
+
     def count_net_upstream(self,node:SegNode):
         """
         count_net_upstream
@@ -380,7 +428,7 @@ class SimpleRiverNetwork:
             for upstream_node in node.upstream:
                 count += self.count_net_upstream(upstream_node)
         return count
-    
+
     def find_branch(self, node:SegNode):
         """
         find_branch
@@ -432,7 +480,7 @@ class SimpleRiverNetwork:
                     return result
                 else:
                     return None
-                
+
     def find_like_pfaf(self, node:SegNode, target_pfaf_digits: list, degree:int):
         """
         find_like_pfaf
@@ -473,7 +521,7 @@ class SimpleRiverNetwork:
             node.pfaf_code += str(pfaf_digit)
             for upstream_node in node.upstream:
                 self.append_pfaf(upstream_node, pfaf_digit)
-                
+
     def append_sequential(self, sequence, base=''):
         """
         append_sequential
@@ -546,7 +594,7 @@ class SimpleRiverNetwork:
                 node = mainstream_node
 
         return mainstreams, tributaries
-    
+
     def find_tributary_basins(self, tributaries):
         """
         find_tributary_basins
@@ -588,7 +636,7 @@ class SimpleRiverNetwork:
             #b) you had excatly the max number (4)
             #c) there were less than 4 and you dont need more
             return tributaries
-        
+
     def encode_pfaf(self, root_node = SegNode, level=0, max_level=42):
         """
         encode_pfaf
@@ -674,7 +722,7 @@ class SimpleRiverNetwork:
 
             for sn in snodes:
                 self.append_sequential(sn, base='')
-                
+
     def sort_by_pfaf(self,nodes:list,degree=int):
         """
         sort_by_pfaf
@@ -699,7 +747,7 @@ class SimpleRiverNetwork:
                 index += 1
             digit -= 1
         return sorted_nodes
-    
+
     def generate_pfaf_map(self):
         """
         generate_pfaf_map
@@ -714,7 +762,7 @@ class SimpleRiverNetwork:
             if node:
                 pfaf_map.append(f'{int(node.seg_id)}-{node.pfaf_code}')
         return pfaf_map
-    
+
     def generate_pfaf_codes(self):
         """
         generate_pfaf_codes
@@ -726,7 +774,7 @@ class SimpleRiverNetwork:
             node = self.find_node(seg_id, self.outlet)
             pfaf_map.append(int(node.pfaf_code))
         return pfaf_map
-    
+
     def generate_weight_map(self):
         """
         generate_weight_map
@@ -743,11 +791,11 @@ class SimpleRiverNetwork:
             area_fraction = area/total_area
             weight_map.append(f'{i}-{area_fraction}')
         return weight_map
-    
+
     def generate_mainstream_map(self):
         """
         generate_mainstream_map
-            cerates a list of which nodes are part of the
+            creates a list of which nodes are part of the
             mainstream in order of the seg_id_values
         """
         mainstream, tributaries = self.sort_streams(self.outlet)
@@ -757,7 +805,60 @@ class SimpleRiverNetwork:
         all_segs = list(map(int,self.seg_id_values))
         mainstream_seg_map = pd.Series(all_segs).isin(mainstream_ids).astype(int)
         return mainstream_seg_map
-       
+
+    def generate_pfaf_color_map(self):
+        """
+        generate_pfaf_color_map
+            creates a pd.Series to assign a unqiue color to each
+            first level pfafstetter basin
+        """
+        pfaf_color_map = list()
+        for i,seg_id in enumerate(self.seg_id_values):
+            node = self.find_node(seg_id, self.outlet)
+            first_pfaf_digit = int(node.pfaf_code[0])
+            pfaf_color_map.append(first_pfaf_digit)
+        return pd.Series(pfaf_color_map)
+
+    def generate_node_highlight_map(self,seg_ids:list):
+        """
+        generate_node_highlight_map
+            takes a list of seg_ids and creats a pd.Series
+            that highlights the nodes in the list
+        ----
+        seg_ids:
+            a list of seg_id values that are to be marked
+            apart from the rest of the seg_ids
+        return:
+            a list that will identify these highlighted
+            nodes for draw_network
+        """
+        return pd.Series(self.seg_id_values).isin(seg_ids).astype(int)
+
+    def reconstruct_adj_mat(self, node, adj_mat: np.ndarray):
+        """
+        reconstruct_adj_mat
+            rebuilds the adjacency matrix from an existing flow tree
+        ----
+        node:
+            a node to construct the adjacency matrix from
+        adj_mat:
+            a square numpy ndarray of zeros originally, the size equal to
+            len(seg_id_values) by len(seg_id_values), to be filled
+        return:
+            returns the reconstructed adjacenecy matrix that needs
+            to be set as the network's adjacency matrix to actually
+            alter the flow tree
+        """
+        if node and node.upstream:
+            node_seg_index = np.where(self.seg_id_values == node.seg_id)
+
+            for upstream_node in node.upstream:
+                upstream_seg_index = np.where(self.seg_id_values == upstream_node.seg_id)
+                adj_mat[node_seg_index, upstream_seg_index] += 1
+                adj_mat = self.reconstruct_adj_mat(upstream_node,adj_mat)
+
+        return adj_mat
+
     def pfaf_aggregate(self):
         """
         pfaf_aggregate
@@ -768,62 +869,62 @@ class SimpleRiverNetwork:
         # this means that we will look to aggregate the deepest level
         # and search the flow tree for pfaf_codes matching the length
         # of the maximum level
-        
+
         pfaf_codes = self.generate_pfaf_codes()
         current_total_levels = max([len(s.pfaf_code) for s in self.outlet])
-        
+
         if current_total_levels == 1:
             raise UserError("The network currently has a maximum Pfaffstetter code of length 1 - cannot aggregate any further!")
-        
-        aggregation_target_nodes = self.find_like_pfaf(self.outlet, list(np.arange(10)), current_total_levels-1)        
+
+        aggregation_target_nodes = self.find_like_pfaf(self.outlet, list(np.arange(10)), current_total_levels-1)
         aggregation_target_nodes = self.sort_by_pfaf(aggregation_target_nodes,current_total_levels-2)
-        
+
         search_index = 0
         if current_total_levels > -1:
             while search_index < len(aggregation_target_nodes):
-                
+
                 current_node = aggregation_target_nodes[search_index]
-                
+
                 # we need to collect which nodes we are going to aggregate
                 summative_basin_area = 0
                 basin_nodes = list()
                 aggregated_seg_ids = list()
                 basin_pfaf_root = current_node.pfaf_code[:-1]
-                
+
                 for target_node in aggregation_target_nodes:
                     if target_node.pfaf_code[:-1] == basin_pfaf_root and target_node != current_node:
                         basin_nodes.append(target_node)
-                        summative_basin_area += target_node.basin_area                        
+                        summative_basin_area += target_node.basin_area
 
                         aggregated_seg_ids.append(target_node.seg_id)
                         aggregated_seg_ids.extend(target_node.aggregated_seg_ids)
-                
+
                 # since we are going to aggregate these upsteam nodes
                 # into the current node, we need to remove them
                 # from our search list to avoid searching for ghost nodes
-                # also, be sure to check out my new techno-thriller: ghost_nodes         
+                # also, be sure to check out my new techno-thriller: ghost_nodes
                 for basin_node in basin_nodes:
                     aggregation_target_nodes.remove(basin_node)
                     self.seg_id_values = np.delete(self.seg_id_values,np.where(
                         self.seg_id_values == basin_node.seg_id))
-                
+
                 #print(" basin_nodes: ", basin_nodes)
-                
+
                 basin_upstream = list()
                 for basin_node in basin_nodes:
                     if basin_node.upstream:
                         for upstream_node in basin_node.upstream:
                             if upstream_node not in basin_nodes:
                                 basin_upstream.append(upstream_node)
-                        
+
                 #print(" basin_upstream: ", basin_upstream)
-                
+
                 #print('\n')
                 # here we do the numerical aggregation, actually changing the
                 # internal values of the aggregating seg_node
                 #summative_basin_area = self.net_upstream_area(current_node)
                 new_pfaf_code = basin_pfaf_root
-                    
+
                 current_node.aggregated_seg_ids.extend(aggregated_seg_ids)
                 current_node.pfaf_code = new_pfaf_code
                 current_node.basin_area += summative_basin_area
@@ -831,17 +932,17 @@ class SimpleRiverNetwork:
                     current_node.upstream = basin_upstream
                 else:
                     current_node.upstream: List[SegNode] = list()
-                aggregation_target_nodes.remove(current_node)         
-                    
+                aggregation_target_nodes.remove(current_node)
+
             # Here we need to update various properties of the flow tree
             # So that our changes are reflected in the net tree's attributes
             N = len(self.seg_id_values)
             self.adj_mat = self.reconstruct_adj_mat(node=self.outlet,adj_mat = np.zeros(shape=(N,N), dtype = int))
             self.network_graph = plotting.create_nxgraph(self.adj_mat)
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
-    
+
     def color_network_graph(self,measure,cmap):
-        if not measure is None:
+        if type(measure) != type(None):
             return plotting.color_code_nxgraph(self.network_graph,measure,cmap)
         else:
             color_bar = None
@@ -849,40 +950,349 @@ class SimpleRiverNetwork:
             color_vals = segs/len(segs)
             color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
             return color_dict, color_bar
-        
+
     def size_network_graph(self,measure):
         segs = np.arange(0,len(self.seg_id_values))
         size_vals = segs/len(segs)
         size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)}
-        return size_dict   
-        
-    def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'), 
+        return size_dict
+
+    def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'),
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
-                     with_labels=False,with_cbar=False,with_background=True):
-        
+                     with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10,
+                     edge_color='k', alpha=1, cbar_title = '', cbar_label_pad=40):
+        """
+            draw_network
+                plots the network through networkx
+        """
+
+        if type(color_measure) != type(None):
+            if type(color_measure) != pd.Series:
+                raise Exception("Color_measure is not a pandas Series")
+            elif color_measure.size != len(self.seg_id_values):
+                raise Exception("Color_measure size does not match number of nodes, double check measure aggregation.")
+
         network_color_dict, network_color_cbar = self.color_network_graph(color_measure,cmap)
+        
+        # we need to make sure that if the nodes have been relabeled by a previous
+        # draw_network call, that we then restore them to their original labels
+        # for future relabling
+
+        expected_labels = list()
+        current_labels = list()
+        match = True
+        for expected_label, current_label in zip(network_color_dict.keys(),self.network_graph.nodes):
+            expected_labels.append(int(expected_label))
+            current_labels.append(current_label)
+            if match and (int(expected_label) != current_label):
+                match = False
+        if not match:
+            # if the nodes have been relabeled from what we expect them to be
+            # then we will adjust relabel them to their original values
+            # since we have already checked that they are the same length
+            standard_label_map = np.arange(len(expected_labels))
+            new_network_graph = nx.relabel_nodes(self.network_graph,
+                                             dict(zip(self.network_graph.nodes(),standard_label_map)),copy=True)
+            self.network_graph = new_network_graph
+            self.network_positions = plotting.organize_nxgraph(self.network_graph)        
+            
+        # if we want to relabel the nodes in this function call,
+        # then we will do so here
         
         if len(label_map) > 0:
             new_network_color_dict = dict()
             for key in network_color_dict.keys():
                 new_network_color_dict[f"{label_map[int(key)]}"] = network_color_dict[key]
-
-
             new_network_graph = nx.relabel_nodes(self.network_graph,
                                                  dict(zip(self.network_graph.nodes(),label_map)),copy=True)
             network_color_dict = new_network_color_dict
             self.network_graph = new_network_graph
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
-                    
+
         network_nodecolors = [network_color_dict[f'{node}'] for node in self.network_graph.nodes()]
         if node_color:
             network_nodecolors = node_color
-        
+
         nx.draw_networkx(self.network_graph,self.network_positions,with_labels=with_labels,
                          node_size=node_size,font_size=font_size,font_weight=font_weight,node_shape=node_shape,
-                         linewidths=linewidths,font_color=font_color,node_color=network_nodecolors)
+                         linewidths=linewidths,font_color=font_color,node_color=network_nodecolors,
+                         edge_color=edge_color, alpha=alpha)
         if with_cbar:
-            plt.colorbar(network_color_cbar)
+            cbar = plt.colorbar(network_color_cbar)
+            cbar.ax.tick_params(labelsize=cbar_labelsize)
+            cbar.set_label(cbar_title, rotation=270, labelpad=cbar_label_pad)
         if not with_background:
             plt.axis('off')
+            
+    def draw_multi_measure(self, color_dict, label_map = [], 
+                     node_size = 200, font_size = 8, font_weight = 'bold', node_shape = 's', 
+                     linewidths = 2, font_color = 'w', alpha = 1.0,
+                     with_labels=False, with_cbar=False, with_background=True):
+        """
+            draw_multi_measure
+                plots several networkx plots of user specified transparency for a single
+                SimpleRiverNetwork to compare mutliple measures at once.
+            ----
+            color_dict:
+                a dictionary set up as {name: [pd.Series,cmap, alpha]}
+        """
+        # first we will double check that the alpha's do not sum to more than 1, for this
+        # may muddle the data
+
+        alpha_sum = 0
+        for color_key in color_dict.keys():
+            alpha_sum += color_dict[color_key][2]
+        
+        if alpha_sum > 1.0:
+            raise Exception("alpha values sum to more than 1.0, this may cover up data please revise")
+        else:
+            for color_key in color_dict.keys():
+                self.draw_network(label_map = label_map, color_measure=color_dict[color_key][0], cmap = color_dict[color_key][1], 
+                                  node_size=node_size, font_size=font_size, font_weight=font_weight, node_shape=node_shape, 
+                                  linewidths=linewidths, font_color=font_color, alpha=color_dict[color_key][2], with_labels=with_labels, 
+                                  with_cbar=with_cbar, with_background=with_background)
+
+    def aggregate_measure_sum(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
+        """
+        aggregate_measure_sum
+            determines the sum measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+
+        new_measure_data = list()
+
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(np.sum(measure_var_seg))
+
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+
+    def aggregate_measure_mean(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
+        """
+        aggregate_measure_mean
+            determines the mean measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+
+        new_measure_data = list()
+
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(np.mean(measure_var_seg))
+
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+
+    def aggregate_measure_median(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
+        """
+        aggregate_measure_median
+            determines the median measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+
+        new_measure_data = list()
+
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(np.median(measure_var_seg))
+
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+
+    def aggregate_measure_max(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
+        """
+        aggregate_measure_max
+            determines the maximum measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+
+        new_measure_data = list()
+
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(np.max(measure_var_seg))
+
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+
+    def aggregate_measure_min(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
+        """
+        aggregate_measure_min
+            determines the minimum measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+
+        new_measure_data = list()
+
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(np.min(measure_var_seg))
+
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+
+    def aggregate_measure(self, dataset_seg_ids: np.ndarray, variable: np.ndarray, aggregation_function)-> pd.Series:
+        """
+        aggregate_measure
+            aggregates the measure value for the given variable based on how
+            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
+            the SimpleRiverNetwork
+        ----
+        dataset_seg_ids:
+            a np.ndarray containing all the seg_id values according to the original
+            topology. this should be in the same order seg order as variable
+        variable:
+            a np.ndarray containing all the variable values according to the original
+            topology. this should be in the same order seg order as dataset_seg_ids
+        aggregation_function:
+            a function to be passed in on how the aggregated segs should have this variable
+            combined, recommended as a numpy function like np.sum, np.median, np.mean ...
+        return:
+            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """
+        # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
+
+        if len(dataset_seg_ids.shape) != 1:
+            raise Exception("The dimension of `dataset_seg_ids` is not 1, aggregation may be inaccurate")
+        if len(variable.shape) != 1:
+            raise Exception("The dimension of `variable` is not 1, aggregation may be inaccurate")
+
+        new_measure_data = list()
+
+        for seg_id in self.seg_id_values:
+            node = self.find_node(seg_id, self.outlet)
+            seg_id_index = np.where(dataset_seg_ids == seg_id)[0]
+            measure_var_seg = [variable[seg_id_index]]
+            for aggregated_seg_id in node.aggregated_seg_ids:
+                aggregated_seg_id_index = np.where(dataset_seg_ids == aggregated_seg_id)[0]
+                measure_var_seg.append(variable[aggregated_seg_id_index])
+            new_measure_data.append(aggregation_function(measure_var_seg))
+
+        return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
+
+    def spawn_srn(self, spawn_outlet):
+        """
+        spawn_srn
+            creates a new SimpleRiverNetwork from that
+            given network and upstream of it
+        ----
+        spawn_outlet:
+            the seg_id of an outlet that the new tree
+            is to be spawned from
+        return:
+            a new SimpleRiverNetwork
+        """
+        self.clear_end_markers
+        spawn_segIDs = list()
+        for node in spawn_outlet:
+            spawn_segIDs.append(node.seg_id)
+
+        spawn_seg_indexes = list()
+        for segID in spawn_segIDs:
+            seg_index = np.where(self.seg_id_values == segID)[0][0]
+            spawn_seg_indexes.append(seg_index)
+
+        spawn_topo = self.topo.isel(seg=spawn_seg_indexes)
+        return SimpleRiverNetwork(spawn_topo,"")

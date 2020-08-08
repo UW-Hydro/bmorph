@@ -70,6 +70,7 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
 
     # Given u_t and train_cdf determine train_x
     train_x = pd.np.percentile(train_cdf, u_t)
+    train_x[train_x < 1e-6] = 1e-6
 
     # Given u_t and truth_cdf determine truth_x
     truth_x = pd.np.percentile(truth_cdf, u_t)
@@ -78,7 +79,6 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
     multiplier = truth_x / train_x
 
     return pd.Series(multiplier, index=raw_x.index)
-
 
 def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
            truth_ts, train_ts, training_window,
@@ -151,8 +151,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
 
     # Apply the bmorph multipliers to the raw time series
     bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
-
-    return bmorph_ts
+    return bmorph_ts, bmorph_multipliers
 
 
 def bmorph_correct(raw_ts, bmorph_ts, correction_window,
