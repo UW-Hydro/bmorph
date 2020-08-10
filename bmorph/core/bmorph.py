@@ -241,7 +241,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
         
         # smooth the raw y series
         raw_smoothed_y = raw_y.rolling(
-            window=nsmooth, min_periods=1, cetner=True).mean()
+            window=nsmooth, min_periods=1, center=True).mean()
         
         bmorph_multipliers = mdcdedcdfm(raw_smoothed_ts[raw_bmorph_window], 
                                         train_ts[training_window], truth_ts[training_window],
