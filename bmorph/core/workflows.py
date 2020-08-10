@@ -3,7 +3,9 @@ import pandas as pd
 
 def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window,
-        window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False):
+        window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
+        raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10):
+    
     training_window = slice(*training_window)
     bmorph_window = slice(*bmorph_window)
     reference_window = slice(*reference_window)
@@ -30,7 +32,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         bmorph_ts = bmorph_ts.append(bmorph.bmorph(raw_ts, raw_cdf_window,
                                                    raw_bmorph_window,
                                                    obs_ts, train_ts, training_window,
-                                                   n_smooth_short))
+                                                   n_smooth_short, raw_y, obs_y, train_y,
+                                                   bw=bw, xbins=xbins, ybins=ybins))
     # Apply the correction
     if n_smooth_long:
         nrni_mean = obs_ts[reference_window].mean()
@@ -46,7 +49,11 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             train_upstream_ts, train_downstream_ts,
                             truth_upstream_ts, truth_dowsntream_ts,
                             training_window, bmorph_window, reference_window, window_size,
-                            blend_factor, n_smooth_long=None, n_smooth_short=5, train_on_year=False):
+                            blend_factor, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
+                            raw_upstream_y = None, raw_downstream_y = None,
+                            train_upstream_y = None, train_downstream_y = None,
+                            truth_upstream_y = None, truth_downstream_y = None,
+                            bw=3, xbins=200, ybins=10):
     """
     Apply Annual bmorph Blending
         applies the bmorph bias correction and blends the multipliers
@@ -70,18 +77,22 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     """
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
-
-    bc_down_multipliers = pd.Series([])
-    bc_down_totals = pd.Series([])
-
-    bc_up_multipliers = pd.Series([])
-    bc_up_totals = pd.Series([])
     
     training_window = slice(*training_window)
     bmorph_window = slice(*bmorph_window)
     reference_window = slice(*reference_window)
     raw_ts_window = slice(pd.to_datetime(raw_upstream_ts.index.values[0]),
                           pd.to_datetime(raw_upstream_ts.index.values[-1]))
+    
+    # Check if there is enough data input to run mdcdedcdfm for both upstream
+    # and downstream bmorphs. Boolean used here instead of later to make certain
+    # both upstream and downstream use the same method and to minimze checks within
+    # the for-loop
+    run_mdcd = False
+    if not (raw_upstream_y is None or raw_downstream_y is None or train_upstream_y is None
+           or train_downstream_y is None or truth_upstream_y is None or truth_downstream_y 
+           is None):
+        run_mdcd = True
     
     # bmorph the series
     overlap_period = int(window_size / 2)
@@ -104,21 +115,33 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
             offset = raw_ts_window.stop - raw_cdf_window.stop
             raw_cdf_window = slice(raw_cdf_window.start + offset, raw_ts_window.stop)
             
-        # Upstream & Downstream bias correction    
-        bc_up_total, bc_up_mult = bmorph.bmorph(raw_upstream_ts, raw_cdf_window,
-                                                raw_bmorph_window,
-                                                truth_upstream_ts, train_upstream_ts,
-                                                training_window, n_smooth_short
-                                               )
-        bc_up_multipliers = bc_up_multipliers.append(bc_up_mult)
-        bc_up_totals = bc_up_totals.append(bc_up_total)
-        
-        bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
+        # Upstream & Downstream bias correction
+        if run_mdcd:
+            bc_up_total, bc_up_mult = bmorph.bmorph(raw_upstream_ts, raw_cdf_window,
                                                     raw_bmorph_window,
-                                                    truth_dowsntream_ts, train_downstream_ts,
-                                                   training_window, n_smooth_short)
-        bc_down_multipliers = bc_down_multipliers.append(bc_down_mult)
-        bc_down_totals = bc_down_totals.append(bc_down_total)
+                                                    truth_upstream_ts, train_upstream_ts,
+                                                    training_window, n_smooth_short,
+                                                    raw_upstream_y, truth_upstream_y,
+                                                    train_upstream_y, bw=bw, xbins=xbins,
+                                                    ybins=ybins)
+
+            bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
+                                                        raw_bmorph_window,
+                                                        truth_dowsntream_ts, train_downstream_ts,
+                                                        training_window, n_smooth_short,
+                                                        raw_downstream_y, truth_downstream_y,
+                                                        train_downstream_y, bw=bw, xbins=xbins,
+                                                        ybins=ybins)
+        else:
+            bc_up_total, bc_up_mult = bmorph.bmorph(raw_upstream_ts, raw_cdf_window,
+                                                    raw_bmorph_window,
+                                                    truth_upstream_ts, train_upstream_ts,
+                                                    training_window, n_smooth_short)
+
+            bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
+                                                        raw_bmorph_window,
+                                                        truth_dowsntream_ts, train_downstream_ts,
+                                                       training_window, n_smooth_short)
         
         bc_multiplier = (blend_factor * bc_up_mult) + ((1 - blend_factor) * bc_down_mult)
         bc_total = (blend_factor * bc_up_total) + ((1 - blend_factor) * bc_down_total)
@@ -127,3 +150,4 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         bc_totals = bc_totals.append(bc_total)
     
     return bc_totals, bc_multipliers
+
