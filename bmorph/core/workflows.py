@@ -15,6 +15,7 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
     # bmorph the series
     overlap_period = int(window_size / 2)
     bmorph_ts = pd.Series([])
+    bmorph_multipliers = pd.Series([])
     for year in range(bmorph_window.start.year, bmorph_window.stop.year+1):
         if train_on_year:
             training_window = slice(pd.to_datetime('{}-10-01 00:00:00'.format(year-1)),
@@ -29,11 +30,16 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         if(raw_cdf_window.stop > raw_ts_window.stop):
             offset = raw_ts_window.stop - raw_cdf_window.stop
             raw_cdf_window = slice(raw_cdf_window.start + offset, raw_ts_window.stop)
-        bmorph_ts = bmorph_ts.append(bmorph.bmorph(raw_ts, raw_cdf_window,
-                                                   raw_bmorph_window,
-                                                   obs_ts, train_ts, training_window,
-                                                   n_smooth_short, raw_y, obs_y, train_y,
-                                                   bw=bw, xbins=xbins, ybins=ybins))
+        
+        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window,
+                                              raw_bmorph_window,
+                                              obs_ts, train_ts, training_window,
+                                              n_smooth_short, raw_y, obs_y, train_y,
+                                              bw=bw, xbins=xbins, ybins=ybins)
+        bmorph_ts = bmorph_ts.append(bc_total)
+        bmorph_multipliers = bmorph_multipliers.append(bc_mult)
+        
+        
     # Apply the correction
     if n_smooth_long:
         nrni_mean = obs_ts[reference_window].mean()
