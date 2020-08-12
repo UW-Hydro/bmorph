@@ -771,7 +771,7 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
     
     raw_flow_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
     reference_flow_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    bc_flow_doy = flow_dataset[bc_var].groupby(flow_dataset['index'].dt.dayofyear).reduce(reduce_func)
+    bc_flow_doy = flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
 
     doy = raw_flow_doy['dayofyear'].values
     outlet_names = flow_dataset['outlet'].values
@@ -1149,7 +1149,10 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
     residual_flow['Residuals'] = flows[downstream_site].values
     for upstream_site in upstream_sites:
         residual_flow['Residuals'] -= flows[upstream_site].values
-        upstream_site_string += upstream_site + ", "
+        if isinstance(upstream_site, str):
+            upstream_site_string += upstream_site + ", "
+        else:
+            upstream_site_string += f'{upstream_site}' + ", "
         
     upstream_site_string = upstream_site_string[:len(upstream_site_string)-2]
     
@@ -1161,8 +1164,8 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
 
     ax.plot([1,366],[0,0],color='k',linestyle='--', lw=4)
     ax.set_xlim(left=1,right=366)
-    ax.set_ylabel(r"$Q_{downstream}-\sum{Q_{upstream}}$""  "r"$(m^3/s)$", fontsize=fontsize_label);
-    ax.set_xlabel("Day of Year", fontsize=fontsize_label);
+    ax.set_ylabel(r"$Q_{downstream}-\sum{Q_{upstream}}$""  "r"$(m^3/s)$", fontsize=fontsize_labels);
+    ax.set_xlabel("Day of Year", fontsize=fontsize_labels);
     ax.set_title(f"Upstream: {upstream_site_string} | Downstream: {downstream_site}", 
                  fontsize=fontsize_title, y=1.04);
     ax.tick_params(axis='both',labelsize=fontsize_tick)
@@ -1570,7 +1573,7 @@ def compare_CDF_logit(flow_dataset:xr.Dataset, gauge_sites = list,
         the string to access the bias corrected flows in flow_dataset
     """
     
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(gauge_sites))
+    n_rows, n_cols = determine_row_col(len(gauge_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=True)
     axes = axes.flatten()
