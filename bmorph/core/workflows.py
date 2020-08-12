@@ -4,7 +4,8 @@ import pandas as pd
 def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window,
         window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
-        raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10):
+        raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10, 
+        rtol=1e-6, atol=1e-8):
     
     training_window = slice(*training_window)
     bmorph_window = slice(*bmorph_window)
@@ -35,7 +36,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
                                               raw_bmorph_window,
                                               obs_ts, train_ts, training_window,
                                               n_smooth_short, raw_y, obs_y, train_y,
-                                              bw=bw, xbins=xbins, ybins=ybins)
+                                              bw=bw, xbins=xbins, ybins=ybins,
+                                              rtol=rtol, atol=atol)
         bmorph_ts = bmorph_ts.append(bc_total)
         bmorph_multipliers = bmorph_multipliers.append(bc_mult)
         
