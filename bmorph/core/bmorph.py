@@ -60,10 +60,10 @@ def mdcdedcdfm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
     u_t = u_t[:, np.newaxis]
 
     train_cdf = marginalize_cdf(y_train, z_train, train_y).T
-    mapped_train = x_train[np.argmin(np.abs(u_t - train_cdf), axis=1)]
+    mapped_train = x_train[np.argmin(np.abs(u_t - train_cdf[nx, :]), axis=1)]
 
     truth_cdfs = marginalize_cdf(y_truth, z_truth, truth_y).T
-    mapped_truth = x_truth[np.argmin(np.abs(u_t - truth_cdfs), axis=1)]
+    mapped_truth = x_truth[np.argmin(np.abs(u_t - truth_cdfs[nx, :]), axis=1)]
 
     return pd.Series(mapped_truth / mapped_train, index=raw_x.index)
 
