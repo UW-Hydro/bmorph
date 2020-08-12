@@ -1149,10 +1149,7 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
     residual_flow['Residuals'] = flows[downstream_site].values
     for upstream_site in upstream_sites:
         residual_flow['Residuals'] -= flows[upstream_site].values
-        if isinstance(upstream_site, str):
-            upstream_site_string += upstream_site + ", "
-        else:
-            upstream_site_string += f'{upstream_site}' + ", "
+        upstream_site_string += f'{upstream_site}, '
         
     upstream_site_string = upstream_site_string[:len(upstream_site_string)-2]
     

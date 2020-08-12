@@ -205,17 +205,16 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     # Smooth the raw Series
     raw_smoothed_ts = raw_ts.rolling(
         window=nsmooth, min_periods=1, center=True).mean()
+    # Create the CDFs that are used for morphing the raw_ts. The mapping is
+    # based on the training_window
+    truth_cdf = truth_ts[training_window].rolling(
+        window=nsmooth, min_periods=1, center=True).mean()
+    train_cdf = train_ts[training_window].rolling(
+        window=nsmooth, min_periods=1, center=True).mean()
     
     # Check if using edcdfm or mdcdedcdfm through second variable being added  
     # for the raw and train series because truth can be set as train later
     if (raw_y is None) or (truth_y is None) or (train_y is None):
-        # Create the CDFs that are used for morphing the raw_ts. The mapping is
-        # based on the training_window
-        truth_cdf = truth_ts[training_window].rolling(
-            window=nsmooth, min_periods=1, center=True).mean()
-        train_cdf = train_ts[training_window].rolling(
-            window=nsmooth, min_periods=1, center=True).mean()
-
         # Calculate the bmorph multipliers based on the smoothed time series and
         # PDFs
         bmorph_multipliers = edcdfm(raw_smoothed_ts[raw_bmorph_window],
@@ -231,14 +230,19 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
         assert isinstance(truth_y, pd.Series)
         assert isinstance(train_y, pd.Series)
         
-        # smooth the raw y series
+        # smooth the y series as well
         raw_smoothed_y = raw_y.rolling(
             window=nsmooth, min_periods=1, center=True).mean()
         
+        truth_smoothed_y = truth_y[training_window].rolling(
+            window=nsmooth, min_periods=1, center=True).mean()
+        train_smoothed_y = train_y[training_window].rolling(
+            window=nsmooth, min_periods=1, center=True).mean()
+        
         bmorph_multipliers = mdcdedcdfm(raw_smoothed_ts[raw_bmorph_window], 
-                                        train_ts[training_window], truth_ts[training_window],
+                                        train_cdf, truth_cdf,
                                         raw_smoothed_y[raw_bmorph_window],
-                                        train_y[training_window], truth_y[training_window],
+                                        train_smoothed_y, truth_smoothed_y,
                                         bw=bw, xbins=xbins, ybins=ybins,
                                         rtol=rtol, atol=atol)
         

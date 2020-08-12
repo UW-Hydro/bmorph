@@ -32,12 +32,9 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
             offset = raw_ts_window.stop - raw_cdf_window.stop
             raw_cdf_window = slice(raw_cdf_window.start + offset, raw_ts_window.stop)
         
-        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window,
-                                              raw_bmorph_window,
-                                              obs_ts, train_ts, training_window,
-                                              n_smooth_short, raw_y, obs_y, train_y,
-                                              bw=bw, xbins=xbins, ybins=ybins,
-                                              rtol=rtol, atol=atol)
+        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window,raw_bmorph_window, obs_ts, train_ts, 
+                                          training_window, n_smooth_short, raw_y, obs_y, train_y, 
+                                          bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol)
         bmorph_ts = bmorph_ts.append(bc_total)
         bmorph_multipliers = bmorph_multipliers.append(bc_mult)
         
@@ -97,9 +94,9 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     # both upstream and downstream use the same method and to minimze checks within
     # the for-loop
     run_mdcd = False
-    if not (raw_upstream_y is None or raw_downstream_y is None or train_upstream_y is None
-           or train_downstream_y is None or truth_upstream_y is None or truth_downstream_y 
-           is None):
+    y_varlist = [raw_upstream_y, train_upstream_y, truth_upstream_y,
+                 raw_downstream_y, train_downstream_y, truth_downstream_y]
+    if np.any(list(map(lambda x: x is not None, y_varlist))):
         run_mdcd = True
     
     # bmorph the series
