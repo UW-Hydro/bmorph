@@ -31,7 +31,7 @@ def kde2D(x, y, xbins=200, ybins=10, **kwargs):
     return xx[:, 0], yy[0, :], np.reshape(z, yy.shape)
 
 
-def marginalize_cdf(x_raw, y_raw, z_raw, vals):
+def marginalize_cdf(y_raw, z_raw, vals):
     """Find the marginalized cdf by computing cumsum(P(x|y=val)) for each val"""
     locs =  np.argmin(np.abs(vals[:, np.newaxis] - y_raw), axis=1)
     z = np.cumsum(z_raw[:, locs], axis=0)
@@ -47,23 +47,23 @@ def mdcdedcdfm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
     \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
                             - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
     """
-    x_raw, y_raw, z_raw = kde2D(raw_x, raw_y, xbins=xbins, ybins=ybins,
+    x_raw, y_raw, z_raw = kde2D(raw_x, raw_y, xbins, ybins,
                                 bandwidth=bw, rtol=rtol, atol=atol)
-    x_train, y_train, z_train = kde2D(train_x, train_y, xbins=xbins, ybins=ybins,
+    x_train, y_train, z_train = kde2D(train_x, train_y, xbins, ybins,
                                       bandwidth=bw, rtol=rtol, atol=atol)
-    x_truth, y_truth, z_truth = kde2D(truth_x, truth_y, xbins=xbins, ybins=ybins,
+    x_truth, y_truth, z_truth = kde2D(truth_x, truth_y, xbins, ybins,
                                       bandwidth=bw, rtol=rtol, atol=atol)
 
-    raw_cdfs = marginalize_cdf(x_raw, y_raw, z_raw, raw_y)
-    u_t = raw_cdfs[np.argmin(np.abs(raw_x[:, np.newaxis] - x_raw), axis=1), np.arange(len(raw_x))]
+    nx = np.arange(len(raw_x))
+    raw_cdfs = marginalize_cdf(y_raw, z_raw, raw_y)
+    u_t = raw_cdfs[np.argmin(np.abs(raw_x[:, np.newaxis] - x_raw), axis=1), nx]
+    u_t = u_t[:, np.newaxis]
 
-    train_cdfs = marginalize_cdf(x_train, y_train, z_train, train_y)
-    mapped_train = x_train[np.argmin(np.abs(u_t[:, np.newaxis]
-                                            - train_cdfs.T[np.arange(len(u_t)), :]), axis=1)]
+    train_cdf = marginalize_cdf(y_train, z_train, train_y).T
+    mapped_train = x_train[np.argmin(np.abs(u_t - train_cdf[nx, :]), axis=1)]
 
-    truth_cdfs = marginalize_cdf(x_truth, y_truth, z_truth, truth_y)
-    mapped_truth = x_truth[np.argmin(np.abs(u_t[:, np.newaxis]
-                                            - truth_cdfs.T[np.arange(len(u_t)), :]), axis=1)]
+    truth_cdfs = marginalize_cdf(y_truth, z_truth, truth_y).T
+    mapped_truth = x_truth[np.argmin(np.abs(u_t - truth_cdfs[nx, :]), axis=1)]
 
     return pd.Series(mapped_truth / mapped_train, index=raw_x.index)
 
