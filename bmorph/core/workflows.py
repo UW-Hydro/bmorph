@@ -48,7 +48,7 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
                                                n_smooth_long)
     else:
         bmorph_corr_ts = bmorph_ts
-    return bmorph_corr_ts
+    return bmorph_corr_ts, bmorph_multipliers
 
 def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window, bmorph_step, 
@@ -108,7 +108,7 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
                                                n_smooth_long)
     else:
         bmorph_corr_ts = bmorph_ts
-    return bmorph_corr_ts
+    return bmorph_corr_ts, bmorph_multipliers
 
 def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts, 
                             train_upstream_ts, train_downstream_ts,
