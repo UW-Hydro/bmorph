@@ -239,11 +239,9 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
         df = pd.DataFrame(index = diff_maxflow_models[0].index)
 
         #fill out the dataframe for a single site with each model's percent bias
-        i = 0
-        for model in diff_maxflow_models:
+        for i, model in enumerate(diff_maxflow_models):
             entry = f"{site}:{names[i]}"
             df[entry] = model[site]
-            i = i+1
 
         bp = plt.boxplot(df.T, positions = np.arange(position,position+num_models),patch_artist = True)
 
@@ -883,21 +881,21 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, sta
     vunder = np.abs(vmin)*-10
 
     im = ax.imshow(raw_minus_bc_spearman.fillna(vunder), vmin=-vextreme, vmax=vextreme, cmap=cmap)
-    plt.setp(ax.spines.values(),color=fontcolor)
-    ax.tick_params(axis='both',colors=fontcolor)
+    plt.setp(ax.spines.values(), color=fontcolor)
+    ax.tick_params(axis='both', colors=fontcolor)
     tick_tot = len(gauge_sites)
     ax.set_xticks(np.arange(0,tick_tot,1.0))
     ax.set_yticks(np.arange(0,tick_tot,1.0))
     ax.set_ylim(tick_tot-0.5,-0.5)
-    ax.set_xticklabels(gauge_sites,rotation='vertical',fontsize=fontsize_label)
-    ax.set_yticklabels(gauge_sites,fontsize=fontsize_tick);
+    ax.set_xticklabels(gauge_sites, rotation='vertical', fontsize=fontsize_label)
+    ax.set_yticklabels(gauge_sites, fontsize=fontsize_tick);
 
     cb = fig.colorbar(im, pad=0.01)
-    cb.ax.yaxis.set_tick_params(color=fontcolor, labelcolor=fontcolor,labelsize=fontsize_tick)
+    cb.ax.yaxis.set_tick_params(color=fontcolor, labelcolor=fontcolor, labelsize=fontsize_tick)
     cb.outline.set_edgecolor(None)
 
     fig.text(0.6, -0.02, 'Site Abbreviation', fontsize=fontsize_label, ha='center')
-    fig.text(0.32, 0.4, 'Site Abbreviation', fontsize=fontsize_label, va='center',rotation='vertical')
+    fig.text(0.32, 0.4, 'Site Abbreviation', fontsize=fontsize_label, va='center', rotation='vertical')
 
     newax = fig.add_axes([0.295, 0.4, 0.49, 0.49], anchor = 'NE', zorder = 2)
     newax.imshow(basin_map_png)
@@ -985,12 +983,12 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.Dat
     
     for i, site_group_key in enumerate(site_dict.keys()):
         site_group = site_dict[site_group_key]
-        group_before_bc = before_bc.loc[:,site_group]
-        group_after_bc = after_bc.loc[:,site_group]
-        scatter_series_axes(group_before_bc,group_after_bc,label=site_group_key,
-                                     alpha=0.05, color=colors[i],ax=ax_list[i])
+        group_before_bc = before_bc.loc[:, site_group]
+        group_after_bc = after_bc.loc[:, site_group]
+        scatter_series_axes(group_before_bc, group_after_bc, label=site_group_key,
+                                     alpha=0.05, color=colors[i], ax=ax_list[i])
         ax_list[i].set_title(site_group_key, fontsize=fontsize_subplot)
-        plt.setp(ax_list[i].spines.values(),color=fontcolor)
+        plt.setp(ax_list[i].spines.values(), color=fontcolor)
         ax_list[i].tick_params(axis='both', colors=fontcolor, labelsize=fontsize_tick)
         
     # add horizontal axis at 0 line and hide plots that are not in use 
@@ -1006,15 +1004,14 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.Dat
             ax.plot([-ref_line_ext,ref_line_ext], [0,0], color='k', linestyle='--')
             
             if pos_cone_guide and neg_cone_guide:
-                ax.plot([-ref_line_ext,ref_line_ext],[-ref_line_ext,ref_line_max], color='k', linestyle='--')
-                ax.plot([-ref_line_ext,ref_line_ext],[ref_line_ext,-ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext,ref_line_ext], [-ref_line_ext,ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext,ref_line_ext], [ref_line_ext,-ref_line_max], color='k', linestyle='--')
             elif pos_cone_guide:
-                ax.plot([0,ref_line_ext],[0,ref_line_ext], color='k', linestyle='--')
-                ax.plot([0,ref_line_ext],[0,-ref_line_ext], color='k', linestyle='--')
+                ax.plot([0,ref_line_ext], [0,ref_line_ext], color='k', linestyle='--')
+                ax.plot([0,ref_line_ext], [0,-ref_line_ext], color='k', linestyle='--')
             elif neg_cone_guide:
-                ax.plot([0,-ref_line_ext],[0,ref_line_ext], color='k', linestyle='--')
-                ax.plot([0,-ref_line_ext],[0,-ref_line_ext], color='k', linestyle='--')
-            
+                ax.plot([0,-ref_line_ext], [0,ref_line_ext], color='k', linestyle='--')
+                ax.plot([0,-ref_line_ext], [0,-ref_line_ext], color='k', linestyle='--')
             
         else:
             ax.axis('off')
@@ -1030,7 +1027,7 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.Dat
 def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, 
                       bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='M'), total_bins=None,
                       title_freq='Monthly', fontsize_title=90, fontsize_subplot_title=60, 
-                    fontsize_tick=40,fontsize_labels=84):
+                    fontsize_tick=40, fontsize_labels=84):
     """
     Percent Bias Difference Histogram
         creates a number of histogram subplots by each given site that 
@@ -1061,7 +1058,7 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
     if len(sites) != len(colors):
         raise Exception('Please enter the same number of colors as sites')
     
-    mpl.rcParams['figure.figsize']=(60,40)
+    mpl.rcParams['figure.figsize']=(60, 40)
 
     n_rows,n_cols = determine_row_col(len(sites))
 
@@ -1071,32 +1068,32 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
     raw_m_pbias = pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
         predict=raw_flow.groupby(grouper).sum())
-
+ 
     bc_pbias_impact = bc_m_pbias-raw_m_pbias
     
-    if type(total_bins)==type(None):
+    if type(total_bins) is type(None):
         total_bins=int(np.sqrt(len(bc_pbias_impact.index)))
 
-    fig, axs = plt.subplots(n_rows,n_cols)
+    fig, axs = plt.subplots(n_rows, n_cols)
     axs_list = axs.ravel().tolist()
 
     plt.suptitle(f"Change in Percent Bias from Bias Correction on a {title_freq} Basis",
-                 fontsize=fontsize_title,y=1.05)
+                 fontsize=fontsize_title, y=1.05)
     i=0
     for site in sites:
         ax = axs_list[i]
         site_bc_pbias_impact=bc_pbias_impact[site]
         impact_extreme = np.max(np.abs(site_bc_pbias_impact))
         bin_step = (2*impact_extreme/total_bins)
-        bin_range = np.arange(-impact_extreme,impact_extreme+bin_step,bin_step)
+        bin_range = np.arange(-impact_extreme, impact_extreme+bin_step, bin_step)
 
-        site_bc_pbias_impact.plot.hist(ax=ax,bins=bin_range,color=colors[i])
-        ax.vlines(0,0,ax.get_ylim()[1], color='k',linestyle='--',lw=4)
-        ax.set_xlim(left=-150,right=150)
+        site_bc_pbias_impact.plot.hist(ax=ax, bins=bin_range, color=colors[i])
+        ax.vlines(0, 0, ax.get_ylim()[1], color='k', linestyle='--', lw=4)
+        ax.set_xlim(left=-150, right=150)
 
         ax.set_title(site,fontsize=fontsize_subplot_title)
         ax.set_ylabel("")
-        ax.tick_params(axis='both',labelsize=fontsize_tick)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
         i+=1
 
     while i < len(axs_list):
@@ -1135,7 +1132,7 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
     
     mpl.rcParams['figure.figsize']=(20,20)
     
-    if type(ax) == type(None): 
+    if type(ax) is type(None): 
         fig,ax = plt.subplots()
 
     start_date='-10-01'
@@ -1153,19 +1150,19 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
         
     upstream_site_string = upstream_site_string[:len(upstream_site_string)-2]
     
-    while year<end_year:
+    while year < end_year:
         values = residual_flow[f'{str(year)}{start_date}':f'{str(year+1)}{end_date}'].values
-        doy = np.arange(1,len(values)+1,1)
-        ax.plot(doy,values,color=linecolor,alpha=alpha)
+        doy = np.arange(1, len(values)+1, 1)
+        ax.plot(doy, values, color=linecolor, alpha=alpha)
         year += 1
 
-    ax.plot([1,366],[0,0],color='k',linestyle='--', lw=4)
-    ax.set_xlim(left=1,right=366)
-    ax.set_ylabel(r"$Q_{downstream}-\sum{Q_{upstream}}$""  "r"$(m^3/s)$", fontsize=fontsize_labels);
+    ax.plot([1,366],[0,0], color='k', linestyle='--', lw=4)
+    ax.set_xlim(left=1, right=366)
+    ax.set_ylabel(r"$Q_{downstream}-\sum{Q_{upstream}}$"" "r"$(m^3/s)$", fontsize=fontsize_labels);
     ax.set_xlabel("Day of Year", fontsize=fontsize_labels);
     ax.set_title(f"Upstream: {upstream_site_string} | Downstream: {downstream_site}", 
                  fontsize=fontsize_title, y=1.04);
-    ax.tick_params(axis='both',labelsize=fontsize_tick)
+    ax.tick_params(axis='both', labelsize=fontsize_tick)
     
     return ax
     
