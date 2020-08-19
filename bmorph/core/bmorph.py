@@ -9,11 +9,64 @@ sample. The resulting 'bmorph' sample should then be consistent with the
 'truth' sample.
 """
 
+import numpy as np
 import pandas as pd
 import scipy.stats
+from sklearn.neighbors import KernelDensity
 
 # Done fail silently on divide by zero, but raise an error instead
 pd.np.seterr(divide='raise')
+
+
+
+def kde2D(x, y, xbins=200, ybins=10, **kwargs):
+    """ Estimate a 2 dimensional pdf via kernel density estimation """
+    xx, yy = np.mgrid[x.min():x.max():(xbins * 1j), y.min():y.max():(ybins * 1j)]
+    xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
+    xy_train  = np.vstack([y, x]).T
+    kde = KernelDensity(**kwargs)
+    kde.fit(xy_train)
+    # should this be exponential'd?
+    z = np.exp(kde.score_samples(xy_sample))
+    return xx[:, 0], yy[0, :], np.reshape(z, yy.shape)
+
+
+def marginalize_cdf(y_raw, z_raw, vals):
+    """Find the marginalized cdf by computing cumsum(P(x|y=val)) for each val"""
+    locs =  np.argmin(np.abs(vals[:, np.newaxis] - y_raw), axis=1)
+    z = np.cumsum(z_raw[:, locs], axis=0)
+    z /= z[-1, :]
+    return z
+
+
+def mdcdedcdfm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
+               raw_y: pd.Series, train_y: pd.Series, truth_y: pd.Series=None,
+               bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8) -> pd.Series:
+    """
+    multiDimensional ConDitional EquiDistant CDF matching function
+    \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
+                            - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
+    """
+    x_raw, y_raw, z_raw = kde2D(raw_x, raw_y, xbins, ybins,
+                                bandwidth=bw, rtol=rtol, atol=atol)
+    x_train, y_train, z_train = kde2D(train_x, train_y, xbins, ybins,
+                                      bandwidth=bw, rtol=rtol, atol=atol)
+    x_truth, y_truth, z_truth = kde2D(truth_x, truth_y, xbins, ybins,
+                                      bandwidth=bw, rtol=rtol, atol=atol)
+
+    nx = np.arange(len(raw_x))
+    raw_cdfs = marginalize_cdf(y_raw, z_raw, raw_y)
+    u_t = raw_cdfs[np.argmin(np.abs(raw_x[:, np.newaxis] - x_raw), axis=1), nx]
+    u_t = u_t[:, np.newaxis]
+
+    train_cdf = marginalize_cdf(y_train, z_train, train_y).T
+    mapped_train = x_train[np.argmin(np.abs(u_t - train_cdf[nx, :]), axis=1)]
+
+    truth_cdfs = marginalize_cdf(y_truth, z_truth, truth_y).T
+    mapped_truth = x_truth[np.argmin(np.abs(u_t - truth_cdfs[nx, :]), axis=1)]
+
+    return pd.Series(mapped_truth / mapped_train, index=raw_x.index)
+
 
 
 def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
@@ -82,7 +135,8 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
 
 def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
            truth_ts, train_ts, training_window,
-           nsmooth):
+           nsmooth, raw_y=None, truth_y=None, train_y=None,
+           bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8):
     '''Morph `raw_ts` based on differences between `truth_ts` and `train_ts`
 
     bmorph is an adaptation of the PresRat bias correction procedure from
@@ -96,6 +150,10 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     The method differs from PresRat in that it is not applied for fixed periods
     (but uses a moving window) to prevent discontinuities in the corrected time
     series and it does not apply a frequency-based correction.
+    
+    The method also allows changes to be made through an adapted version of the
+    EDCDFm technique or through the multiDimensional ConDitional EquiDistant CDF
+    matching function if a second timeseries variable is passed.
 
     Parameters
     ----------
@@ -117,7 +175,19 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
         them is created
     nsmooth : int
         Number of elements that will be smoothed when determining CDFs
-
+    raw_y : pandas.Series
+        Raw time series of the second time series variable for mdcdedcdfm
+    truth_y : pandas.Series
+        Target second time series
+    train_y : pandas.Series
+        Training second time series
+    bw : int
+        bin width for both sets of time series
+    xbins : int
+        Bins for the flow time series
+    ybins : int
+        Bins for the second time series
+        
     Returns
     -------
     bmorph_ts : pandas.Series
@@ -132,25 +202,53 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     assert isinstance(train_ts, pd.Series)
     assert isinstance(training_window, slice)
 
+    # Smooth the raw Series
+    raw_smoothed_ts = raw_ts.rolling(
+        window=nsmooth, min_periods=1, center=True).mean()
     # Create the CDFs that are used for morphing the raw_ts. The mapping is
     # based on the training_window
     truth_cdf = truth_ts[training_window].rolling(
         window=nsmooth, min_periods=1, center=True).mean()
     train_cdf = train_ts[training_window].rolling(
         window=nsmooth, min_periods=1, center=True).mean()
+    
+    # Check if using edcdfm or mdcdedcdfm through second variable being added  
+    # for the raw and train series because truth can be set as train later
+    if (raw_y is None) or (truth_y is None) or (train_y is None):
+        # Calculate the bmorph multipliers based on the smoothed time series and
+        # PDFs
+        bmorph_multipliers = edcdfm(raw_smoothed_ts[raw_bmorph_window],
+                                    raw_smoothed_ts[raw_cdf_window],
+                                    train_cdf, truth_cdf)
 
-    # Smooth the raw Series
-    raw_smoothed_ts = raw_ts.rolling(
-        window=nsmooth, min_periods=1, center=True).mean()
-
-    # Calculate the bmorph multipliers based on the smoothed time series and
-    # PDFs
-    bmorph_multipliers = edcdfm(raw_smoothed_ts[raw_bmorph_window],
-                                raw_smoothed_ts[raw_cdf_window],
-                                train_cdf, truth_cdf)
-
-    # Apply the bmorph multipliers to the raw time series
-    bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
+        # Apply the bmorph multipliers to the raw time series
+        bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
+        
+    else:
+        # Continue Type Checking additionally series
+        assert isinstance(raw_y, pd.Series)
+        assert isinstance(truth_y, pd.Series)
+        assert isinstance(train_y, pd.Series)
+        
+        # smooth the y series as well
+        raw_smoothed_y = raw_y.rolling(
+            window=nsmooth, min_periods=1, center=True).mean()
+        
+        truth_smoothed_y = truth_y[training_window].rolling(
+            window=nsmooth, min_periods=1, center=True).mean()
+        train_smoothed_y = train_y[training_window].rolling(
+            window=nsmooth, min_periods=1, center=True).mean()
+        
+        bmorph_multipliers = mdcdedcdfm(raw_smoothed_ts[raw_bmorph_window], 
+                                        train_cdf, truth_cdf,
+                                        raw_smoothed_y[raw_bmorph_window],
+                                        train_smoothed_y, truth_smoothed_y,
+                                        bw=bw, xbins=xbins, ybins=ybins,
+                                        rtol=rtol, atol=atol)
+        
+        bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
+        
+        
     return bmorph_ts, bmorph_multipliers
 
 
