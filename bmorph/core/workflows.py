@@ -5,7 +5,7 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window,
         window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10, 
-        rtol=1e-6, atol=1e-8):
+        rtol=1e-7, atol=0, method='hist'):
     
     training_window = slice(*training_window)
     bmorph_window = slice(*bmorph_window)
@@ -34,7 +34,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         
         bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window,raw_bmorph_window, obs_ts, train_ts, 
                                           training_window, n_smooth_short, raw_y, obs_y, train_y, 
-                                          bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol)
+                                          bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
+                                          method=method)
         bmorph_ts = bmorph_ts.append(bc_total)
         bmorph_multipliers = bmorph_multipliers.append(bc_mult)
         
@@ -54,7 +55,7 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window, bmorph_step, 
         window_size, n_smooth_long=None, n_smooth_short=5,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10, 
-        rtol=1e-6, atol=1e-8):
+        rtol=1e-6, atol=1e-8, method='hist'):
     
     assert isinstance(bmorph_step, pd.DateOffset)
     
@@ -94,7 +95,8 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         
         bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window, raw_bmorph_window, obs_ts, train_ts, 
                                           training_window, n_smooth_short, raw_y, obs_y, train_y, 
-                                          bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol)
+                                          bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
+                                          method=method)
         bmorph_ts = bmorph_ts.append(bc_total)
         bmorph_multipliers = bmorph_multipliers.append(bc_mult)
         
