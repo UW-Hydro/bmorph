@@ -1261,10 +1261,10 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
 
     n_rows,n_cols = determine_row_col(len(sites))
 
-    bc_m_pbias = pbias_by_index(
+    bc_m_pbias = dst.pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
         predict=bc_flow.groupby(grouper).sum())
-    raw_m_pbias = pbias_by_index(
+    raw_m_pbias = dst.pbias_by_index(
         observe=ref_flow.groupby(grouper).sum(),
         predict=raw_flow.groupby(grouper).sum())
     if type(total_bins)==type(None):
@@ -1435,8 +1435,8 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
                                              columns=[str(pairing) for pairing in site_pairings])
     
     for WY in annual_spearman_difference.index:
-        raw_flow_WY = raw_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
-        bc_flow_WY = bc_flow_yak[f"{WY}-10-01":f"{WY+1}-09-30"]
+        raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        bc_flow_WY = bc_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
             
         for site_pairing in site_pairings:
             downstream = site_pairing[0]
@@ -1467,13 +1467,14 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
     
     fig.text(0.5, -0.04, "Gauge Site Pairs: Downstream, Upstream", 
                  ha='center', va = 'bottom', fontsize=fontsize_labels);
-    fig.text(-0.04, 0.5, r'$r_s(Q_{raw})-r_s(Q_{bc})$', 
+    fig.text(-0.04, 0.5, r'$r_s(Q_{raw}^{up}, Q_{raw}^{down}) - r_s(Q_{bc}^{up}, Q_{bc}^{down})$', 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
 
     plt.tight_layout()
     
 def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFrame, bc_flows: pd.DataFrame,
-                                 sites: list, fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
+                                 sites: list, fontsize_title=40, fontsize_tick=30, fontsize_labels=40, 
+                                 showfliers=False):
     """
     Kullback Liebler Divergence Annual Comparison
         plots the KL divergence for each year per site as
@@ -1490,15 +1491,17 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
         is square or rectangular, the last site will not be plotted to save room for the legend)    
     """
 
-    WY_grouper = bmorph.plotting.calc_water_year(raw_flows)
+    WY_grouper = calc_water_year(raw_flows)
     WY_array = np.arange(WY_grouper[0], WY_grouper[-1], 1)
 
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(sites))
-    fig, axs = plt.subplots(n_rows, n_cols, figsize=(30,20), sharex=True,sharey=True)
+    n_rows, n_cols = determine_row_col(len(sites))
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(30,20), sharex=True,sharey='row')
     axs_list = axs.ravel().tolist()
 
-    kldiv_refraw_annual = pd.DataFrame(index=WY_array, columns=yakima_sites)
-    kldiv_refbc_annual = pd.DataFrame(index=WY_array, columns=yakima_sites)
+    kldiv_refraw_annual = pd.DataFrame(index=WY_array, columns=sites)
+    kldiv_refbc_annual = pd.DataFrame(index=WY_array, columns=sites)
+    
+    TINY_VAL = 1e-6
     
     plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize=fontsize_title, y=1.05)
 
@@ -1509,21 +1512,29 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
         total_bins = int(np.sqrt(len(raw_flow_WY.index)))
 
         for site in sites:
-            raw_WY_site_vals = raw_flow_WY[site].values
             ref_WY_site_vals = ref_flow_WY[site].values
+            raw_WY_site_vals = raw_flow_WY[site].values
             bc_WY_site_vals = bc_flow_WY[site].values
 
-            raw_WY_site_pdf = np.histogram(raw_WY_site_vals, bins=total_bins)[1]
-            ref_WY_site_pdf = np.histogram(ref_WY_site_vals, bins=total_bins)[1]
-            bc_WY_site_pdf = np.histogram(bc_WY_site_vals, bins=total_bins)[1]
+            ref_WY_site_pdf, ref_WY_site_edges = np.histogram(ref_WY_site_vals, bins=total_bins, density=True)
+            raw_WY_site_pdf = np.histogram(raw_WY_site_vals, bins=ref_WY_site_edges, density=True)[0]
+            bc_WY_site_pdf = np.histogram(bc_WY_site_vals, bins=ref_WY_site_edges, density=True)[0]
+            
+            ref_WY_site_pdf[ref_WY_site_pdf == 0] = TINY_VAL
+            raw_WY_site_pdf[raw_WY_site_pdf == 0] = TINY_VAL
+            bc_WY_site_pdf[bc_WY_site_pdf == 0] = TINY_VAL
 
-            kldiv_refraw_annual.loc[WY][site] = scipy.stats.entropy(pk=ref_WY_site_pdf, qk=raw_WY_site_pdf)
-            kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk=ref_WY_site_pdf, qk=bc_WY_site_pdf)
-
+            kldiv_refraw_annual.loc[WY][site] = scipy.stats.entropy(pk=raw_WY_site_pdf, qk=ref_WY_site_pdf)
+            kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk=bc_WY_site_pdf, qk=ref_WY_site_pdf)
+    
     for i, site in enumerate(sites):
         ax=axs_list[i]
-        kldiv_refraw_annual[site].plot(ax=ax, color='red', lw=3)
-        kldiv_refbc_annual[site].plot(ax=ax, color='blue', lw=3)
+        box_dict = ax.boxplot([kldiv_refraw_annual[site].values,kldiv_refbc_annual[site].values], patch_artist=True,
+                               showfliers=showfliers, labels=[r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'],
+                               widths=0.8, notch=True)
+        for item in ['boxes','fliers','medians', 'means']:
+            for sub_item, color in zip(box_dict[item], ['red','blue']):
+                plt.setp(sub_item, color=color)
         ax.set_title(site,fontsize=fontsize_labels)
         ax.tick_params(axis='both', labelsize=fontsize_tick)
     
@@ -1535,13 +1546,11 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
     # ensures last axes is off to make room for the legend
     axs_list[-1].axis('off')
 
-    fig.text(0.5, -0.04, "Hydrologic Year", 
-                 ha='center', va = 'bottom', fontsize=fontsize_labels);
     fig.text(-0.04, 0.5, "Annual KL Divergence", 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
     
     plt.legend(handles=bmorph.plotting.custom_legend(
-        names=[r'$KL(P_{ref} || P_{raw})$', r'$KL( P_{ref} || P_{bc})$'], colors=['red','blue']),
+        names=[r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'], colors=['red','blue']),
               fontsize=fontsize_labels, loc='lower right')
 
     plt.tight_layout()
