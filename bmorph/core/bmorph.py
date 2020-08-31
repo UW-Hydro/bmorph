@@ -30,6 +30,13 @@ def kde2D(x, y, xbins=200, ybins=10, **kwargs):
     z = np.exp(kde.score_samples(xy_sample))
     return xx[:, 0], yy[0, :], np.reshape(z, yy.shape)
 
+def hist2D(x, y, xbins, ybins, **kwargs):
+    """ Create a 2 dimensional pdf vias numpy histogram2d"""
+    H, xedg, yedg = np.histogram2d(x=x, y=y, bins=[xbins,ybins], density=True, **kwargs)
+    xcen = (xedg[:-1] + xedg[1:]) / 2
+    ycen = (yedg[:-1] + yedg[1:]) / 2
+    return xcen, ycen, H
+
 
 def marginalize_cdf(y_raw, z_raw, vals):
     """Find the marginalized cdf by computing cumsum(P(x|y=val)) for each val"""
@@ -41,18 +48,26 @@ def marginalize_cdf(y_raw, z_raw, vals):
 
 def mdcdedcdfm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
                raw_y: pd.Series, train_y: pd.Series, truth_y: pd.Series=None,
-               bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8) -> pd.Series:
+               method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0) -> pd.Series:
     """
     multiDimensional ConDitional EquiDistant CDF matching function
     \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
                             - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
     """
-    x_raw, y_raw, z_raw = kde2D(raw_x, raw_y, xbins, ybins,
-                                bandwidth=bw, rtol=rtol, atol=atol)
-    x_train, y_train, z_train = kde2D(train_x, train_y, xbins, ybins,
-                                      bandwidth=bw, rtol=rtol, atol=atol)
-    x_truth, y_truth, z_truth = kde2D(truth_x, truth_y, xbins, ybins,
-                                      bandwidth=bw, rtol=rtol, atol=atol)
+    
+    if method == 'kde':
+        x_raw, y_raw, z_raw = kde2D(raw_x, raw_y, xbins, ybins,
+                                    bandwidth=bw, rtol=rtol, atol=atol)
+        x_train, y_train, z_train = kde2D(train_x, train_y, xbins, ybins,
+                                          bandwidth=bw, rtol=rtol, atol=atol)
+        x_truth, y_truth, z_truth = kde2D(truth_x, truth_y, xbins, ybins,
+                                          bandwidth=bw, rtol=rtol, atol=atol)
+    elif method == 'hist':
+        x_raw, y_raw, z_raw = hist2D(raw_x, raw_y, xbins, ybins)
+        x_train, y_train, z_train = hist2D(train_x, train_y, xbins, ybins)
+        x_truth, y_truth, z_truth = hist2D(truth_x, truth_y, xbins, ybins)
+    else:
+        raise Exception("Current methods for mdcdedcdfm only include 'hist' to use hist2D and 'kde' to use kde2D, please select one.")
 
     nx = np.arange(len(raw_x))
     raw_cdfs = marginalize_cdf(y_raw, z_raw, raw_y)
@@ -136,7 +151,8 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
 def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
            truth_ts, train_ts, training_window,
            nsmooth, raw_y=None, truth_y=None, train_y=None,
-           bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8):
+           bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0, 
+           method='hist'):
     '''Morph `raw_ts` based on differences between `truth_ts` and `train_ts`
 
     bmorph is an adaptation of the PresRat bias correction procedure from
@@ -182,7 +198,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     train_y : pandas.Series
         Training second time series
     bw : int
-        bin width for both sets of time series
+        bandwidth for KernelDensity
     xbins : int
         Bins for the flow time series
     ybins : int
@@ -244,7 +260,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
                                         raw_smoothed_y[raw_bmorph_window],
                                         train_smoothed_y, truth_smoothed_y,
                                         bw=bw, xbins=xbins, ybins=ybins,
-                                        rtol=rtol, atol=atol)
+                                        rtol=rtol, atol=atol, method=method)
         
         bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
         
