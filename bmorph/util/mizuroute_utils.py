@@ -146,7 +146,7 @@ def annotate_reaches(routed: xr.Dataset, topology: xr.Dataset, reference: xr.Dat
     
     return routed
     
-def annotate_variable(routed: xr.Dataset, condition = xr.Dataset, var_label: str, condition_var: str, 
+def annotate_variable(routed: xr.Dataset, condition: xr.Dataset, var_label: str, condition_var: str, 
                       gauge_segs: list):
     """
     splits the variable into its upstream and downstream components to be used in blendmorph
