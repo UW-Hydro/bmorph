@@ -69,9 +69,9 @@ def trim_time(dataset_list: list):
 
 def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
     """
-    
+    adds contributing_area, average elevation, length, and down_seg to 
+    routed from topology
     """
-    
     routed = routed.sel(seg=topology['seg'])
     routed['contributing_area'] = topology['Contrib_Area'] 
     routed['elevation'] = 0.5 * (topology['TopElev'] + topology['BotElev'])
@@ -83,9 +83,8 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
 def map_gauge_sites(routed: xr.Dataset, gauge_reference: xr.Dataset, 
                     gauge_sites=None):
     """
-    
+    boolean identifies whether a seg is a gauge with 'is_gauge'
     """
-    
     if isinstance(gauge_sites, type(None)):
         gauge_sites = gauge_reference['outlet'].values
     else:
@@ -109,9 +108,8 @@ def map_gauge_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
 
 def map_headwater_sites(routed: xr.Dataset):
     """
-    
+    boolean identifies whether a seg is a headwater with 'is_headwater'
     """
-    
     if not 'down_seg' in list(routed.var()):
         raise Exception("Please denote downstream segs with 'down_seg'")
         
@@ -123,9 +121,8 @@ def map_headwater_sites(routed: xr.Dataset):
 
 def map_up_segs(routed: xr.Dataset):
     """
-    
+    maps what segs are upstream from each other, opposite to `down_seg`
     """
-    
     if not 'is_headwaters' in list(routed.var()):
         # needed for find_upstream, so checking before we get too far
         raise Exception("Please denote headwater segs with 'is_headwaters'")
@@ -135,11 +132,12 @@ def map_up_segs(routed: xr.Dataset):
     
     return routed
 
-def calculate_cdf_blend_factor(routed: xr.Dataset):
+def calculate_cdf_blend_factor(routed: xr.Dataset):    
     """
-    
+    calcultes the cumulative distirbtuion function blend factor based on distance
+    to a seg's nearest upstream gauge site with respect to the total distance between
+    the two closest guage sites to the seg
     """
-    
     if not 'is_gauge' in list(routed.var()):
         # needed for walk_upstream and walk_downstream
         raise Exception("Please denote headwater segs with 'is_headwaters'")
@@ -159,9 +157,8 @@ def calculate_cdf_blend_factor(routed: xr.Dataset):
 
 def map_ref_seg(routed: xr.Dataset):
     """
-    
+    maps the nearest gauge site upsteam and downstream of a seg
     """
-    
     if 'down_seg' not in list(routed.var()):
         #note 'up_seg' does not show up in var()
         raise Exception("Please run 'map_segs_topology' and 'map_up_segs' first")
@@ -170,7 +167,6 @@ def map_ref_seg(routed: xr.Dataset):
     routed['upstream_ref_seg'] = np.nan * routed['seg']
     
     gauge_segs = list()
-    # QUESTION: does the ordering of the guage_segs matter??
     for seg in routed['seg'].values:
         if routed.sel(seg=seg)['is_gauge']:
             gauge_segs.append(seg)
@@ -268,15 +264,16 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     splits the variable into its upstream and downstream components to be used in blendmorph
     ----
     routed: xr.Dataset
-        the dataset that will be modified and returned having been prepared by annotate_reaches
+        the dataset that will be modified and returned having been prepared by calculate_blend_vars
         with the dimension 'seg'
-    map_var: None
+    map_var: xr.DataArray
         contains the variable to be split into upstream and downstream components and can be 
         the same as routed, (must also contain the dimension 'seg')
     var_label: str
         suffix of the upstream and downstream parts of the variable
-    gauge_segs: list
-        list of the gauge segs that identify the reaches that are gauge sites,
+    gauge_segs: None
+        list of the gauge segs that identify the reaches that are gauge sites, pulled from routed 
+        if None
     ----
     Return: routed (xr.Dataset)
         with the following added:
@@ -290,12 +287,14 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     downstream_var = f'downstream_{var_label}'
     upstream_var = f'upstream_{var_label}'
     
+    # need to override dask array data protections
+    map_var.load()
+    
     routed[downstream_var] = np.nan * map_var
     routed[upstream_var] = np.nan * map_var
     
     if isinstance(gauge_segs, type(None)):
         gauge_segs = list()
-        # QUESTION: does the ordering of the guage_segs matter??
         for seg in routed['seg'].values:
             if routed.sel(seg=seg)['is_gauge']:
                 gauge_segs.append(seg)
