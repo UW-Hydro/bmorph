@@ -283,6 +283,12 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     
     if not 'down_seg' in list(routed.var()):
         raise Exception("Please run annotate_reaches before running this function")
+        
+    # check if trim_time should be suggested
+    t_map_var = map_var.time.values[[0, -1]]
+    t_routed = routed.time.values[[0, -1]]
+    if t_map_var[0] != t_routed[0] or t_map_var[1] != t_routed[1]:
+        raise Exception("Please ensure reference and routed have the same starting and ending times, (this can be done with trim_time)")
     
     downstream_var = f'downstream_{var_label}'
     upstream_var = f'upstream_{var_label}'
