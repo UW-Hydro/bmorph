@@ -282,7 +282,7 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     """
     
     if not 'down_seg' in list(routed.var()):
-        raise Exception("Please run annotate_reaches before running this function")
+        raise Exception("Please run calculate_blend_vars before running this function")
         
     # check if trim_time should be suggested
     t_map_var = map_var.time.values[[0, -1]]
