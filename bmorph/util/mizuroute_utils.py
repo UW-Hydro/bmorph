@@ -21,20 +21,26 @@ def find_upstream(ds, seg):
 def walk_downstream(ds, start_seg):
     tot_length = 0.0
     current_seg = start_seg
-    while (ds['down_seg'].sel(seg=current_seg).values[()] in ds['seg'].values 
-          and not ds['is_gauge'].sel(seg=ds['down_seg'].sel(seg=current_seg).values[()]).values[()]):
-        current_seg = ds['down_seg'].sel(seg=current_seg).values[()]
-        tot_length += ds.sel(seg=current_seg)['length'].values[()]
-    return tot_length
+    if ds['is_gauge'].sel(seg=current_seg):
+        return 0.0
+    else:
+        while (ds['down_seg'].sel(seg=current_seg).values[()] in ds['seg'].values 
+              and not ds['is_gauge'].sel(seg=ds['down_seg'].sel(seg=current_seg).values[()]).values[()]):
+            current_seg = ds['down_seg'].sel(seg=current_seg).values[()]
+            tot_length += ds.sel(seg=current_seg)['length'].values[()]
+        return tot_length
 
 def walk_upstream(ds, start_seg):
     tot_length = 0.0
     current_seg = start_seg
-    while (ds['up_seg'].sel(seg=current_seg).values[()] in ds['seg'].values 
-          and not ds['is_gauge'].sel(seg=ds['up_seg'].sel(seg=current_seg).values[()]).values[()]):
-        current_seg = ds['up_seg'].sel(seg=current_seg).values[()]
-        tot_length += ds.sel(seg=current_seg)['length'].values[()]
-    return tot_length
+    if ds['is_gauge'].sel(seg=current_seg):
+        return 1.0
+    else:
+        while (ds['up_seg'].sel(seg=current_seg).values[()] in ds['seg'].values 
+              and not ds['is_gauge'].sel(seg=ds['up_seg'].sel(seg=current_seg).values[()]).values[()]):
+            current_seg = ds['up_seg'].sel(seg=current_seg).values[()]
+            tot_length += ds.sel(seg=current_seg)['length'].values[()]
+        return tot_length
 
 def trim_time(dataset_list: list):
     """
