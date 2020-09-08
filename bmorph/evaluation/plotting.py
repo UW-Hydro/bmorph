@@ -1467,6 +1467,7 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
     
     fig.text(0.5, -0.04, "Gauge Site Pairs: Downstream, Upstream", 
                  ha='center', va = 'bottom', fontsize=fontsize_labels);
+
     fig.text(-0.04, 0.5, r'$r_s(Q_{raw}^{up}, Q_{raw}^{down}) - r_s(Q_{bc}^{up}, Q_{bc}^{down})$', 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
 
@@ -1545,7 +1546,6 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
         i += 1
     # ensures last axes is off to make room for the legend
     axs_list[-1].axis('off')
-
     fig.text(-0.04, 0.5, "Annual KL Divergence", 
              va='center', rotation = 'vertical', fontsize=fontsize_labels);
     
