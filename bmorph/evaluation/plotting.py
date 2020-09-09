@@ -732,14 +732,18 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = topo_nodecolors)
     plt.colorbar(topo_color_cbar)
 
-def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list, 
-                        reduce_func=np.mean, vertical_label=f'Mean Day of Year Flow 'r'$(m^3/s)$',
-                        title_label=f'Annual Mean Flows (WY1952 to WY2007)',
-                        raw_var='raw_flow', ref_var = 'reference_flow', bc_var = 'bias_corrected_total_flow',
-                        raw_name = 'Mizuroute Raw', ref_name = 'NRNI Reference', bc_name = 'BMORPH BC',
-                        transpose_raw = True, transpose_ref = False, transpose_bc = True,
-                        fontsize_title=80, fontsize_legend=68, fontsize_subplot=60, 
-                        fontsize_tick = 45, fontcolor = 'black'):
+def plot_reduced_doy_flows(flow_dataset:xr.Dataset, plot_sites:list, 
+                        reduce_func=np.mean, 
+                        vertical_label=f'Mean Day of Year Flow 'r'$(m^3/s)$',
+                        title_label=f'Annual Mean Flows',                           
+                        raw_var='IRFroutedRunoff', raw_name = 'Mizuroute Raw', 
+                        ref_var = 'upstream_ref_flow', ref_name = 'upstream_ref_flow', 
+                        bc_var = 'bc_flows_mdcd_hist', bc_name = 'BMORPH \n mdcd hist',         
+                        bc_var_alt = None, bc_name_alt = None,                            
+                        fontsize_title = 80, fontsize_legend = 68, fontsize_subplot = 60, 
+                        fontsize_tick = 45, fontcolor = 'black', 
+                        figsize_width = 70, figsize_height = 30,
+                        plot_colors=['grey', 'black', 'blue', 'red']):
     """
     Plot Mean Day of Year Flows
         creates a series of subplots that plot an average year's flows
@@ -747,8 +751,8 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
     ---
     flow_dataset: xr.Dataset
         contatains raw, reference, and bias corrected flows
-    gauges_sites: list
-        a list of gauge sites to be plotted, cannot exceed 12
+    plot_sites: list
+        a list of sites to be plotted, cannot exceed 12
     reduce_func: function
         a function to apply to flows grouped by dayofyear,
         default = np.mean
@@ -756,61 +760,99 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, gauge_sites:list,
         a string label for the vertical axis representing
         the reduce_func, defaults as:
         f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit np.mean
+    title_label: str
+        a string lable for the figure title representing
+        the reduce_func, defaults as:
+        f'Annual Mean Flows' to fit np.mean
     raw_var: str
         the string to access the raw flows in flow_dataset
+    raw_name: str
+        the string to label the raw flows in the legend
     ref_var: str
         the string to access the reference flows in flow_dataset
+    ref_name: str
+        the string to label the refernce flows in the legend
     bc_var: str
         the string to access the bias corrected flows in flow_dataset
-    transpose_*: boolean
-        does this flow Dataset need to be transposed to fit? (no need to
-        change unless prompted by error)
+    bc_name: str
+        the string to label the reference flows in the legend
+    bc_var_alt: None
+        the string to access a second set of bias corrected flows in
+        flow_dataset (optional)
+    bc_var_name: None
+        the string to label the second set of bias corrected flows in
+        the legend (required if bc_var_alt is not None)
+    plot_colors: ['grey', 'black', 'blue', 'red']
+        a list containing colors to be plotted for raw, ref, bc,
+        and bc_alt, respectively        
+    ----
+    Returns: fig, axs
     """
+    
+    plot_bc_alt = False
+    
+    if not isinstance(bc_var_alt, type(None)):
+        if not isinstance(bc_name_alt, type(None)):
+            plot_bc_alt = True
+        else:
+            raise Exception("Please specify bc_name_alt")
+    
+    if len(plot_colors) < 3:
+        raise Exception("Please enter at least 3 colors in plot_colors")
+        
+    if len(plot_sites) > 12:
+        raise Exception("Please enter no more than 12 sites in plot_sites")
     
     raw_flow_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
     reference_flow_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    bc_flow_doy = flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+    bc_flow_doy = flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)        
 
     doy = raw_flow_doy['dayofyear'].values
-    outlet_names = flow_dataset['outlet'].values
+    outlet_names = flow_dataset['seg'].values
+   
+    raw_flow_doy_df = pd.DataFrame(data=raw_flow_doy.values, index=doy, columns=outlet_names)
+    reference_flow_doy_df = pd.DataFrame(data=reference_flow_doy.values, index=doy, columns=outlet_names)
+    bc_flow_doy_df = pd.DataFrame(data=bc_flow_doy.values, index=doy, columns=outlet_names)
     
-    if transpose_raw:
-        raw_flow_doy_df = pd.DataFrame(data=np.transpose(raw_flow_doy.values), index=doy,columns=outlet_names)
-    else:
-        raw_flow_doy_df = pd.DataFrame(data=raw_flow_doy.values, index=doy,columns=outlet_names)
-    if transpose_ref:
-        reference_flow_doy_df = pd.DataFrame(data=np.transpose(reference_flow_doy.values), index=doy,columns=outlet_names)
-    else:
-        reference_flow_doy_df = pd.DataFrame(data=reference_flow_doy.values, index=doy,columns=outlet_names)
-    if transpose_bc:
-        bc_flow_doy_df = pd.DataFrame(data=np.transpose(bc_flow_doy.values), index=doy,columns=outlet_names)
-    else:
-        bc_flow_doy_df = pd.DataFrame(data=bc_flow_doy.values, index=doy,columns=outlet_names)
+    plot_names = [raw_name, ref_name, bc_name]
     
-    mpl.rcParams['figure.figsize'] = (70,30)
-    n_rows, n_cols = determine_row_col(len(gauge_sites))
-    fig, axs = plt.subplots(n_rows,n_cols)
+    if plot_bc_alt:
+        bc_flow_alt_doy = flow_dataset[bc_var_alt].groupby(
+            flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+        bc_flow_alt_doy_df = pd.DataFrame(data = bc_flow_alt_doy.values, 
+                                          index = doy, columns = outlet_names)
+        plot_names.append(bc_var_alt)
+    
+    mpl.rcParams['figure.figsize'] = (figsize_width, figsize_height)
+    n_rows, n_cols = determine_row_col(len(plot_sites))
+    fig, axs = plt.subplots(n_rows, n_cols)
+    fig.suptitle(title_label, fontsize = fontsize_title, color = fontcolor, y = 1.05)
+                                          
 
-    fig.suptitle(title_label, fontsize = fontsize_title, color=fontcolor, y=1.05)
-
-    for site, ax in zip(gauge_sites, axs.ravel()):
-        ax.plot(raw_flow_doy_df[site],color='grey', alpha = 0.8, lw=4)
-        ax.plot(reference_flow_doy_df[site],color='black', alpha = 0.8, lw=4)
-        ax.plot(bc_flow_doy_df[site],color='red', lw=4)
-        ax.set_title(site, fontsize=fontsize_subplot, color=fontcolor)
-        plt.setp(ax.spines.values(),color=fontcolor)
-        ax.tick_params(axis='both',colors=fontcolor,labelsize=fontsize_tick)
+    for site, ax in zip(plot_sites, axs.ravel()):
+        ax.plot(raw_flow_doy_df[site], color = plot_colors[0], alpha = 0.8, lw = 4)
+        ax.plot(reference_flow_doy_df[site], color = plot_colors[1], alpha = 0.8, lw = 4)
+        ax.plot(bc_flow_doy_df[site], color = plot_colors[2], lw = 4)
         
-    if len(gauge_sites) < n_rows*n_cols:
-        for ax_index in np.arange(len(gauge_sites),n_rows*n_cols):
+        if plot_bc_alt:
+            ax.plot(bc_flow_alt_doy_df[site], color = plot_colors[3], lw = 4)
+        
+        ax.set_title(site, fontsize = fontsize_subplot, color = fontcolor)
+        plt.setp(ax.spines.values(), color = fontcolor)
+        ax.tick_params(axis = 'both', colors = fontcolor, labelsize = fontsize_tick)
+        
+    if len(plot_sites) < n_rows * n_cols:
+        for ax_index in np.arange(len(plot_sites), n_rows * n_cols):
             axs.ravel().tolist()[ax_index].axis('off')
 
-    fig.text(0.5, -0.02, 'Day of Year', fontsize=fontsize_title, ha='center')
-    fig.text(-0.02, 0.5, vertical_label, 
-             fontsize=fontsize_title, va='center',rotation='vertical')
-    plt.subplots_adjust(wspace=0.2, hspace= 0.5, left = 0.05, right = 0.8, top = 0.95)
+    fig.text(0.5, -0.02, 'Day of Year', fontsize = fontsize_title, ha = 'center')
+    fig.text(-0.02, 0.5, vertical_label, fontsize = fontsize_title, 
+             va = 'center', rotation = 'vertical')
+    plt.subplots_adjust(wspace = 0.2, hspace = 0.5, left = 0.05, right = 0.8, top = 0.95)
 
-    fig.legend([raw_name, ref_name, bc_name],fontsize=fontsize_legend, loc='center right');
+    fig.legend(plot_names, fontsize = fontsize_legend, loc = 'center right');
+    
+    return fig, axs
     
 def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, start_year:str, end_year:str, 
                                   relative_locations_triu: pd.DataFrame, basin_map_png, 
