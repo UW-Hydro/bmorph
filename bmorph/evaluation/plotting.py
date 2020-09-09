@@ -1396,7 +1396,18 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     
     plt.subplots_adjust(wspace=0.3, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
     
-from statsmodels.distributions.empirical_distribution import ECDF
+def log10_1p(x: np.ndarray):
+    """
+    Return the log10 of one plus the input array, element-wise.
+    ----
+    x: numpy.ndarray
+    ----
+    Returns: y: numpy.ndarray
+    """
+    y = np.nan*x
+    for i, element in enumerate(x):
+        y[i] = np.log10(element + 1)
+    return y
 
 def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
                       raw_var='IRFroutedRunoff', raw_name='Mizuroute Raw',
