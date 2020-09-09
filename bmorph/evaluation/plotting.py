@@ -752,7 +752,7 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, plot_sites:list,
     flow_dataset: xr.Dataset
         contatains raw, reference, and bias corrected flows
     plot_sites: list
-        a list of sites to be plotted, cannot exceed 12
+        a list of sites to be plotted
     reduce_func: function
         a function to apply to flows grouped by dayofyear,
         default = np.mean
@@ -799,9 +799,6 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, plot_sites:list,
     
     if len(plot_colors) < 3:
         raise Exception("Please enter at least 3 colors in plot_colors")
-        
-    if len(plot_sites) > 12:
-        raise Exception("Please enter no more than 12 sites in plot_sites")
     
     raw_flow_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
     reference_flow_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
@@ -1399,14 +1396,22 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     
     plt.subplots_adjust(wspace=0.3, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
     
-def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list, 
-                raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
-                raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
-                fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
+from statsmodels.distributions.empirical_distribution import ECDF
+
+def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
+                      raw_var='IRFroutedRunoff', raw_name='Mizuroute Raw',
+                      ref_var='upstream_ref_flow', ref_name='upstream_ref_flow',
+                      bc_var='bc_flows_mdcd_hist', bc_name='BMORPH \n mdcd hist',
+                      bc_var_alt= None, bc_name_alt = None, logit_scale = True,
+                      logarithm_base = '10', units = r'Q [$m^3/s$]',
+                      plot_colors = ['grey', 'black', 'blue', 'red'],
+                      markers = ['o', 'x', '*', '*'],
+                      figsize = (20,20), sharex = False, sharey = True,
+                      fontsize_title = 40, fontsize_labels = 30, fontsize_tick = 20,
+                      markersize = 1, alpha = 0.3):
     """
-    Compare Probability Distribution Functions
+    Compare Probability Distribution Functions Logit
         plots the CDF's of the raw, reference, and bias corrected flows
-        for each gauge site
     ----
     flow_dataset: xr.Dataset
         contatains raw, reference, and bias corrected flows
@@ -1414,43 +1419,113 @@ def compare_CDF(flow_dataset:xr.Dataset, gauge_sites = list,
         a list of gauge sites to be plotted
     raw_var: str
         the string to access the raw flows in flow_dataset
+    raw_name: str
+        the string to label the raw flows in the legend
     ref_var: str
         the string to access the reference flows in flow_dataset
+    ref_name: str
+        the string to label the reference flows in the legend
     bc_var: str
         the string to access the bias corrected flows in flow_dataset
+    bc_name: str
+        the string to label the bias corrected flows in the legend
+    bc_var_alt: None
+        the string to access a second set of bias corrected flows in
+        flow_dataset (optional)
+    bc_var_name: None
+        the string to label the second set of bias corrected flows in
+        the legend (required if bc_var_alt is not None)
+    logit_scale: True
+        whether to plot the vertical scale on a logit axis (True) or not (False)
+    logarithm_base: '10'
+        '10' to use a log10 horizontal scale
+        'e' to use a natural log horizontal scale
+    units: r'Q [$m^3/s$]'
+        the horizontal axis's label for units
+    plot_colors: ['grey', 'black', 'blue', 'red']
+        a list containing the colors to be plotted for raw, ref, bc,
+        and bc_alt, respectively
+    markers: ['o', 'x', '*', '*']
+        a list containing the markers to be plotted for raw, ref, bc,
+        and bc_alt, respectively
     """
     
-    n_rows, n_cols = determine_row_col(len(gauge_sites))
+    plot_bc_alt = False
     
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=False)
+    if not isinstance(bc_var_alt, type(None)):
+        if not isinstance(bc_name_alt, type(None)):
+            plot_bc_alt = True
+        else:
+            raise Exception("Please specify bc_name_alt")
+            
+    if logarithm_base == '10':
+        log_func = log10_1p
+    elif logarithm_base == 'e':
+        log_func = np.log1p
+    else:
+        raise Exception("Please enter logarithm_base as '10' or 'e'")
+    
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(plot_sites))
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
     axes = axes.flatten()
 
-    fig.suptitle("Cumulative Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
+    fig.suptitle("Cumulative Distribution Functions", y = 1.01, x = 0.4, fontsize = fontsize_title)
 
-    for i, site in enumerate(gauge_sites):
-        ax=axes[i]
-        cmp = flow_dataset.sel(outlet=site)
-        raw = ECDF(np.log10(cmp[raw_var].values))
-        ref = ECDF(np.log10(cmp[ref_var].values))
-        cor = ECDF(np.log10(cmp[bc_var].values))
-        ax.plot(raw.x, raw.y, color='grey', label=raw_name)
-        ax.plot(ref.x, ref.y, color='black', label=ref_name)
-        ax.plot(cor.x, cor.y, color='red', label=bc_name)
-        ax.set_title(site)
-        ax.set_title(site, fontsize=fontsize_labels)
-        ax.tick_params(axis='both', labelsize=fontsize_tick)
-        # relabel axis in scientific notation
-        labels = ax.get_xticks()
-        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in labels], rotation=30)
+    for i, site in enumerate(plot_sites):
+        ax = axes[i]
+        cmp = flow_dataset.sel(seg = site)
+        
+        raw = ECDF(log_func(cmp[raw_var].values))
+        ref = ECDF(log_func(cmp[ref_var].values))
+        cor = ECDF(log_func(cmp[bc_var].values))
+        
+        linewidth = markersize / 2
+        
+        ax.plot(raw.x, raw.y, color = plot_colors[0], label = raw_name, lw = linewidth,
+                linestyle = '--', marker = markers[0], markersize = markersize, alpha = alpha)
+        ax.plot(ref.x, ref.y, color = plot_colors[1], label = ref_name, lw = linewidth,
+                linestyle = '--', marker = markers[1], markersize = markersize, alpha = alpha)
+        ax.plot(cor.x, cor.y, color = plot_colors[2], label = bc_name, lw = linewidth,
+                linestyle = '--', marker = markers[2], markersize = markersize, alpha = alpha)
+        if plot_bc_alt:
+            cor_alt = ECDF(log_func(cmp[bc_var_alt].values))
+            ax.plot(cor_alt.x, cor_alt.y, color = plot_colors[3], label = bc_name_alt, lw = linewidth,
+                    linestyle = '--', marker = markers[3], markersize = markersize, alpha = alpha)
+        
+        ax.set_title(site, fontsize = fontsize_labels)
+        ax.tick_params(axis = 'both', labelsize = fontsize_tick)
+        
+        # relabel axis to account for log_func
+        xlabels = ax.get_xticks()
+        if logarithm_base == '10':
+            ax.set_xticklabels(labels = ["$" + "{:0.0f}".format(10**j-1) + "$" for j in xlabels], 
+                               rotation = 30)
+        elif logarithm_base == 'e':
+            ax.set_xticklabels(labels = ["$" + "{:0.2f}".format(exp(j)-1) + "$" for j in xlabels], 
+                               rotation=30)
+        
+        if logit_scale:
+            ax.set_yscale('logit')
+            ax.minorticks_off()
+            ax.yaxis.set_major_formatter(mpl.ticker.LogitFormatter())
+            ylabels = ax.get_yticks()
+            new_ylabels = list()
+            for j, ylabel in enumerate(ylabels):
+                if j % 3 == 0:
+                    new_ylabels.append(ylabel)
+                
+            ax.set_yticks(ticks = new_ylabels)
 
     axes[-1].axis('off')
-    axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
+    axes[i].legend(bbox_to_anchor = (1.1, 0.8), fontsize = fontsize_tick)
     
-    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
-    fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
-             rotation='vertical', fontsize=fontsize_labels)
+    fig.text(0.4, 0.04, units, ha = 'center', fontsize = fontsize_labels)
+    fig.text(-0.04, 0.5, r'Non-exceedence probability', va = 'center', 
+             rotation = 'vertical', fontsize = fontsize_labels)
+    plt.subplots_adjust(hspace = 0.35, left = 0.05, right = 0.8, top = 0.95)
     
-    plt.subplots_adjust(wspace=0.35, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
+    return fig, axes
     
 def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFrame, site_pairings,
                                  fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
@@ -1516,8 +1591,9 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
     plt.tight_layout()
     
 def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFrame, bc_flows: pd.DataFrame,
-                                 sites: list, fontsize_title=40, fontsize_tick=30, fontsize_labels=40, 
-                                 showfliers=False):
+                                 sites: list, fontsize_title = 40, fontsize_tick = 30, fontsize_labels = 40, 
+                                 showfliers = False, sharex = True, sharey = 'row', TINY_VAL = 1e-6, 
+                                 figsize = (30,20), show_y_grid = True):
     """
     Kullback Liebler Divergence Annual Comparison
         plots the KL divergence for each year per site as
@@ -1538,15 +1614,13 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
     WY_array = np.arange(WY_grouper[0], WY_grouper[-1], 1)
 
     n_rows, n_cols = determine_row_col(len(sites))
-    fig, axs = plt.subplots(n_rows, n_cols, figsize=(30,20), sharex=True,sharey='row')
+    fig, axs = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
     axs_list = axs.ravel().tolist()
 
-    kldiv_refraw_annual = pd.DataFrame(index=WY_array, columns=sites)
-    kldiv_refbc_annual = pd.DataFrame(index=WY_array, columns=sites)
+    kldiv_refraw_annual = pd.DataFrame(index = WY_array, columns = sites)
+    kldiv_refbc_annual = pd.DataFrame(index = WY_array, columns = sites)
     
-    TINY_VAL = 1e-6
-    
-    plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize=fontsize_title, y=1.05)
+    plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize = fontsize_title, y = 1.05)
 
     for WY in WY_array:
         raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
@@ -1559,27 +1633,31 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
             raw_WY_site_vals = raw_flow_WY[site].values
             bc_WY_site_vals = bc_flow_WY[site].values
 
-            ref_WY_site_pdf, ref_WY_site_edges = np.histogram(ref_WY_site_vals, bins=total_bins, density=True)
-            raw_WY_site_pdf = np.histogram(raw_WY_site_vals, bins=ref_WY_site_edges, density=True)[0]
-            bc_WY_site_pdf = np.histogram(bc_WY_site_vals, bins=ref_WY_site_edges, density=True)[0]
+            ref_WY_site_pdf, ref_WY_site_edges = np.histogram(ref_WY_site_vals, bins = total_bins, 
+                                                              density = True)
+            raw_WY_site_pdf = np.histogram(raw_WY_site_vals, bins = ref_WY_site_edges, density = True)[0]
+            bc_WY_site_pdf = np.histogram(bc_WY_site_vals, bins = ref_WY_site_edges, density = True)[0]
             
             ref_WY_site_pdf[ref_WY_site_pdf == 0] = TINY_VAL
             raw_WY_site_pdf[raw_WY_site_pdf == 0] = TINY_VAL
             bc_WY_site_pdf[bc_WY_site_pdf == 0] = TINY_VAL
 
-            kldiv_refraw_annual.loc[WY][site] = scipy.stats.entropy(pk=raw_WY_site_pdf, qk=ref_WY_site_pdf)
-            kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk=bc_WY_site_pdf, qk=ref_WY_site_pdf)
+            kldiv_refraw_annual.loc[WY][site] = scipy.stats.entropy(pk = raw_WY_site_pdf, qk = ref_WY_site_pdf)
+            kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk = bc_WY_site_pdf, qk = ref_WY_site_pdf)
     
     for i, site in enumerate(sites):
         ax=axs_list[i]
-        box_dict = ax.boxplot([kldiv_refraw_annual[site].values,kldiv_refbc_annual[site].values], patch_artist=True,
-                               showfliers=showfliers, labels=[r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'],
-                               widths=0.8, notch=True)
-        for item in ['boxes','fliers','medians', 'means']:
+        box_dict = ax.boxplot([kldiv_refraw_annual[site].values, kldiv_refbc_annual[site].values], 
+                              patch_artist = True, showfliers = showfliers, 
+                              labels = [r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'],
+                              widths = 0.8, notch = True)
+        for item in ['boxes', 'fliers', 'medians', 'means']:
             for sub_item, color in zip(box_dict[item], ['red','blue']):
-                plt.setp(sub_item, color=color)
-        ax.set_title(site,fontsize=fontsize_labels)
-        ax.tick_params(axis='both', labelsize=fontsize_tick)
+                plt.setp(sub_item, color = color)
+        ax.set_title(site, fontsize = fontsize_labels)
+        ax.tick_params(axis = 'both', labelsize = fontsize_tick)
+        if show_y_grid:
+            ax.grid(which = 'major', axis = 'y', alpha = 0.5)
     
     # gets rid of any spare axes
     i += 1
@@ -1588,78 +1666,14 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
         i += 1
     # ensures last axes is off to make room for the legend
     axs_list[-1].axis('off')
+
     fig.text(-0.04, 0.5, "Annual KL Divergence", 
-             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+             va = 'center', rotation = 'vertical', fontsize = fontsize_labels);
     
-    plt.legend(handles=bmorph.plotting.custom_legend(
-        names=[r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'], colors=['red','blue']),
-              fontsize=fontsize_labels, loc='lower right')
+    plt.legend(handles=custom_legend(names=[r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'], 
+                                     colors = ['red','blue']), fontsize = fontsize_labels, loc = 'lower right')
 
     plt.tight_layout()
     
-def compare_CDF_logit(flow_dataset:xr.Dataset, gauge_sites = list, 
-                raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
-                raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
-                fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
-    """
-    Compare Probability Distribution Functions Logit
-        plots the CDF's of the raw, reference, and bias corrected flows
-        for each gauge site with a logit vertical axis
-    ----
-    flow_dataset: xr.Dataset
-        contatains raw, reference, and bias corrected flows
-    gauges_sites: list
-        a list of gauge sites to be plotted
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    bc_var: str
-        the string to access the bias corrected flows in flow_dataset
-    """
+    return fig, axs
     
-    n_rows, n_cols = determine_row_col(len(gauge_sites))
-    
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 20), sharex=False, sharey=True)
-    axes = axes.flatten()
-
-    fig.suptitle("Cumulative Distribution Functions", y=1.01,x=0.4, fontsize=fontsize_title)
-
-    for i, site in enumerate(gauge_sites):
-        ax=axes[i]
-        cmp = flow_dataset.sel(outlet=site)
-        raw = ECDF(np.log10(cmp[raw_var].values))
-        ref = ECDF(np.log10(cmp[ref_var].values))
-        cor = ECDF(np.log10(cmp[bc_var].values))
-        markersize = 1
-        linewidth = markersize/2
-        alpha = 0.3
-        ax.plot(raw.x, raw.y, color='grey', label=raw_name, lw=linewidth,
-                linestyle='--', marker='o', markersize=markersize, alpha=alpha)
-        ax.plot(ref.x, ref.y, color='black', label=ref_name, lw=linewidth,
-                linestyle='--', marker='x', markersize=markersize, alpha=alpha)
-        ax.plot(cor.x, cor.y, color='red', label=bc_name, lw=linewidth,
-                linestyle='--', marker='*', markersize=markersize, alpha=alpha)
-        ax.set_title(site, fontsize=fontsize_labels)
-        ax.tick_params(axis='both', labelsize=fontsize_tick)
-        # relabel axis in scientific notation
-        xlabels = ax.get_xticks()
-        ax.set_xticklabels(labels=["$" + str(10**j) + "$" for j in xlabels], rotation=30)
-        
-        ax.set_yscale('logit')
-        ax.minorticks_off()
-        ax.yaxis.set_major_formatter(mpl.ticker.LogitFormatter())
-        ylabels = ax.get_yticks()
-        new_ylabels = list()
-        for j, ylabel in enumerate(ylabels):
-            if j%3 == 0:
-                new_ylabels.append(ylabel)
-        ax.set_yticks(ticks=new_ylabels)
-
-    axes[-1].axis('off')
-    axes[i].legend(bbox_to_anchor=(1.1, 0.8), fontsize=fontsize_tick)
-    
-    fig.text(0.4, 0.04, r'Q [$m^3/s$]', ha='center', fontsize=fontsize_labels)
-    fig.text(-0.04, 0.5, r'Non-exceedence probability', va='center', 
-             rotation='vertical', fontsize=fontsize_labels)
-    plt.subplots_adjust(hspace= 0.35, left = 0.05, right = 0.8, top = 0.95)
