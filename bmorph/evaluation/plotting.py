@@ -16,6 +16,15 @@ from bmorph.evaluation import descriptive_statistics as dst
 
 from statsmodels.distributions.empirical_distribution import ECDF
 
+#*****************************************************************************************
+# Plotting Helper Functions:
+#      custom_legend
+#      calc_water_year
+#      find_index_hyear
+#      determin_row_col
+#      log10_1p
+#      scatter_series_axes
+#*****************************************************************************************
 
 def custom_legend(names: List,colors=colors99p99):
     """
@@ -31,7 +40,7 @@ def custom_legend(names: List,colors=colors99p99):
     """
     legend_elements = list()
     for i,name in enumerate(names):
-        legend_elements.append(mpl.patches.Patch(facecolor=colors[i],label=name))
+        legend_elements.append(mpl.patches.Patch(facecolor = colors[i], label = name))
     return legend_elements
 
 def calc_water_year(df: pd.DataFrame):
@@ -62,6 +71,78 @@ def find_index_hyear(data: pd.DataFrame) -> np.int:
             i = i + 1
     return i
 
+def determine_row_col(n:int, pref_rows = True):
+    """
+    Determine Rows and Columns
+        calculates a rectangular subplot layout that
+        contains at least n subplots, some may need to
+        be turned off in plotting
+    ----
+    n: int
+        total number of plots
+    pref_rows: boolean
+        If True, and only a rectangular arrangment
+        is possible, then put the longer dimension
+        in n_rows. If False, then it is
+        placed in the n_columns
+    return: int, int
+        n_rows, n_columns
+    """
+    if n < 0:
+        raise Exception("Please enter a positive n")
+    
+    # use square root to test because we want a square
+    # arrangment
+    sqrt_n = np.sqrt(n)
+    int_sqrt_n = int(sqrt_n)
+    if sqrt_n == float(int_sqrt_n):
+        return int_sqrt_n, int_sqrt_n
+    elif int_sqrt_n*(int_sqrt_n+1)>=n:
+        # see if a rectangular orientation would work
+        # eg. sqrt(12) = 3.464, int(3.464) = 3
+        # 3*(3+1) = 3*4 = 12
+        if pref_rows:
+            return int_sqrt_n+1, int_sqrt_n 
+        else:
+            return int_sqrt_n, int_sqrt_n+1 
+    else:
+        # since sqrt(n)*sqrt(n) = n,
+        # (sqrt(n)+1)*sqrt(n) < n,
+        # then (sqrt(n)+1)^2 > n
+        return int_sqrt_n+1, int_sqrt_n+1
+    
+def log10_1p(x: np.ndarray):
+    """
+    Return the log10 of one plus the input array, element-wise.
+    ----
+    x: numpy.ndarray
+    ----
+    Returns: y: numpy.ndarray
+    """
+    y = np.nan*x
+    for i, element in enumerate(x):
+        y[i] = np.log10(element + 1)
+    return y
+
+def scatter_series_axes(data_x, data_y, label: str, color: str, alpha: float, 
+                        ax = None) -> plt.axes:
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.scatter(data_x, data_y, label = label, color = color, alpha = alpha)
+    return ax
+
+#*****************************************************************************************
+# General Bias Correction Summary Statistics:
+#      pbias_sites
+#      diff_maxflow_sites
+#      pbias_plotter
+#      diff_maxflow_plotter
+#      site_diff_scatter
+#      stat_corrections_scatter2D
+#      anomaly_scatter2D
+#      rmseFracePlot
+#*****************************************************************************************
+
 def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
     """
     Percent Bias Sites
@@ -84,26 +165,27 @@ def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
             hyears = hyears + 1
         i = i + 1
 
-    pbias_site_df = pd.DataFrame(columns = observed.columns, index = pd.Series(range(0,hyears)))
+    pbias_site_df = pd.DataFrame(columns = observed.columns, 
+                                 index = pd.Series(range(0, hyears)))
     pbias_current_year = pd.DataFrame(columns = observed.columns)
 
-    for i in range(0,hyears):
+    for i in range(0, hyears):
         #establish end of hydraulic year
         hyear_end = hyear_start + pd.Timedelta(364.25, unit = 'd')
 
         #need to truncate datetimes since time indicies do not align
-        O = observed.loc[hyear_start:hyear_end]
-        P = predicted.loc[hyear_start:hyear_end]
+        O = observed.loc[hyear_start : hyear_end]
+        P = predicted.loc[hyear_start : hyear_end]
         O.index = O.index.floor('d')
         P.index = P.index.floor('d')
 
-        pbias_current_year = dst.pbias(O,P)
+        pbias_current_year = dst.pbias(O, P)
 
         #puts the computations for the hydraulic year into our bigger dataframe
         pbias_site_df.iloc[i] = pbias_current_year.iloc[0].T
 
         #set up next hydraulic year
-        hyear_start = hyear_start + pd.Timedelta(365.25,unit = 'd')
+        hyear_start = hyear_start + pd.Timedelta(365.25, unit = 'd')
 
     return pbias_site_df
 
@@ -130,7 +212,8 @@ def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
             hyears = hyears + 1
         i = i + 1
 
-    diff_maxflow_sites_df = pd.DataFrame(columns = observed.columns, index = pd.Series(range(0,hyears)))
+    diff_maxflow_sites_df = pd.DataFrame(columns = observed.columns, 
+                                         index = pd.Series(range(0,hyears)))
     diff_maxflow_current_year = pd.DataFrame(columns = observed.columns)
 
     for i in range(0,hyears):
@@ -138,8 +221,8 @@ def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         hyear_end = hyear_start + pd.Timedelta(364.25, unit = 'd')
 
         #need to truncate datetimes since time indicies do not align
-        O = observed.loc[hyear_start:hyear_end]
-        P = predicted.loc[hyear_start:hyear_end]
+        O = observed.loc[hyear_start : hyear_end]
+        P = predicted.loc[hyear_start : hyear_end]
         O.index = O.index.floor('d')
         P.index = P.index.floor('d')
 
@@ -149,7 +232,7 @@ def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         diff_maxflow_sites_df.iloc[i] = diff_maxflow_current_year.iloc[0].T
 
         #set up next hydraulic year
-        hyear_start = hyear_start + pd.Timedelta(365.25,unit = 'd')
+        hyear_start = hyear_start + pd.Timedelta(365.25, unit = 'd')
 
 
     return diff_maxflow_sites_df
@@ -175,7 +258,7 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
 
     #runs each model through pbias_sites
     for model in models:
-        pbias_models.append(pbias_sites(observed,model))
+        pbias_models.append(pbias_sites(observed, model))
 
     fig = plt.figure()
     ax = plt.axes(xlabel = 'Sites', ylabel = 'Percent Bias')
@@ -188,25 +271,26 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
         for model in pbias_models:
             entry = f"{site}:{names[i]}"
             df[entry] = model[site]
-            i = i+1
+            i = i + 1
 
-        boxplots = plt.boxplot(df.T, positions = np.arange(position,position+num_models),patch_artist=True)
+        boxplots = plt.boxplot(df.T, positions = np.arange(position, position + num_models),
+                               patch_artist=True)
 
         for patch, color in zip(boxplots['boxes'], colors):
             patch.set_facecolor(color)
 
-        position = position+num_models+1
+        position = position + num_models + 1
 
     tick_location = list()
-    start_tick = int(np.ceil(len(models)/2))
-    tick_spacing = len(models)+1
-    for j in range(0,len(sites)):
-        tick_location.append(start_tick+j*tick_spacing)
+    start_tick = int(np.ceil(len(models) / 2))
+    tick_spacing = len(models) + 1
+    for j in range(0, len(sites)):
+        tick_location.append(start_tick + j * tick_spacing)
 
     ax.set(xticks = tick_location, xticklabels = sites)
     plt.xticks(rotation = 90)
 
-    ax.legend(handles=custom_legend(names,colors),loc='upper left')
+    ax.legend(handles=custom_legend(names, colors), loc='upper left')
     return fig, ax
 
 def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd.DataFrame):
@@ -230,7 +314,7 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
 
     #runs each model through pbSites
     for model in models:
-        diff_maxflow_models.append(diff_maxflow_sites(observed,model))
+        diff_maxflow_models.append(diff_maxflow_sites(observed, model))
 
     fig = plt.figure()
     ax = plt.axes(xlabel = 'Sites', ylabel = 'Difference in Max Flow')
@@ -243,36 +327,31 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
             entry = f"{site}:{names[i]}"
             df[entry] = model[site]
 
-        bp = plt.boxplot(df.T, positions = np.arange(position,position+num_models),patch_artist = True)
+        bp = plt.boxplot(df.T, positions = np.arange(position, position + num_models),
+                         patch_artist = True)
 
         for patch, color in zip(bp['boxes'], colors):
             patch.set_facecolor(color)
 
-        position = position+num_models+1
+        position = position + num_models + 1
         #follow plot style: https://stackoverflow.com/questions/16592222/matplotlib-group-boxplots
 
     tick_location = list()
-    start_tick = int(np.ceil(len(models)/2))
-    tick_spacing = len(models)+1
-    for j in range(0,len(sites)):
-        tick_location.append(start_tick+j*tick_spacing)
+    start_tick = int(np.ceil(len(models) / 2))
+    tick_spacing = len(models) + 1
+    for j in range(0, len(sites)):
+        tick_location.append(start_tick + j * tick_spacing)
 
     ax.set(xticks = tick_location, xticklabels = sites)
     plt.xticks(rotation = 45)
     plt.title('Yearly Difference in Max Flow due to Correction')
 
-    ax.legend(handles=custom_legend(names,colors),loc='upper left')
+    ax.legend(handles = custom_legend(names, colors), loc = 'upper left')
 
-    return fig,ax
+    return fig, ax
 
-def scatter_series_axes(data_x,data_y,label:str,color:str,alpha:float,ax=None) -> plt.axes:
-    if ax is None:
-        fig, ax = plt.subplots()
-    ax.scatter(data_x,data_y,label=label,color=color,alpha=alpha)
-    return ax
-
-def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list, compare: dict, compare_key: str,
-        site: str, colors=colors99p99):
+def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list, 
+                      compare: dict, compare_key: str, site: str, colors = colors99p99):
     """
     Site Differences Scatter Plot
         creates a scatter plot of Raw-BC versus some measure
@@ -299,28 +378,28 @@ def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list, compare
     """
     #retreiving DataFrames and establishing data to be plotted
     raw = predictions[raw_key]
-    raw = raw.loc[:,site]
+    raw = raw.loc[:, site]
 
     Y = list()
     for model_key in model_keys:
         predict = predictions[model_key]
-        Y.append(raw-predict.loc[:,site])
+        Y.append(raw - predict.loc[:, site])
 
     X = compare[compare_key]
-    X = X.loc[:,site]
+    X = X.loc[:, site]
     fig,ax = plt.subplots()
     for i,y in enumerate(Y):
-        scatter_series_axes(X,y,model_keys[i],color=colors[i],alpha=0.05,ax=ax)
+        scatter_series_axes(X, y, model_keys[i], color = colors[i], alpha = 0.05, ax = ax)
     plt.xlabel(compare_key)
     plt.ylabel('Raw-BC')
     plt.title(site)
     plt.axhline(0)
-    plt.legend(handles=custom_legend(model_keys,colors))
+    plt.legend(handles = custom_legend(model_keys, colors))
 
-    return fig,ax
+    return fig, ax
 
 def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: list, uncor_key: str,
-               sites=[], multi=True, colors=colors99p99):
+                               sites = [], multi = True, colors = colors99p99):
     """
     Statistical Corrections Plot 2D
         creates a scatter plot of the flow after corrections
@@ -365,14 +444,14 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
     #and min values overall are so that the axi may be
     #appropriately scaled
     fig,ax = plt.subplots()
-    for i,cor_key in enumerate(cor_keys):
+    for i, cor_key in enumerate(cor_keys):
         Y = datum - computations[cor_key]
 
 
         if multi == True:
             for site in sites:
-                    x = X.loc[:,site]
-                    y = Y.loc[:,site]
+                    x = X.loc[:, site]
+                    y = Y.loc[:, site]
 
                     xmax_site = x.max()
                     xmin_site = x.min()
@@ -387,15 +466,15 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
                     if ymin_site < ymin:
                         ymin = ymin_site
 
-                    scatter_series_axes(x,y,site,colors[i],0.05,ax)
+                    scatter_series_axes(x, y, site, colors[i], 0.05, ax)
         else: #meaning site should be set to a singular value
             #double check that this was actually changed, otherwise picks first value
             site = sites
-            if isinstance(sites,list):
+            if isinstance(sites, list):
                 site = sites[0]
 
-            x = X.loc[:,site]
-            y = Y.loc[:,site]
+            x = X.loc[:, site]
+            y = Y.loc[:, site]
             xmax_site = x.max()
             xmin_site = x.min()
             ymax_site = y.max()
@@ -409,7 +488,7 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
             if ymin_site < ymin:
                 ymin = ymin_site
 
-            scatter_series_axes(x,y,site,colors[i],0.05,ax)
+            scatter_series_axes(x, y, site, colors[i], 0.05, ax)
 
 
     #Sets up labels based on whether one or more sites were plotted
@@ -429,16 +508,16 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
     if ymax > maxlin:
         maxlin = ymax
 
-    minlin = minlin*0.9
-    maxlin = maxlin*1.1
+    minlin = minlin * 0.9
+    maxlin = maxlin * 1.1
 
     plt.plot([minlin, maxlin], [minlin, maxlin])
-    plt.legend(handles=custom_legend(cor_keys,colors))
+    plt.legend(handles = custom_legend(cor_keys, colors))
 
     return fig, ax
 
 def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_key: str,
-               sites=[], multi=True, colors=colors99p99,show_legend=True):
+                      sites = [], multi = True, colors = colors99p99, show_legend = True):
     """
     Anomaly Plot 2D
         Plots two correction models against each other after
@@ -474,13 +553,13 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
     Y = datum - computations[vert_key]
 
     i = 0
-    fig,ax = plt.subplots()
+    fig, ax = plt.subplots()
 
     if multi == True:
         for site in sites:
-            x = X.loc[:,site]
-            y = Y.loc[:,site]
-            scatter_series_axes(x,y,site,colors[i],0.05,ax)
+            x = X.loc[:, site]
+            y = Y.loc[:, site]
+            scatter_series_axes(x, y, site, colors[i], 0.05, ax)
             i = i + 1
 
             if i >= len(colors):
@@ -492,9 +571,9 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
         if type(sites) == list:
             site = sites[0]
 
-        X = X.loc[:,site]
-        Y = Y.loc[:,site]
-        scatter_series_axes(X,Y,site,colors[i],0.05,ax)
+        X = X.loc[:, site]
+        Y = Y.loc[:, site]
+        scatter_series_axes(X, Y, site, colors[i], 0.05, ax)
 
     plt.xlabel(f'{datum_key}-{horz_key}')
     plt.ylabel(f'{datum_key}-{vert_key}')
@@ -502,10 +581,10 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
     plt.axhline(0)
     plt.axvline(0)
     if show_legend:
-        plt.legend(handles=custom_legend(sites,colors))
+        plt.legend(handles = custom_legend(sites, colors))
 
-def rmseFracPlot(data_dict: dict,obs_key:str,sim_keys:list,
-                sites=[],multi=True,colors=colors99p99):
+def rmseFracPlot(data_dict: dict, obs_key: str, sim_keys: list,
+                sites = [], multi = True, colors = colors99p99):
     #retrieving data and flooring time stamps
     observations = data_dict[obs_key]
     observations.index = observations.index.floor('d')
@@ -516,8 +595,8 @@ def rmseFracPlot(data_dict: dict,obs_key:str,sim_keys:list,
         predictions.index = predictions.index.floor('d')
 
         N = len(predictions.index)
-        rmse_tot = dst.rmse(observations,predictions)
-        rmse_n = pd.DataFrame(index = np.arange(0,N))
+        rmse_tot = dst.rmse(observations, predictions)
+        rmse_n = pd.DataFrame(index = np.arange(0, N))
 
         errors = predictions - observations
         square_errors = errors.pow(2)
@@ -525,38 +604,37 @@ def rmseFracPlot(data_dict: dict,obs_key:str,sim_keys:list,
 
             #constructs a dataframe where each column is independently sorted
             for site in sites:
-                square_errors_site = square_errors.loc[:,site].sort_values(ascending=False)
+                square_errors_site = square_errors.loc[:, site].sort_values(ascending = False)
                 rmse_n[site]=square_errors_site.values
 
 
             #performs cumulative mean calcualtion
             for site in sites:
                 vals = rmse_n[site].values
-                mat = np.vstack([vals,]*N).T
+                mat = np.vstack([vals,] * N).T
                 nantri = np.tri(N)
-                nantri[nantri==0]=np.nan
-                mat_mean = np.nanmean(mat*nantri,axis=1)
-                mat_rmse = np.power(mat_mean,0.5)
-                rmse_n[site] = np.divide(mat_rmse,rmse_tot[site].values)
+                nantri[nantri == 0] = np.nan
+                mat_mean = np.nanmean(mat * nantri, axis = 1)
+                mat_rmse = np.power(mat_mean, 0.5)
+                rmse_n[site] = np.divide(mat_rmse, rmse_tot[site].values)
         else:
-
             site = sites
             if type(sites) == list:
                 site = sites[0]
 
-            square_errors_site = square_errors.loc[:,site].sort_values(ascending=False)
-            rmse_n[site]=square_errors_site.values
+            square_errors_site = square_errors.loc[:, site].sort_values(ascending = False)
+            rmse_n[site] = square_errors_site.values
             vals = rmse_n[site].values
-            mat = np.vstack([vals,]*N).T
+            mat = np.vstack([vals,] * N).T
             nantri = np.tri(N)
-            nantri[nantri==0]=np.nan
-            mat_mean = np.nanmean(mat*nantri,axis=1)
-            mat_rmse = np.power(mat_mean,0.5)
-            rmse_n[site] = np.divide(mat_rmse,rmse_tot[site].values)
+            nantri[nantri == 0] = np.nan
+            mat_mean = np.nanmean(mat * nantri, axis=1)
+            mat_rmse = np.power(mat_mean, 0.5)
+            rmse_n[site] = np.divide(mat_rmse, rmse_tot[site].values)
 
-        rmse_n.index = rmse_n.index/N
-        plt.plot(rmse_n, color = colors[color_num],alpha = 0.5)
-        color_num = color_num+1
+        rmse_n.index = rmse_n.index / N
+        plt.plot(rmse_n, color = colors[color_num], alpha = 0.5)
+        color_num = color_num + 1
 
     plt.xlabel('n/N')
     plt.xscale('log')
@@ -568,9 +646,21 @@ def rmseFracPlot(data_dict: dict,obs_key:str,sim_keys:list,
     else:
         plt.title(f'RMSE Distribution in Descending Sort: {site}')
     plt.axhline(1)
-    plt.legend(handles=custom_legend(sim_keys,colors))
+    plt.legend(handles = custom_legend(sim_keys , colors))
+    
+#*****************************************************************************************
+# SimpleRiverNetwork Plots and Related NetworkX Functions:
+#      find_upstream
+#      find_all_upstream
+#      create_adj_mat
+#      create_nxgraph
+#      organize_nxgraph
+#      color_code_nxgraph_sorted
+#      color_code_nxgraph
+#      draw_dataset
+#*****************************************************************************************
 
-def find_upstream(topo: xr.Dataset, segID: int,return_segs: list=[]):
+def find_upstream(topo: xr.Dataset, segID: int, return_segs: list = []):
     """
     find_upstream
         finds what segID is directly upstream from
@@ -584,12 +674,12 @@ def find_upstream(topo: xr.Dataset, segID: int,return_segs: list=[]):
     upsegIDs = topo['seg_id'][upsegs].values
     return_segs += list(upsegs)
 
-def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list=[]) -> np.ndarray:
+def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list = []) -> np.ndarray:
     upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
     upsegIDs = topo['seg_id'][upsegs].values
     return_segs += list(upsegs)
     for upsegID in upsegIDs:
-        find_all_upstream(topo, upsegID, return_segs=return_segs)
+        find_all_upstream(topo, upsegID, return_segs = return_segs)
     return np.unique(return_segs).flatten()
 
 def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
@@ -607,16 +697,15 @@ def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
     """
     #creates the empty adjacency matrix
     N = topo.dims['seg']
-    adj_mat = np.zeros(shape=(N,N),dtype=int)
+    adj_mat = np.zeros(shape=(N, N), dtype = int)
 
     #builds adjacency matrix based on what segements are upstream
     i = 0
     for ID in topo['seg_id'].values:
         adj = list()
-        find_upstream(topo,ID,adj)
+        find_upstream(topo, ID, adj)
         for dex in adj:
-            #print(i,dex)
-            adj_mat[i,dex] += 1
+            adj_mat[i, dex] += 1
         i += 1
     return adj_mat
 
@@ -642,11 +731,11 @@ def organize_nxgraph(topo: nx.Graph):
     ----
     topo: xarray Dataset containing segment identifications
     """
-    pos = nx.drawing.nx_agraph.graphviz_layout(topo,prog='dot')
+    pos = nx.drawing.nx_agraph.graphviz_layout(topo, prog = 'dot')
     return pos
 
 def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series,
-                       cmap=mpl.cm.get_cmap('plasma'))-> dict:
+                              cmap=mpl.cm.get_cmap('plasma'))-> dict:
     """
     color_cod_nxgraph
         creates a dictionary mapping of nodes
@@ -659,13 +748,13 @@ def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series,
     """
     #sets up color diversity
     segs = measure.sort_values().index
-    color_steps = np.arange(0, 1, 1/len(segs))
+    color_steps = np.arange(0, 1, 1 / len(segs))
 
     color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_steps, segs)}
     return color_dict
 
 def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
-                       cmap=mpl.cm.get_cmap('coolwarm_r'))-> dict:
+                       cmap = mpl.cm.get_cmap('coolwarm_r'))-> dict:
     """
     color_code_nxgraph
         creates a dictionary mapping of nodes
@@ -679,17 +768,17 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
     cmap: colormap to be used
 
     """
-    if np.where(measure<0)[0].size == 0:
+    if np.where(measure < 0)[0].size == 0:
         # meaning we have only positive values and do not need to establish
         # zero at the center of the color bar
         segs = measure.index
         minimum = 0 #set to zero to preserve the coloring of the scale
         maximum = measure.max()
 
-        color_vals = (measure.values)/(maximum)
+        color_vals = (measure.values) / (maximum)
         color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = minimum, vmax = maximum))
 
-        color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
+        color_dict =  {f'{seg}' : mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
         return color_dict, color_bar
     else:
         #determine colorbar range
@@ -700,7 +789,7 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
 
         #sets up color values
         segs = measure.index
-        color_vals = (measure.values+extreme)/(2*extreme)
+        color_vals = (measure.values + extreme) / (2 * extreme)
         color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -extreme, vmax = extreme))
 
         color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
@@ -726,17 +815,32 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
     topo_adj_mat = create_adj_mat(topo)
     topo_graph = create_nxgraph(topo_adj_mat)
     topo_positions = organize_nxgraph(topo_graph)
-    topo_color_dict, topo_color_cbar = color_code_nxgraph(topo_graph,color_measure,cmap)
+    topo_color_dict, topo_color_cbar = color_code_nxgraph(topo_graph, color_measure, cmap)
     topo_nodecolors = [topo_color_dict[f'{node}'] for node in topo_graph.nodes()]
-    nx.draw_networkx(topo_graph,topo_positions,node_size = 200, font_size = 8, font_weight = 'bold',
+    nx.draw_networkx(topo_graph, topo_positions, node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = topo_nodecolors)
     plt.colorbar(topo_color_cbar)
+    
+#*****************************************************************************************
+# BMORPH Summary Statistics:
+#      plot_reduced_doy_flows
+#      plot_spearman_rank_difference
+#      correction_scatter
+#      pbias_diff_hist
+#      plot_residual_overlay
+#      norm_change_annual_flow
+#      pbias_compare_hist
+#      compare_PDF
+#      compare_CDF
+#      spearman_diff_boxplots_annual
+#      kl_divergence_annual_compare
+#*****************************************************************************************
 
-def plot_reduced_doy_flows(flow_dataset:xr.Dataset, plot_sites:list, 
+def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list, 
                         reduce_func=np.mean, 
                         vertical_label=f'Mean Day of Year Flow 'r'$(m^3/s)$',
                         title_label=f'Annual Mean Flows',                           
-                        raw_var='IRFroutedRunoff', raw_name = 'Mizuroute Raw', 
+                        raw_var = 'IRFroutedRunoff', raw_name = 'Mizuroute Raw', 
                         ref_var = 'upstream_ref_flow', ref_name = 'upstream_ref_flow', 
                         bc_var = 'bc_flows_mdcd_hist', bc_name = 'BMORPH \n mdcd hist',         
                         bc_var_alt = None, bc_name_alt = None,                            
@@ -800,16 +904,22 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, plot_sites:list,
     if len(plot_colors) < 3:
         raise Exception("Please enter at least 3 colors in plot_colors")
     
-    raw_flow_doy = flow_dataset[raw_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    reference_flow_doy = flow_dataset[ref_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    bc_flow_doy = flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func)        
+    raw_flow_doy = flow_dataset[raw_var].groupby(
+        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+    reference_flow_doy = flow_dataset[ref_var].groupby(
+        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+    bc_flow_doy = flow_dataset[bc_var].groupby(
+        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)        
 
     doy = raw_flow_doy['dayofyear'].values
     outlet_names = flow_dataset['seg'].values
    
-    raw_flow_doy_df = pd.DataFrame(data=raw_flow_doy.values, index=doy, columns=outlet_names)
-    reference_flow_doy_df = pd.DataFrame(data=reference_flow_doy.values, index=doy, columns=outlet_names)
-    bc_flow_doy_df = pd.DataFrame(data=bc_flow_doy.values, index=doy, columns=outlet_names)
+    raw_flow_doy_df = pd.DataFrame(data = raw_flow_doy.values, 
+                                   index=doy, columns = outlet_names)
+    reference_flow_doy_df = pd.DataFrame(data = reference_flow_doy.values, 
+                                         index=doy, columns = outlet_names)
+    bc_flow_doy_df = pd.DataFrame(data = bc_flow_doy.values, 
+                                  index = doy, columns = outlet_names)
     
     plot_names = [raw_name, ref_name, bc_name]
     
@@ -851,9 +961,11 @@ def plot_reduced_doy_flows(flow_dataset:xr.Dataset, plot_sites:list,
     
     return fig, axs
     
-def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, start_year:str, end_year:str, 
+def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list, 
+                                  start_year: str, end_year: str, 
                                   relative_locations_triu: pd.DataFrame, basin_map_png, 
-                                  cmap=mpl.cm.get_cmap('coolwarm_r'), blank_plot_color='white', fontcolor='black',
+                                  cmap = mpl.cm.get_cmap('coolwarm_r'),
+                                  blank_plot_color = 'w', fontcolor = 'black',
                                   fontsize_title=60, fontsize_tick = 30, fontsize_label = 45):
     """
     Plot Differences in Spearman Rank
@@ -877,36 +989,35 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, sta
         a png file containing the basin map with site values marked    
     """
     
-    
     mpl.rcParams['figure.figsize'] = (40, 20)
-    cmap.set_under(color=blank_plot_color)
+    cmap.set_under(color = blank_plot_color)
 
     fig, ax = plt.subplots()
     
-    if int(end_year[:4])-int(start_year[:4]) == 1:
+    if int(end_year[:4]) - int(start_year[:4]) == 1:
         fig.suptitle(f'WY{start_year[:4]}: 'r'$r_{s}(Q_{raw}) - r_{s}(Q_{bc})$', 
-                     fontsize=fontsize_title, color=fontcolor,x=0.6,y=0.95)
+                     fontsize = fontsize_title, color = fontcolor, x = 0.6, y = 0.95)
     elif int(end_year[:4])-int(start_year[:4]) > 1:
         end_WY = int(end_year[:4])-1
         fig.suptitle(f'WY{start_year[:4]} to WY{end_WY}: 'r'$r_{s}(Q_{raw}) - r_{s}(Q_{bc})$', 
-                     fontsize=fontsize_title, color=fontcolor,x=0.6,y=0.95)
+                     fontsize = fontsize_title, color = fontcolor, x = 0.6, y = 0.95)
     else:
         raise Exception('Please check end_year is later than start_year')
         
     time_span = flow_dataset['time'].values
     outlet_names = flow_dataset['outlet'].values
         
-    raw_flow = pd.DataFrame(data=np.transpose(flow_dataset['raw_flow'].values), 
-                            index=time_span, columns=outlet_names)
-    ref_flow = pd.DataFrame(data=flow_dataset['reference_flow'].values, 
-                            index=time_span,columns=outlet_names)
+    raw_flow = pd.DataFrame(data = np.transpose(flow_dataset['raw_flow'].values), 
+                            index = time_span, columns = outlet_names)
+    ref_flow = pd.DataFrame(data = flow_dataset['reference_flow'].values, 
+                            index = time_span, columns = outlet_names)
     bc_flow = pd.DataFrame(data=np.transpose(flow_dataset['bias_corrected_total_flow'].values), 
-                           index=time_span, columns=outlet_names)
+                           index = time_span, columns = outlet_names)
 
-    raw_flow_spearman = filter_rank_corr(raw_flow.loc[start_year:end_year].corr(method='spearman'), 
-                                         rel_loc=relative_locations_triu)
-    bc_flow_spearman = filter_rank_corr(bc_flow.loc[start_year:end_year].corr(method='spearman'), 
-                                        rel_loc=relative_locations_triu)
+    raw_flow_spearman = filter_rank_corr(raw_flow.loc[start_year : end_year].corr(method = 'spearman'), 
+                                         rel_loc = relative_locations_triu)
+    bc_flow_spearman = filter_rank_corr(bc_flow.loc[start_year : end_year].corr(method = 'spearman'), 
+                                        rel_loc = relative_locations_triu)
     raw_minus_bc_spearman = raw_flow_spearman - bc_flow_spearman
 
     vmin = np.min(raw_minus_bc_spearman.min())
@@ -917,79 +1028,41 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites:list, sta
         
     # -10 is used to ensure that the squares not to be plotted are marked as such by 
     # the cmap's under values
-    vunder = np.abs(vmin)*-10
+    vunder = np.abs(vmin) * -10
 
-    im = ax.imshow(raw_minus_bc_spearman.fillna(vunder), vmin=-vextreme, vmax=vextreme, cmap=cmap)
-    plt.setp(ax.spines.values(), color=fontcolor)
-    ax.tick_params(axis='both', colors=fontcolor)
+    im = ax.imshow(raw_minus_bc_spearman.fillna(vunder), vmin = -vextreme, vmax = vextreme, cmap = cmap)
+    plt.setp(ax.spines.values(), color = fontcolor)
+    ax.tick_params(axis='both', colors = fontcolor)
     tick_tot = len(gauge_sites)
-    ax.set_xticks(np.arange(0,tick_tot,1.0))
-    ax.set_yticks(np.arange(0,tick_tot,1.0))
-    ax.set_ylim(tick_tot-0.5,-0.5)
-    ax.set_xticklabels(gauge_sites, rotation='vertical', fontsize=fontsize_label)
-    ax.set_yticklabels(gauge_sites, fontsize=fontsize_tick);
+    ax.set_xticks(np.arange(0, tick_tot, 1.0))
+    ax.set_yticks(np.arange(0, tick_tot, 1.0))
+    ax.set_ylim(tick_tot - 0.5, -0.5)
+    ax.set_xticklabels(gauge_sites, rotation = 'vertical', fontsize = fontsize_label)
+    ax.set_yticklabels(gauge_sites, fontsize = fontsize_tick);
 
-    cb = fig.colorbar(im, pad=0.01)
-    cb.ax.yaxis.set_tick_params(color=fontcolor, labelcolor=fontcolor, labelsize=fontsize_tick)
+    cb = fig.colorbar(im, pad = 0.01)
+    cb.ax.yaxis.set_tick_params(color = fontcolor, labelcolor = fontcolor, labelsize = fontsize_tick)
     cb.outline.set_edgecolor(None)
 
-    fig.text(0.6, -0.02, 'Site Abbreviation', fontsize=fontsize_label, ha='center')
-    fig.text(0.32, 0.4, 'Site Abbreviation', fontsize=fontsize_label, va='center', rotation='vertical')
+    fig.text(0.6, -0.02, 'Site Abbreviation', fontsize = fontsize_label, ha = 'center')
+    fig.text(0.32, 0.4, 'Site Abbreviation', fontsize = fontsize_label, va = 'center', rotation = 'vertical')
 
     newax = fig.add_axes([0.295, 0.4, 0.49, 0.49], anchor = 'NE', zorder = 2)
     newax.imshow(basin_map_png)
     newax.axis('off')
-    newax.tick_params(axis='both')
+    newax.tick_params(axis = 'both')
     newax.set_xticks([])
     newax.set_yticks([])
 
     plt.tight_layout
-    plt.show()
+    plt.show() 
     
-def determine_row_col(n:int, pref_rows = True):
-    """
-    Determine Rows and Columns
-        calculates a rectangular subplot layout that
-        contains at least n subplots, some may need to
-        be turned off in plotting
-    ----
-    n: int
-        total number of plots
-    pref_rows: boolean
-        If True, and only a rectangular arrangment
-        is possible, then put the longer dimension
-        in n_rows. If False, then it is
-        placed in the n_columns
-    return: int, int
-        n_rows, n_columns
-    """
-    if n < 0:
-        raise Exception("Please enter a positive n")
-    
-    # use square root to test because we want a square
-    # arrangment
-    sqrt_n = np.sqrt(n)
-    int_sqrt_n = int(sqrt_n)
-    if sqrt_n == float(int_sqrt_n):
-        return int_sqrt_n, int_sqrt_n
-    elif int_sqrt_n*(int_sqrt_n+1)>=n:
-        # see if a rectangular orientation would work
-        # eg. sqrt(12) = 3.464, int(3.464) = 3
-        # 3*(3+1) = 3*4 = 12
-        if pref_rows:
-            return int_sqrt_n+1, int_sqrt_n 
-        else:
-            return int_sqrt_n, int_sqrt_n+1 
-    else:
-        # since sqrt(n)*sqrt(n) = n,
-        # (sqrt(n)+1)*sqrt(n) < n,
-        # then (sqrt(n)+1)^2 > n
-        return int_sqrt_n+1, int_sqrt_n+1 
-    
-def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, bc_flow: pd.DataFrame, 
-                       colors: list, title= 'Flow Residuals', fontsize_title=80, fontsize_legend=68, 
-                       fontsize_subplot=60, fontsize_tick = 45, fontcolor = 'black',
-                       pos_cone_guide=False, neg_cone_guide=False):
+def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, 
+                       ref_flow: pd.DataFrame, bc_flow: pd.DataFrame, 
+                       colors: list, title= 'Flow Residuals', 
+                       fontsize_title = 80, fontsize_legend = 68, 
+                       fontsize_subplot = 60, fontsize_tick = 45, fontcolor = 'black',
+                       pos_cone_guide = False, neg_cone_guide = False):
     """
     Correction Scatter
         Plots differences between the raw and reference flows on the horizontal
@@ -1395,19 +1468,6 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     fig.text(-0.04, 0.5, r'Density', va='center', rotation='vertical', fontsize=fontsize_labels)
     
     plt.subplots_adjust(wspace=0.3, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
-    
-def log10_1p(x: np.ndarray):
-    """
-    Return the log10 of one plus the input array, element-wise.
-    ----
-    x: numpy.ndarray
-    ----
-    Returns: y: numpy.ndarray
-    """
-    y = np.nan*x
-    for i, element in enumerate(x):
-        y[i] = np.log10(element + 1)
-    return y
 
 def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
                       raw_var='IRFroutedRunoff', raw_name='Mizuroute Raw',
