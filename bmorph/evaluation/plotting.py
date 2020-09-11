@@ -928,7 +928,7 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
             flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
         bc_flow_alt_doy_df = pd.DataFrame(data = bc_flow_alt_doy.values, 
                                           index = doy, columns = outlet_names)
-        plot_names.append(bc_var_alt)
+        plot_names.append(bc_name_alt)
     
     mpl.rcParams['figure.figsize'] = (figsize_width, figsize_height)
     n_rows, n_cols = determine_row_col(len(plot_sites))
