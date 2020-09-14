@@ -1599,7 +1599,8 @@ def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
     return fig, axes
     
 def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFrame, site_pairings,
-                                 fontsize_title=40, fontsize_tick=30, fontsize_labels=40):
+                                  fontsize_title=40, fontsize_tick=30, fontsize_labels=40, 
+                                  subtitle = None, median_plot_color = 'red'):
     
     """
     Spearman Rank Difference Boxplots Annual
@@ -1640,7 +1641,12 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
             annual_spearman_difference.loc[WY][str(site_pairing)] = raw_spearman-bc_spearman
 
     fig, ax = plt.subplots(figsize=(20,20))
-    plt.suptitle('Annual Change in Spearman Rank', fontsize=fontsize_title, y=1.05)
+    
+    if isinstance(subtitle, type(None)):
+        plt.suptitle('Annual Change in Spearman Rank', fontsize=fontsize_title, y=1.05)
+    else:
+        assert isinstance(subtitle, str)
+        plt.suptitle(f'Annual Change in Spearman Rank: {subtitle}', fontsize = fontsize_title, y = 1.05)
 
     max_vert = np.max(annual_spearman_difference.max().values)*1.1
     min_vert = np.min(annual_spearman_difference.min().values)*1.1
@@ -1648,7 +1654,8 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
     ax.boxplot([annual_spearman_difference[site_pairing].values for 
                 site_pairing in annual_spearman_difference.columns],
                labels=[f'{site_pairing[0]},\n{site_pairing[1]}' for site_pairing in site_pairings],
-              medianprops={'color':'red', 'lw':4}, boxprops={'lw':4}, whiskerprops={'lw':4}, capprops={'lw':4})
+               medianprops={'color':median_plot_color, 'lw':4}, boxprops={'lw':4}, whiskerprops={'lw':4}, 
+               capprops={'lw':4})
 
     ax.set_ylim(top=max_vert, bottom=min_vert)
     ax.tick_params(axis='both', labelsize=fontsize_tick)
