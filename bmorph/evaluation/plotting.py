@@ -834,6 +834,7 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
 #      compare_CDF
 #      spearman_diff_boxplots_annual
 #      kl_divergence_annual_compare
+#      spearman_diff_boxplots_annual_compare
 #*****************************************************************************************
 
 def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list, 
@@ -842,12 +843,11 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
                         title_label=f'Annual Mean Flows',                           
                         raw_var = 'IRFroutedRunoff', raw_name = 'Mizuroute Raw', 
                         ref_var = 'upstream_ref_flow', ref_name = 'upstream_ref_flow', 
-                        bc_var = 'bc_flows_mdcd_hist', bc_name = 'BMORPH \n mdcd hist',         
-                        bc_var_alt = None, bc_name_alt = None,                            
+                        bc_vars = list(), bc_names = list(),                            
                         fontsize_title = 80, fontsize_legend = 68, fontsize_subplot = 60, 
                         fontsize_tick = 45, fontcolor = 'black', 
                         figsize_width = 70, figsize_height = 30,
-                        plot_colors=['grey', 'black', 'blue', 'red']):
+                        plot_colors = ['grey', 'black', 'blue', 'red']):
     """
     Plot Mean Day of Year Flows
         creates a series of subplots that plot an average year's flows
@@ -876,16 +876,10 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
         the string to access the reference flows in flow_dataset
     ref_name: str
         the string to label the refernce flows in the legend
-    bc_var: str
-        the string to access the bias corrected flows in flow_dataset
-    bc_name: str
-        the string to label the reference flows in the legend
-    bc_var_alt: None
-        the string to access a second set of bias corrected flows in
-        flow_dataset (optional)
-    bc_var_name: None
-        the string to label the second set of bias corrected flows in
-        the legend (required if bc_var_alt is not None)
+    bc_vars: list
+        a list of strings to access the bias corrected flows in flow_dataset
+    bc_names: list
+        a list of strings to label the reference flows in the legend
     plot_colors: ['grey', 'black', 'blue', 'red']
         a list containing colors to be plotted for raw, ref, bc,
         and bc_alt, respectively        
@@ -893,23 +887,20 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     Returns: fig, axs
     """
     
-    plot_bc_alt = False
-    
-    if not isinstance(bc_var_alt, type(None)):
-        if not isinstance(bc_name_alt, type(None)):
-            plot_bc_alt = True
-        else:
-            raise Exception("Please specify bc_name_alt")
-    
-    if len(plot_colors) < 3:
-        raise Exception("Please enter at least 3 colors in plot_colors")
+    if len(bc_vars) == 0:
+        raise Exception("Please enter a non-zero number strings in bc_vars to be used")
+    if len(bc_vars) != len(bc_names):
+        raise Exception("Please have the same number of entries in bc_names as bc_names")
+    if len(plot_colors) < 2 + len(bc_vars):
+        raise Exception(f"Please enter at least {2 + len(bc_vars)} colors in plot_colors")
     
     raw_flow_doy = flow_dataset[raw_var].groupby(
         flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
     reference_flow_doy = flow_dataset[ref_var].groupby(
         flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    bc_flow_doy = flow_dataset[bc_var].groupby(
-        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)        
+    bc_flow_doys = list()
+    for bc_var in bc_vars:
+        bc_flow_doys.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func))        
 
     doy = raw_flow_doy['dayofyear'].values
     outlet_names = flow_dataset['seg'].values
@@ -918,17 +909,12 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
                                    index=doy, columns = outlet_names)
     reference_flow_doy_df = pd.DataFrame(data = reference_flow_doy.values, 
                                          index=doy, columns = outlet_names)
-    bc_flow_doy_df = pd.DataFrame(data = bc_flow_doy.values, 
-                                  index = doy, columns = outlet_names)
+    bc_flow_doy_dfs = list()
+    for bc_flow_doy in bc_flow_doys:
+        bc_flow_doy_dfs.append(pd.DataFrame(data = bc_flow_doy.values, index = doy, columns = outlet_names))
     
-    plot_names = [raw_name, ref_name, bc_name]
-    
-    if plot_bc_alt:
-        bc_flow_alt_doy = flow_dataset[bc_var_alt].groupby(
-            flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-        bc_flow_alt_doy_df = pd.DataFrame(data = bc_flow_alt_doy.values, 
-                                          index = doy, columns = outlet_names)
-        plot_names.append(bc_name_alt)
+    plot_names = [raw_name, ref_name]
+    plot_names.extend(bc_names)
     
     mpl.rcParams['figure.figsize'] = (figsize_width, figsize_height)
     n_rows, n_cols = determine_row_col(len(plot_sites))
@@ -939,10 +925,9 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     for site, ax in zip(plot_sites, axs.ravel()):
         ax.plot(raw_flow_doy_df[site], color = plot_colors[0], alpha = 0.8, lw = 4)
         ax.plot(reference_flow_doy_df[site], color = plot_colors[1], alpha = 0.8, lw = 4)
-        ax.plot(bc_flow_doy_df[site], color = plot_colors[2], lw = 4)
         
-        if plot_bc_alt:
-            ax.plot(bc_flow_alt_doy_df[site], color = plot_colors[3], lw = 4)
+        for i, bc_flow_doy_df in enumerate(bc_flow_doy_dfs):
+            ax.plot(bc_flow_doy_df[site], color = plot_colors[2+i], lw = 4, alpha = 0.8)
         
         ax.set_title(site, fontsize = fontsize_subplot, color = fontcolor)
         plt.setp(ax.spines.values(), color = fontcolor)
@@ -1668,8 +1653,13 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
 
     plt.tight_layout()
     
-def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFrame, bc_flows: pd.DataFrame,
-                                 sites: list, fontsize_title = 40, fontsize_tick = 30, fontsize_labels = 40, 
+def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list, 
+                                 raw_var: str, raw_name: str,
+                                 ref_var: str, ref_name: str,
+                                 bc_vars: list, bc_names: list,
+                                 plot_colors: list,
+                                 fontsize_title = 40, fontsize_tick = 30, fontsize_labels = 40, 
+                                 fontsize_legend = 30,
                                  showfliers = False, sharex = True, sharey = 'row', TINY_VAL = 1e-6, 
                                  figsize = (30,20), show_y_grid = True):
     """
@@ -1677,16 +1667,32 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
         plots the KL divergence for each year per site as
         KL(P_{ref} || P_{raw}) and KL( P_{ref} || P_{bc})
     ----
-    raw_flows: pd.DataFrame
-        contains the raw flows with sites in the columns and time in the index
-    ref_flows: pd.DataFrame
-        contains the reference flows with sites in the columns and time in the index
-    bc_flows: pd.DataFrame
-        contains the bias corrected flows with sites in the columns and time in the index
+    flow_dataset: xr.Dataset
+        contains raw, reference, and bias corrected flows
     sites: list
         contains all the sites to be plotted, (note that if the number of sites to be plotted
         is square or rectangular, the last site will not be plotted to save room for the legend)    
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    raw_name: str
+        the string to label the raw flows in the legend and horizontal labels
+    ref_var: str
+        the string to access the reference flows in flow_dataset
+    ref_name: str
+        the string to label the reference flows in the legend and horizontal labels
+    bc_vars: list
+        a list of strings to access the bias corrected flows in flow_dataset
+    bc_names: list
+        a list of string to label the bias corrected flows in the legend and horizontal labels
+    plot_colors: list
+        a list containing colors to be plotted for raw and the bias corrected flows, respectively
     """
+    
+    raw_flows = flow_dataset[raw_var].to_pandas()
+    ref_flows = flow_dataset[ref_var].to_pandas()
+    bc_flows = list()
+    for bc_var in bc_vars:
+        bc_flows.append(flow_dataset[bc_var].to_pandas())
 
     WY_grouper = calc_water_year(raw_flows)
     WY_array = np.arange(WY_grouper[0], WY_grouper[-1], 1)
@@ -1696,43 +1702,57 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
     axs_list = axs.ravel().tolist()
 
     kldiv_refraw_annual = pd.DataFrame(index = WY_array, columns = sites)
-    kldiv_refbc_annual = pd.DataFrame(index = WY_array, columns = sites)
+    kldiv_refbc_annuals = list()
+    for bc_var in bc_vars:
+        kldiv_refbc_annuals.append(pd.DataFrame(index = WY_array, columns = sites))
     
     plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize = fontsize_title, y = 1.05)
 
     for WY in WY_array:
         raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
         ref_flow_WY = ref_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
-        bc_flow_WY = bc_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        bc_flow_WYs = list() 
+        for bc_flow in bc_flows:
+            bc_flow_WYs.append(bc_flow[f"{WY}-10-01":f"{WY+1}-09-30"])
         total_bins = int(np.sqrt(len(raw_flow_WY.index)))
 
         for site in sites:
             ref_WY_site_vals = ref_flow_WY[site].values
             raw_WY_site_vals = raw_flow_WY[site].values
-            bc_WY_site_vals = bc_flow_WY[site].values
+            bc_WY_site_vals = list()
+            for bc_flow_WY in bc_flow_WYs:
+                bc_WY_site_vals.append(bc_flow_WY[site].values)
 
             ref_WY_site_pdf, ref_WY_site_edges = np.histogram(ref_WY_site_vals, bins = total_bins, 
                                                               density = True)
             raw_WY_site_pdf = np.histogram(raw_WY_site_vals, bins = ref_WY_site_edges, density = True)[0]
-            bc_WY_site_pdf = np.histogram(bc_WY_site_vals, bins = ref_WY_site_edges, density = True)[0]
+            bc_WY_site_pdfs = list()
+            for bc_WY_site_val in bc_WY_site_vals:
+                bc_WY_site_pdf = np.histogram(bc_WY_site_val, bins = ref_WY_site_edges, density = True)[0]
+                bc_WY_site_pdf[bc_WY_site_pdf == 0] = TINY_VAL
+                bc_WY_site_pdfs.append(bc_WY_site_pdf)
             
             ref_WY_site_pdf[ref_WY_site_pdf == 0] = TINY_VAL
             raw_WY_site_pdf[raw_WY_site_pdf == 0] = TINY_VAL
-            bc_WY_site_pdf[bc_WY_site_pdf == 0] = TINY_VAL
 
             kldiv_refraw_annual.loc[WY][site] = scipy.stats.entropy(pk = raw_WY_site_pdf, qk = ref_WY_site_pdf)
-            kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk = bc_WY_site_pdf, qk = ref_WY_site_pdf)
+            for i, (kldiv_refbc_annual, bc_WY_site_pdf) in enumerate(zip(kldiv_refbc_annuals, bc_WY_site_pdfs)):
+                kldiv_refbc_annual.loc[WY][site] = scipy.stats.entropy(pk = bc_WY_site_pdf, qk = ref_WY_site_pdf)
+                kldiv_refbc_annuals[i] = kldiv_refbc_annual
+    
+    plot_labels = [raw_name]
+    plot_labels.extend(bc_names)
     
     for i, site in enumerate(sites):
         ax=axs_list[i]
-        box_dict = ax.boxplot([kldiv_refraw_annual[site].values, kldiv_refbc_annual[site].values], 
-                              patch_artist = True, showfliers = showfliers, 
-                              labels = [r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'],
-                              widths = 0.8, notch = True)
+        plot_vals = [kldiv_refraw_annual[site].values]
+        plot_vals.extend([kldiv_refbc_annual[site].values for kldiv_refbc_annual in kldiv_refbc_annuals])
+        box_dict = ax.boxplot(plot_vals, patch_artist = True, showfliers = showfliers, widths = 0.8, notch = True)
         for item in ['boxes', 'fliers', 'medians', 'means']:
-            for sub_item, color in zip(box_dict[item], ['red','blue']):
+            for sub_item, color in zip(box_dict[item], plot_colors):
                 plt.setp(sub_item, color = color)
         ax.set_title(site, fontsize = fontsize_labels)
+        ax.set_xticklabels(plot_labels, fontsize = fontsize_tick, rotation = 45)
         ax.tick_params(axis = 'both', labelsize = fontsize_tick)
         if show_y_grid:
             ax.grid(which = 'major', axis = 'y', alpha = 0.5)
@@ -1748,10 +1768,121 @@ def kl_divergence_annual_compare(raw_flows: pd.DataFrame, ref_flows: pd.DataFram
     fig.text(-0.04, 0.5, "Annual KL Divergence", 
              va = 'center', rotation = 'vertical', fontsize = fontsize_labels);
     
-    plt.legend(handles=custom_legend(names=[r'$KL(P_{raw} || P_{ref})$', r'$KL( P_{bc} || P_{ref})$'], 
-                                     colors = ['red','blue']), fontsize = fontsize_labels, loc = 'lower right')
+    fig.text(0.5, -0.04, r'$KL(P_{scenario} || P_{' + f'{ref_name}' + r'})$', 
+             va = 'bottom', ha = 'center', fontsize = fontsize_labels);
+    
+    plt.legend(handles=custom_legend(names=plot_labels, colors = plot_colors), 
+               fontsize = fontsize_legend, loc = 'lower right')
 
     plt.tight_layout()
     
     return fig, axs
     
+def spearman_diff_boxplots_annual_compare(flow_dataset: xr.Dataset, site_pairings, 
+                                  raw_var: str, bc_vars: list, bc_names: list,
+                                  plot_colors: list, showfliers =  True,
+                                  fontsize_title=40, fontsize_tick=25, fontsize_labels=30, 
+                                  subtitle = None, figsize = (20,20), sharey = 'row'):
+    
+    """
+    Spearman Rank Difference Boxplots Annual
+        creates box plots for each stide pairing determing the difference in spearman
+        rank for each year between the raw and bias corrected data
+    ----
+    flow_dataset: xr.Dataset
+        contains raw and bias corrected flows
+    site_pairings: list of list of string site pairs
+        e.g. [['downstream_name','upstream_name'], ...]
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    bc_vars: list
+        a list of strings to access the bias corrected flows in flow_dataset
+    bc_names: list
+        a list of strings to name the bias corrected flows from flow_dataset
+    plot_colors: list
+        a list of colors that are in the same order as the bc_vars and bc_names
+        to be used in plotting        
+    """
+    
+    if len(bc_vars) == 0:
+        raise Exception("Please enter a non-zero number strings in bc_vars to be used")
+    if len(bc_vars) != len(bc_names):
+        raise Exception("Please have the same number of entries in bc_names as bc_names")
+    if len(plot_colors) < len(bc_vars):
+        raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
+    
+    raw_flows = flow_dataset[raw_var].to_pandas()
+    bc_flows = list()
+    for bc_var in bc_vars:
+        bc_flows.append(flow_dataset[bc_var].to_pandas())
+    
+    WY_grouper = calc_water_year(raw_flows)
+    WY_index = np.arange(WY_grouper[0], WY_grouper[-1], 1)
+
+    annual_spearman_differences = list() 
+    for bc_var in bc_vars:
+        annual_spearman_differences.append(pd.DataFrame(index=WY_index, 
+                                                        columns=[str(pairing) for pairing in site_pairings]))
+    
+    for WY in WY_index:
+        raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
+        bc_flow_WY_list= list()
+        for bc_flow in bc_flows:
+            bc_flow_WY_list.append(bc_flow[f"{WY}-10-01":f"{WY+1}-09-30"])
+            
+        for site_pairing in site_pairings:
+            downstream = site_pairing[0]
+            upstream = site_pairing[1]
+
+            downstream_raw = raw_flow_WY[downstream]
+            upstream_raw = raw_flow_WY[upstream]
+            downstream_bcs = list()
+            upstream_bcs = list()
+            for bc_flow_WY in bc_flow_WY_list:
+                downstream_bcs.append(bc_flow_WY[downstream])
+                upstream_bcs.append(bc_flow_WY[upstream])
+
+            raw_spearman, raw_pvalue = scipy.stats.spearmanr(a=downstream_raw.values, b=upstream_raw.values)
+            for i, (downstream_bc, upstream_bc, annual_spearman_difference) in enumerate(
+                zip(downstream_bcs, upstream_bcs, annual_spearman_differences)):
+                bc_spearman, bc_pvalue = scipy.stats.spearmanr(a=downstream_bc.values, b=upstream_bc.values)
+                annual_spearman_difference.loc[WY][str(site_pairing)] = raw_spearman-bc_spearman
+                annual_spearman_differences[i] = annual_spearman_difference
+                
+    n_rows, n_cols = determine_row_col(len(site_pairings))
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=figsize, sharex = True, sharey = sharey)
+    axs_list = axs.ravel().tolist()
+    
+    #rewrites wrt subplots for site_pairings
+    
+    fig.suptitle('Annual Change in Spearman Rank', fontsize=fontsize_title, y=1.05)
+    
+    max_vert = np.max([df.values for df in annual_spearman_differences])*1.1
+    min_vert = np.min([df.values for df in annual_spearman_differences])
+    min_vert  = np.min([min_vert*1.1, min_vert*0.9])
+    
+    for i, site_pairing in enumerate(site_pairings):
+        ax = axs_list[i]
+    
+        ax.axhline(y=0, color='black', linestyle='--')
+        ax.set_title(f"{site_pairing[0]}, {site_pairing[1]}", fontsize = fontsize_labels)
+        box_dict = ax.boxplot([annual_spearman_difference[str(site_pairing)].values for 
+                               annual_spearman_difference in annual_spearman_differences],
+                   patch_artist = True, showfliers = showfliers, widths = 0.8, notch = True)
+
+        ax.set_ylim(top=max_vert, bottom=min_vert)
+        ax.set_xticklabels(bc_names, fontsize = fontsize_tick)
+        ax.tick_params(axis='both', labelsize=fontsize_tick)
+        for item in ['boxes', 'fliers', 'medians', 'means']:
+                for sub_item, color in zip(box_dict[item], plot_colors):
+                    plt.setp(sub_item, color = color)
+    
+    fig.text(0.5, -0.04, "Bias Correction Scenario", 
+                 ha='center', va = 'bottom', fontsize=fontsize_labels);
+    fig.text(-0.04, 0.5, r'$r_s(Q_{raw}^{up}, Q_{raw}^{down}) - r_s(Q_{bc}^{up}, Q_{bc}^{down})$', 
+             va='center', rotation = 'vertical', fontsize=fontsize_labels);
+
+    plt.tight_layout()
+    
+    return fig, axs
+
