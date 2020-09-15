@@ -835,6 +835,7 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
 #      spearman_diff_boxplots_annual
 #      kl_divergence_annual_compare
 #      spearman_diff_boxplots_annual_compare
+#      compare_CDF_all
 #*****************************************************************************************
 
 def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list, 
@@ -1466,7 +1467,7 @@ def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
                       fontsize_title = 40, fontsize_labels = 30, fontsize_tick = 20,
                       markersize = 1, alpha = 0.3):
     """
-    Compare Probability Distribution Functions Logit
+    Compare Probability Distribution Functions
         plots the CDF's of the raw, reference, and bias corrected flows
     ----
     flow_dataset: xr.Dataset
@@ -1885,4 +1886,125 @@ def spearman_diff_boxplots_annual_compare(flow_dataset: xr.Dataset, site_pairing
     plt.tight_layout()
     
     return fig, axs
+
+def compare_CDF_all(flow_dataset:xr.Dataset, plot_sites: list,
+                      raw_var: str, raw_name: str,
+                      ref_var: str, ref_name: str,
+                      bc_vars: list, bc_names: list,
+                      plot_colors: list, logit_scale = True,
+                      logarithm_base = '10', units = r'Q [$m^3/s$]',
+                      figsize = (20,20),
+                      fontsize_title = 40, fontsize_labels = 40, fontsize_tick = 40,
+                      markersize = 1, alpha = 0.3):
+    """
+    Compare Probability Distribution Functions All
+        plots the CDF's of the raw, reference, and bias corrected flows with data 
+        from all sites in plot_sites combined for a summary statistic
+    ----
+    flow_dataset: xr.Dataset
+        contatains raw, reference, and bias corrected flows
+    gauges_sites: list
+        a list of gauge sites to be plotted
+    raw_var: str
+        the string to access the raw flows in flow_dataset
+    raw_name: str
+        the string to label the raw flows in the legend
+    ref_var: str
+        the string to access the reference flows in flow_dataset
+    ref_name: str
+        the string to label the reference flows in the legend
+    bc_var: str
+        the string to access the bias corrected flows in flow_dataset
+    bc_name: str
+        the string to label the bias corrected flows in the legend
+    bc_var_alt: None
+        the string to access a second set of bias corrected flows in
+        flow_dataset (optional)
+    bc_var_name: None
+        the string to label the second set of bias corrected flows in
+        the legend (required if bc_var_alt is not None)
+    logit_scale: True
+        whether to plot the vertical scale on a logit axis (True) or not (False)
+    logarithm_base: '10'
+        '10' to use a log10 horizontal scale
+        'e' to use a natural log horizontal scale
+    units: r'Q [$m^3/s$]'
+        the horizontal axis's label for units
+    plot_colors: ['grey', 'black', 'blue', 'red']
+        a list containing the colors to be plotted for raw, ref, bc,
+        and bc_alt, respectively
+    markers: ['o', 'x', '*', '*']
+        a list containing the markers to be plotted for raw, ref, bc,
+        and bc_alt, respectively
+    """
+    
+    if len(bc_vars) == 0:
+        raise Exception("Please enter a non-zero number strings in bc_vars to be used")
+    if len(bc_vars) != len(bc_names):
+        raise Exception("Please have the same number of entries in bc_names as bc_names")
+    if len(plot_colors) < len(bc_vars):
+        raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
+            
+    if logarithm_base == '10':
+        log_func = log10_1p
+    elif logarithm_base == 'e':
+        log_func = np.log1p
+    else:
+        raise Exception("Please enter logarithm_base as '10' or 'e'")
+    
+    fig, ax = plt.subplots(figsize = figsize)
+
+    fig.suptitle("Cumulative Distribution Function", y = 1.01, x = 0.4, fontsize = fontsize_title)
+
+    cmp = flow_dataset.sel(seg = plot_sites)
+
+    raw = ECDF(log_func(cmp[raw_var].values.flatten()))
+    ref = ECDF(log_func(cmp[ref_var].values.flatten()))
+
+    cors = list()
+    for bc_var in bc_vars:
+        cors.append(ECDF(log_func(cmp[bc_var].values.flatten())))
+
+    linewidth = markersize / 2
+
+    ax.plot(raw.x, raw.y, color = plot_colors[0], label = raw_name, lw = linewidth,
+            linestyle = '--', marker = 'o', markersize = markersize, alpha = alpha)
+    ax.plot(ref.x, ref.y, color = plot_colors[1], label = ref_name, lw = linewidth,
+            linestyle = '--', marker = 'x', markersize = markersize, alpha = alpha)
+
+    for j, cor in enumerate(cors):
+        ax.plot(cor.x, cor.y, color = plot_colors[2+j], label = bc_names[j], lw = linewidth,
+                linestyle = '--', marker = '*', markersize = markersize, alpha = alpha)
+
+    ax.tick_params(axis = 'both', labelsize = fontsize_tick)
+
+    # relabel axis to account for log_func
+    xlabels = ax.get_xticks()
+    if logarithm_base == '10':
+        ax.set_xticklabels(labels = ["$" + "{:0.0f}".format(10**k-1) + "$" for k in xlabels])
+    elif logarithm_base == 'e':
+        ax.set_xticklabels(labels = ["$" + "{:0.2f}".format(exp(k)-1) + "$" for k in xlabels])
+
+    if logit_scale:
+        ax.set_yscale('logit')
+        ax.minorticks_off()
+        ax.yaxis.set_major_formatter(mpl.ticker.LogitFormatter())
+        ylabels = ax.get_yticks()
+        new_ylabels = list()
+        for k, ylabel in enumerate(ylabels):
+            if k % 3 == 0:
+                new_ylabels.append(ylabel)
+
+        ax.set_yticks(ticks = new_ylabels)
+        
+    plot_labels = [raw_name, ref_name]
+    plot_labels.extend(bc_names)
+    ax.legend(handles = custom_legend(plot_labels, plot_colors), fontsize = fontsize_tick)
+    
+    fig.text(0.4, 0.04, units, ha = 'center', fontsize = fontsize_labels)
+    fig.text(-0.04, 0.5, r'Non-exceedence probability', va = 'center', 
+             rotation = 'vertical', fontsize = fontsize_labels)
+    plt.subplots_adjust(hspace = 0.35, left = 0.05, right = 0.8, top = 0.95)
+    
+    return fig, axes
 
