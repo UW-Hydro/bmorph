@@ -1455,19 +1455,18 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     
     plt.subplots_adjust(wspace=0.3, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
 
-def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
-                      raw_var='IRFroutedRunoff', raw_name='Mizuroute Raw',
-                      ref_var='upstream_ref_flow', ref_name='upstream_ref_flow',
-                      bc_var='bc_flows_mdcd_hist', bc_name='BMORPH \n mdcd hist',
-                      bc_var_alt= None, bc_name_alt = None, logit_scale = True,
+def compare_CDF(flow_dataset:xr.Dataset, plot_sites: list,
+                      raw_var: str, raw_name: str,
+                      ref_var: str, ref_name: str,
+                      bc_vars: list, bc_names: list,
+                      plot_colors: list, logit_scale = True,
                       logarithm_base = '10', units = r'Q [$m^3/s$]',
-                      plot_colors = ['grey', 'black', 'blue', 'red'],
                       markers = ['o', 'x', '*', '*'],
                       figsize = (20,20), sharex = False, sharey = True,
                       fontsize_title = 40, fontsize_labels = 30, fontsize_tick = 20,
                       markersize = 1, alpha = 0.3):
     """
-    Compare Probability Distribution Functions
+    Compare Probability Distribution Functions Logit
         plots the CDF's of the raw, reference, and bias corrected flows
     ----
     flow_dataset: xr.Dataset
@@ -1507,13 +1506,12 @@ def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
         and bc_alt, respectively
     """
     
-    plot_bc_alt = False
-    
-    if not isinstance(bc_var_alt, type(None)):
-        if not isinstance(bc_name_alt, type(None)):
-            plot_bc_alt = True
-        else:
-            raise Exception("Please specify bc_name_alt")
+    if len(bc_vars) == 0:
+        raise Exception("Please enter a non-zero number strings in bc_vars to be used")
+    if len(bc_vars) != len(bc_names):
+        raise Exception("Please have the same number of entries in bc_names as bc_names")
+    if len(plot_colors) < len(bc_vars):
+        raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
             
     if logarithm_base == '10':
         log_func = log10_1p
@@ -1535,20 +1533,21 @@ def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
         
         raw = ECDF(log_func(cmp[raw_var].values))
         ref = ECDF(log_func(cmp[ref_var].values))
-        cor = ECDF(log_func(cmp[bc_var].values))
+        
+        cors = list()
+        for bc_var in bc_vars:
+            cors.append(ECDF(log_func(cmp[bc_var].values)))
         
         linewidth = markersize / 2
         
         ax.plot(raw.x, raw.y, color = plot_colors[0], label = raw_name, lw = linewidth,
-                linestyle = '--', marker = markers[0], markersize = markersize, alpha = alpha)
+                linestyle = '--', marker = 'o', markersize = markersize, alpha = alpha)
         ax.plot(ref.x, ref.y, color = plot_colors[1], label = ref_name, lw = linewidth,
-                linestyle = '--', marker = markers[1], markersize = markersize, alpha = alpha)
-        ax.plot(cor.x, cor.y, color = plot_colors[2], label = bc_name, lw = linewidth,
-                linestyle = '--', marker = markers[2], markersize = markersize, alpha = alpha)
-        if plot_bc_alt:
-            cor_alt = ECDF(log_func(cmp[bc_var_alt].values))
-            ax.plot(cor_alt.x, cor_alt.y, color = plot_colors[3], label = bc_name_alt, lw = linewidth,
-                    linestyle = '--', marker = markers[3], markersize = markersize, alpha = alpha)
+                linestyle = '--', marker = 'x', markersize = markersize, alpha = alpha)
+        
+        for j, cor in enumerate(cors):
+            ax.plot(cor.x, cor.y, color = plot_colors[2+j], label = bc_names[j], lw = linewidth,
+                    linestyle = '--', marker = '*', markersize = markersize, alpha = alpha)
         
         ax.set_title(site, fontsize = fontsize_labels)
         ax.tick_params(axis = 'both', labelsize = fontsize_tick)
@@ -1556,10 +1555,10 @@ def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
         # relabel axis to account for log_func
         xlabels = ax.get_xticks()
         if logarithm_base == '10':
-            ax.set_xticklabels(labels = ["$" + "{:0.0f}".format(10**j-1) + "$" for j in xlabels], 
+            ax.set_xticklabels(labels = ["$" + "{:0.0f}".format(10**k-1) + "$" for k in xlabels], 
                                rotation = 30)
         elif logarithm_base == 'e':
-            ax.set_xticklabels(labels = ["$" + "{:0.2f}".format(exp(j)-1) + "$" for j in xlabels], 
+            ax.set_xticklabels(labels = ["$" + "{:0.2f}".format(exp(k)-1) + "$" for k in xlabels], 
                                rotation=30)
         
         if logit_scale:
@@ -1568,8 +1567,8 @@ def compare_CDF(flow_dataset:xr.Dataset, plot_sites = list,
             ax.yaxis.set_major_formatter(mpl.ticker.LogitFormatter())
             ylabels = ax.get_yticks()
             new_ylabels = list()
-            for j, ylabel in enumerate(ylabels):
-                if j % 3 == 0:
+            for k, ylabel in enumerate(ylabels):
+                if k % 3 == 0:
                     new_ylabels.append(ylabel)
                 
             ax.set_yticks(ticks = new_ylabels)
