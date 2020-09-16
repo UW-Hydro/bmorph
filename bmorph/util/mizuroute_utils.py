@@ -231,7 +231,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         'is_gauge'
         'down_seg'
         'distance_to_up_gauge'
-        'distance_to_down_gauge
+        'distance_to_down_gauge'
         'cdf_blend_factor'
         'up_seg'
         'upstream_ref_seg'
