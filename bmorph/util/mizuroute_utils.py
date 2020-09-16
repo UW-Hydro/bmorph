@@ -231,7 +231,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         'is_gauge'
         'down_seg'
         'distance_to_up_gauge'
-        'distance_to_down_gauge
+        'distance_to_down_gauge'
         'cdf_blend_factor'
         'up_seg'
         'upstream_ref_seg'
@@ -251,7 +251,8 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
     routed = map_headwater_sites(routed=routed)
 
     # map_gauge_sites
-    routed = map_gauge_sites(routed=routed, gauge_reference=reference)
+    routed = map_gauge_sites(routed=routed, gauge_reference=reference,
+                             gauge_sites = gauge_sites)
     
     # map_up_segs
     routed = map_up_segs(routed=routed)
