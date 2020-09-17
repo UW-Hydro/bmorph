@@ -92,13 +92,13 @@ def map_gauge_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
     boolean identifies whether a seg is a gauge with 'is_gauge'
     """
     if isinstance(gauge_sites, type(None)):
-        gauge_sites = gauge_reference['outlet'].values
+        gauge_sites = gauge_reference['site'].values
     else:
         # need to typecheck since we do a for loop later and don't
         # want to end up iterating through a string by accident
         assert isinstance(gauge_sites, list)
 
-    gauge_segs = gauge_reference.sel(outlet=gauge_sites)['seg'].values
+    gauge_segs = gauge_reference.sel(site=gauge_sites)['seg'].values
 
     routed['is_gauge'] = False * routed['seg']
     is_gauge = []
@@ -220,7 +220,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         contains the network topology with a "seg" dimension that identifies reaches,
         matching the routed dataset
     reference: xr.Dataset
-        contains reaches used for reference with dimension "outlet" and coordinate "seg"
+        contains reaches used for reference with dimension "site" and coordinate "seg"
     gauge_sites: None
         contains the gauge site names from the reference dataset to be used that are
         automatically pulled from reference if None are given
@@ -347,8 +347,7 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
 
 
 def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
-                            site_seg_mapping: dict, met_hru: xr.Dataset=xr.Dataset(),
-                            route_var: str='IRFroutedRunoff'):
+                            met_hru: xr.Dataset=xr.Dataset(), route_var: str='IRFroutedRunoff'):
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
     allows an optional dataset of hru meteorological data to be given for conditional
@@ -364,8 +363,6 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
     reference:
         A dataset containing reference flows for bias correction.
         We expect this to have ``site`` and ``time`` dimensions.
-    site_seg_mapping:
-        A lookup table from the ``reference.site`` to ``topo.seg``
     met_hru:
         (Optional) A dataset of meteorological data to be mapped
         onto the stream segments to facilitate conditioning.
@@ -382,8 +379,8 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
         routines. See the ``blendmorph`` documentation for further information.
     '''
     # Provide some convenience data for mapping/loops
-    ref_sites = list(site_seg_mapping.keys())
-    ref_segs = list(site_seg_mapping.values())
+    ref_sites = list(reference['site'].values)
+    ref_segs = list(reference['seg'].values)
     hru_2_seg = topo['seg_hru_id'].values
     met_vars = set(met_hru.variables.keys()) - set(met_hru.coords)
 
