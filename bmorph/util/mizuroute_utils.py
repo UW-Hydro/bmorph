@@ -185,8 +185,12 @@ def map_ref_seg(routed: xr.Dataset):
         current_seg = seg
         while routed.sel(seg=current_seg)['down_seg'].values[()] not in gauge_segs:
             current_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-        downstream_gauge_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-        routed['downstream_ref_seg'].loc[{'seg': seg}] = downstream_gauge_seg
+            if routed.sel(seg=current_seg)['down_seg'].values[()] not in routed['seg'].values:
+                current_seg = None
+                break
+        if current_seg:
+            downstream_gauge_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
+            routed['downstream_ref_seg'].loc[{'seg': seg}] = downstream_gauge_seg
 
     for seg in routed['seg'].values:
         if seg in gauge_segs or routed.sel(seg=seg)['up_seg'].values[()] not in routed['seg'].values:
@@ -249,7 +253,6 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
 
     # map_headwater_sites
     routed = map_headwater_sites(routed=routed)
-
     # map_gauge_sites
     routed = map_gauge_sites(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites)
@@ -321,8 +324,13 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
         current_seg = seg
         while routed.sel(seg=current_seg)['down_seg'].values[()] not in gauge_segs:
             current_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-        downstream_gauge_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-        routed[downstream_var].loc[{'seg':seg}] = map_var.sel(seg=downstream_gauge_seg).values[:]
+            if routed.sel(seg=current_seg)['down_seg'].values[()] not in routed['seg'].values:
+                current_seg = None
+                break
+
+        if current_seg:
+            downstream_gauge_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
+            routed['downstream_ref_seg'].loc[{'seg': seg}] = downstream_gauge_seg
 
     for seg in routed['seg'].values:
         if seg in gauge_segs or routed.sel(seg=seg)['up_seg'].values[()] not in routed['seg'].values:
