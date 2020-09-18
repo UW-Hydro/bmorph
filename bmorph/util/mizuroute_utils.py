@@ -1,46 +1,46 @@
-#import warnings
-#warnings.simplefilter(action='ignore', category=FutureWarning)
-#warnings.simplefilter(action='ignore', category=UserWarning)
-
 from glob import glob
 import xarray as xr
 import pandas as pd
 import geopandas as gpd
 import bmorph
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.neighbors import KernelDensity
 
-def find_upstream(ds, seg):
+
+def find_up(ds, seg):
     if ds.sel(seg=seg)['is_headwaters']:
         return None
     up_idx = np.argwhere(ds['down_seg'].values == seg).flatten()[0]
     up_seg = ds['seg'].isel(seg=up_idx).values[()]
     return up_seg
 
-def walk_downstream(ds, start_seg):
-    tot_length = 0.0
-    current_seg = start_seg
-    if ds['is_gauge'].sel(seg=current_seg):
-        return 0.0
-    else:
-        while (ds['down_seg'].sel(seg=current_seg).values[()] in ds['seg'].values
-              and not ds['is_gauge'].sel(seg=ds['down_seg'].sel(seg=current_seg).values[()]).values[()]):
-            current_seg = ds['down_seg'].sel(seg=current_seg).values[()]
-            tot_length += ds.sel(seg=current_seg)['length'].values[()]
-        return tot_length
 
-def walk_upstream(ds, start_seg):
+def walk_down(ds, start_seg):
     tot_length = 0.0
-    current_seg = start_seg
-    if ds['is_gauge'].sel(seg=current_seg):
-        return 1.0
+    cur_seg = start_seg
+    if ds['is_gauge'].sel(seg=cur_seg):
+        return 0.0, cur_seg
     else:
-        while (ds['up_seg'].sel(seg=current_seg).values[()] in ds['seg'].values
-              and not ds['is_gauge'].sel(seg=ds['up_seg'].sel(seg=current_seg).values[()]).values[()]):
-            current_seg = ds['up_seg'].sel(seg=current_seg).values[()]
-            tot_length += ds.sel(seg=current_seg)['length'].values[()]
-        return tot_length
+        while (ds['down_seg'].sel(seg=cur_seg).values[()] in ds['seg'].values
+              and not ds['is_gauge'].sel(seg=ds['down_seg'].sel(seg=cur_seg).values[()]).values[()]):
+            cur_seg = ds['down_seg'].sel(seg=cur_seg).values[()]
+            tot_length += ds.sel(seg=cur_seg)['length'].values[()]
+        cur_seg = ds['down_seg'].sel(seg=cur_seg).values[()]
+        return tot_length, cur_seg
+
+
+def walk_up(ds, start_seg):
+    tot_length = 0.0
+    cur_seg = start_seg
+    if ds['is_gauge'].sel(seg=cur_seg):
+        return 0.0, cur_seg
+    else:
+        while (ds['up_seg'].sel(seg=cur_seg).values[()] in ds['seg'].values
+              and not ds['is_gauge'].sel(seg=ds['up_seg'].sel(seg=cur_seg).values[()]).values[()]):
+            cur_seg = ds['up_seg'].sel(seg=cur_seg).values[()]
+            tot_length += ds.sel(seg=cur_seg)['length'].values[()]
+        cur_seg = ds['up_seg'].sel(seg=cur_seg).values[()]
+        return tot_length, cur_seg
+
 
 def trim_time(dataset_list: list):
     """
@@ -73,6 +73,7 @@ def trim_time(dataset_list: list):
 
     return dataset_list_trimmed
 
+
 def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
     """
     adds contributing_area, average elevation, length, and down_seg to
@@ -86,7 +87,8 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
 
     return routed
 
-def map_gauge_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
+
+def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
                     gauge_sites=None):
     """
     boolean identifies whether a seg is a gauge with 'is_gauge'
@@ -101,23 +103,54 @@ def map_gauge_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
     gauge_segs = gauge_reference.sel(site=gauge_sites)['seg'].values
 
     routed['is_gauge'] = False * routed['seg']
-    is_gauge = []
+    routed['down_ref_seg'] = np.nan * routed['seg']
+    routed['up_ref_seg'] = np.nan * routed['seg']
+    routed['up_seg'] = 0 * routed['is_headwaters']
+    routed['up_seg'].values = [find_up(routed, s) for s in routed['seg'].values]
     for s in routed['seg']:
         if s in list(gauge_segs):
-            is_gauge.append(True)
-        else:
-            is_gauge.append(False)
+            routed['is_gauge'].loc[{'seg':s}] = True
 
-    routed['is_gauge'].values[:] = is_gauge
+    for s in routed['seg']:
+        if routed.sel(seg=s)['is_gauge']:
+            down_seg = routed.sel(seg=s)['down_seg'].values[()]
+            down_ref_seg =  walk_down(routed, down_seg)[1]
+            if down_ref_seg in routed['seg']:
+            	routed['down_ref_seg'].loc[{'seg':s}] = down_ref_seg
+
+    for s in routed['seg']:
+        if routed.sel(seg=s)['is_gauge']:
+            routed['up_ref_seg'].loc[{'seg': s}] = s
+
+    for seg in routed['seg']:
+        cur_seg = seg.values[()]
+        while cur_seg in routed['seg'].values and np.isnan(routed['down_ref_seg'].sel(seg=cur_seg)):
+            cur_seg = routed['down_seg'].sel(seg=cur_seg).values[()]
+        if cur_seg in routed['seg'].values:
+            routed['down_ref_seg'].loc[{'seg':seg}] = routed['down_ref_seg'].sel(seg=cur_seg).values[()]
+
+    for seg in routed['seg']:
+        cur_seg = seg.values[()]
+        while cur_seg in routed['seg'].values and np.isnan(routed['up_ref_seg'].sel(seg=cur_seg)):
+            cur_seg = routed['up_seg'].sel(seg=cur_seg).values[()]
+        if cur_seg in routed['seg'].values:
+            routed['up_ref_seg'].loc[{'seg':seg}] = routed['up_ref_seg'].sel(seg=cur_seg).values[()]
+
+    # Fill in any remaining nulls (head/tailwaters)
+    routed['up_ref_seg'] = (routed['up_ref_seg'].where(
+        ~np.isnan(routed['up_ref_seg']), other=routed['down_ref_seg'])).ffill('seg')
+    routed['down_ref_seg'] = (routed['down_ref_seg'].where(
+        ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg'])).ffill('seg')
 
     return routed
+
 
 def map_headwater_sites(routed: xr.Dataset):
     """
     boolean identifies whether a seg is a headwater with 'is_headwater'
     """
     if not 'down_seg' in list(routed.var()):
-        raise Exception("Please denote downstream segs with 'down_seg'")
+        raise Exception("Please denote down segs with 'down_seg'")
 
     routed['is_headwaters'] = False * routed['seg']
     headwaters = [s not in routed['down_seg'].values for s in routed['seg'].values]
@@ -125,35 +158,23 @@ def map_headwater_sites(routed: xr.Dataset):
 
     return routed
 
-def map_up_segs(routed: xr.Dataset):
-    """
-    maps what segs are upstream from each other, opposite to `down_seg`
-    """
-    if not 'is_headwaters' in list(routed.var()):
-        # needed for find_upstream, so checking before we get too far
-        raise Exception("Please denote headwater segs with 'is_headwaters'")
-
-    routed['up_seg'] = 0 * routed['is_headwaters']
-    routed['up_seg'].values = [find_upstream(routed, s) for s in routed['seg'].values]
-
-    return routed
 
 def calculate_cdf_blend_factor(routed: xr.Dataset):
     """
     calcultes the cumulative distirbtuion function blend factor based on distance
-    to a seg's nearest upstream gauge site with respect to the total distance between
+    to a seg's nearest up gauge site with respect to the total distance between
     the two closest guage sites to the seg
     """
     if not 'is_gauge' in list(routed.var()):
-        # needed for walk_upstream and walk_downstream
+        # needed for walk_up and walk_down
         raise Exception("Please denote headwater segs with 'is_headwaters'")
 
     routed['distance_to_up_gauge'] = 0 * routed['is_gauge']
     routed['distance_to_down_gauge'] = 0 * routed['is_gauge']
     routed['cdf_blend_factor'] = 0 * routed['is_gauge']
 
-    routed['distance_to_up_gauge'].values = [walk_upstream(routed, s) for s in routed['seg']]
-    routed['distance_to_down_gauge'].values = [walk_downstream(routed, s) for s in routed['seg']]
+    routed['distance_to_up_gauge'].values = [walk_up(routed, s)[0] for s in routed['seg']]
+    routed['distance_to_down_gauge'].values = [walk_down(routed, s)[0] for s in routed['seg']]
     routed['cdf_blend_factor'].values = (routed['distance_to_up_gauge']
                                         / (routed['distance_to_up_gauge']
                                           + routed['distance_to_down_gauge'])).values
@@ -161,57 +182,36 @@ def calculate_cdf_blend_factor(routed: xr.Dataset):
 
     return routed
 
+
 def map_ref_seg(routed: xr.Dataset):
     """
-    maps the nearest gauge site upsteam and downstream of a seg
+    maps the nearest gauge site upsteam and down of a seg
     """
     if 'down_seg' not in list(routed.var()):
         #note 'up_seg' does not show up in var()
         raise Exception("Please run 'map_segs_topology' and 'map_up_segs' first")
 
-    routed['downstream_ref_seg'] = np.nan * routed['seg']
-    routed['upstream_ref_seg'] = np.nan * routed['seg']
+    for seg in routed['seg']:
+        cur_seg = seg.values[()]
+        while cur_seg in routed['seg'].values and np.isnan(routed['down_ref_seg'].sel(seg=cur_seg)):
+            cur_seg = routed['down_seg'].sel(seg=cur_seg).values[()]
+        if cur_seg in routed['seg'].values:
+            routed['down_ref_seg'].loc[{'seg':seg}] = routed['down_ref_seg'].sel(seg=cur_seg).values[()]
 
-    gauge_segs = list()
-    for seg in routed['seg'].values:
-        if routed.sel(seg=seg)['is_gauge']:
-            gauge_segs.append(seg)
-            routed['upstream_ref_seg'].loc[{'seg':seg}] = seg
-            routed['downstream_ref_seg'].loc[{'seg':seg}] = seg
+        cur_seg = seg.values[()]
+        while cur_seg in routed['seg'].values and np.isnan(routed['up_ref_seg'].sel(seg=cur_seg)):
+            cur_seg = routed['up_seg'].sel(seg=cur_seg).values[()]
+        if cur_seg in routed['seg'].values:
+            routed['up_ref_seg'].loc[{'seg':seg}] = routed['up_ref_seg'].sel(seg=cur_seg).values[()]
 
-    for seg in routed['seg'].values:
-        if seg in gauge_segs or routed.sel(seg=seg)['down_seg'].values[()] not in routed['seg'].values:
-            continue
-        current_seg = seg
-        while routed.sel(seg=current_seg)['down_seg'].values[()] not in gauge_segs:
-            current_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-            if routed.sel(seg=current_seg)['down_seg'].values[()] not in routed['seg'].values:
-                current_seg = None
-                break
-        if current_seg:
-            downstream_gauge_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-            routed['downstream_ref_seg'].loc[{'seg': seg}] = downstream_gauge_seg
-
-    for seg in routed['seg'].values:
-        if seg in gauge_segs or routed.sel(seg=seg)['up_seg'].values[()] not in routed['seg'].values:
-            continue
-        current_seg = seg
-        while routed.sel(seg=current_seg)['up_seg'].values[()] not in gauge_segs:
-            current_seg = routed.sel(seg=current_seg)['up_seg'].values[()]
-            if current_seg is None:
-                break
-        if current_seg is None:
-            routed['upstream_ref_seg'].loc[{'seg':seg}] = routed['downstream_ref_seg'].loc[{'seg': seg}]
-        else:
-            upstream_gauge_seg = routed.sel(seg=current_seg)['up_seg'].values[()]
-            routed['upstream_ref_seg'].loc[{'seg': seg}] = upstream_gauge_seg
-
-    routed['downstream_ref_seg'] = (routed['downstream_ref_seg'].where(
-        ~np.isnan(routed['downstream_ref_seg']), other=routed['upstream_ref_seg']))
-    routed['upstream_ref_seg'] = (routed['upstream_ref_seg'].where(
-        ~np.isnan(routed['upstream_ref_seg']), other=routed['downstream_ref_seg']))
+    # Fill in any remaining nulls (head/tailwaters)
+    routed['down_ref_seg'] = (routed['down_ref_seg'].where(
+        ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg']))
+    routed['up_ref_seg'] = (routed['up_ref_seg'].where(
+        ~np.isnan(routed['up_ref_seg']), other=routed['down_ref_seg']))
 
     return routed
+
 
 def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr.Dataset,
                      gauge_sites = None):
@@ -238,11 +238,9 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         'distance_to_down_gauge'
         'cdf_blend_factor'
         'up_seg'
-        'upstream_ref_seg'
-        'downstream_ref_seg'
+        'up_ref_seg'
+        'down_ref_seg'
     """
-
-    # map_segs_topology
     routed = map_segs_topology(routed=routed, topology=topology)
 
     # check if trim_time should be suggested
@@ -251,44 +249,34 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
     if t_reference[0] != t_routed[0] or t_reference[1] != t_routed[1]:
         raise Exception("Please ensure reference and routed have the same starting and ending times, (this can be done with trim_time)")
 
-    # map_headwater_sites
     routed = map_headwater_sites(routed=routed)
-    # map_gauge_sites
-    routed = map_gauge_sites(routed=routed, gauge_reference=reference,
+    routed = map_ref_sites(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites)
-
-    # map_up_segs
-    routed = map_up_segs(routed=routed)
-
-    # calculate_cdf_blend_factor
     routed = calculate_cdf_blend_factor(routed=routed)
-
-    # map_ref_seg
-    routed = map_ref_seg(routed=routed)
-
     return routed
 
+
 def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
-                      gauge_segs = None):
+                    gauge_segs = None):
     """
-    splits the variable into its upstream and downstream components to be used in blendmorph
+    splits the variable into its up and down components to be used in blendmorph
     ----
     routed: xr.Dataset
         the dataset that will be modified and returned having been prepared by calculate_blend_vars
         with the dimension 'seg'
     map_var: xr.DataArray
-        contains the variable to be split into upstream and downstream components and can be
+        contains the variable to be split into up and down components and can be
         the same as routed, (must also contain the dimension 'seg')
     var_label: str
-        suffix of the upstream and downstream parts of the variable
+        suffix of the up and down parts of the variable
     gauge_segs: None
         list of the gauge segs that identify the reaches that are gauge sites, pulled from routed
         if None
     ----
     Return: routed (xr.Dataset)
         with the following added:
-        f'downstream_{var_label}'
-        f'upstream_{var_label}'
+        f'down_{var_label}'
+        f'up_{var_label}'
     """
 
     if not 'down_seg' in list(routed.var()):
@@ -300,62 +288,55 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     if t_map_var[0] != t_routed[0] or t_map_var[1] != t_routed[1]:
         raise Exception("Please ensure reference and routed have the same starting and ending times, (this can be done with trim_time)")
 
-    downstream_var = f'downstream_{var_label}'
-    upstream_var = f'upstream_{var_label}'
+    down_var = f'down_{var_label}'
+    up_var = f'up_{var_label}'
 
     # need to override dask array data protections
     map_var.load()
 
-    routed[downstream_var] = np.nan * map_var
-    routed[upstream_var] = np.nan * map_var
-
-    if isinstance(gauge_segs, type(None)):
-        gauge_segs = list()
-        for seg in routed['seg'].values:
-            if routed.sel(seg=seg)['is_gauge']:
-                gauge_segs.append(seg)
-
-    for seg in gauge_segs:
-        routed[downstream_var].loc[{'seg':seg}] = map_var.sel(seg=seg).values[:]
+    routed[down_var] = np.nan * map_var
+    routed[up_var] = np.nan * map_var
 
     for seg in routed['seg'].values:
-        if seg in gauge_segs or routed.sel(seg=seg)['down_seg'].values[()] not in routed['seg'].values:
-            continue
-        current_seg = seg
-        while routed.sel(seg=current_seg)['down_seg'].values[()] not in gauge_segs:
-            current_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-            if routed.sel(seg=current_seg)['down_seg'].values[()] not in routed['seg'].values:
-                current_seg = None
-                break
-
-        if current_seg:
-            downstream_gauge_seg = routed.sel(seg=current_seg)['down_seg'].values[()]
-            routed['downstream_ref_seg'].loc[{'seg': seg}] = downstream_gauge_seg
-
-    for seg in routed['seg'].values:
-        if seg in gauge_segs or routed.sel(seg=seg)['up_seg'].values[()] not in routed['seg'].values:
-            continue
-        current_seg = seg
-        while routed.sel(seg=current_seg)['up_seg'].values[()] not in gauge_segs:
-            current_seg = routed.sel(seg=current_seg)['up_seg'].values[()]
-            if current_seg is None:
-                break
-        if current_seg is None:
-            routed[upstream_var].loc[{'seg':seg}] = routed[downstream_var].loc[{'seg':seg}]
-        else:
-            upstream_gauge_seg = routed.sel(seg=current_seg)['up_seg'].values[()]
-            routed[upstream_var].loc[{'seg':seg}] = map_var.sel(seg=upstream_gauge_seg).values[:]
-
-    routed[downstream_var] = (routed[downstream_var].where(
-        ~np.isnan(routed[downstream_var]).any(dim='time'), other=routed[upstream_var]))
-    routed[upstream_var] = (routed[upstream_var].where(
-        ~np.isnan(routed[upstream_var]).any(dim='time'), other=routed[downstream_var]))
+        up_seg = routed['up_ref_seg'].sel(seg=seg)
+        down_seg = routed['down_ref_seg'].sel(seg=seg)
+        routed[up_var].loc[{'seg': seg}] = map_var.sel(seg=up_seg).values[:]
+        routed[down_var].loc[{'seg': seg}] = map_var.sel(seg=down_seg).values[:]
 
     return routed
 
 
+def map_met_hru_to_seg(met_hru, topo):
+
+    hru_2_seg = topo['seg_hru_id'].values
+    met_vars = set(met_hru.variables.keys()) - set(met_hru.coords)
+    # Prep met data structures
+    met_seg = xr.Dataset({'time': met_hru['time']})
+    for v  in met_vars:
+        met_seg[v] = xr.DataArray(data=np.nan, dims=('time', 'seg', ),
+                            coords={'time': met_hru['time'], 'seg': topo['seg']})
+
+    # Map from hru -> segment for met data
+    # In case a mapping doesn't exist to all segments,
+    # we define a neighborhood search to spatially average
+    null_neighborhood = [-3, -2, -1, 0, 1, 2, 3]
+    for var in met_vars:
+        for seg in met_seg['seg'].values:
+            subset = np.argwhere(hru_2_seg == seg).flatten()
+            # First fallback, search in the null_neighborhood
+            if not len(subset):
+                subset = np.hstack([np.argwhere(hru_2_seg == seg-offset).flatten()
+                                    for offset in null_neighborhood])
+            # Second fallback, use domain average
+            if not len(subset):
+                subset = met_hru['hru'].values
+            met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
+
+    return met_seg
+
+
 def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
-                            met_hru: xr.Dataset=xr.Dataset(), route_var: str='IRFroutedRunoff'):
+                            met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff'):
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
     allows an optional dataset of hru meteorological data to be given for conditional
@@ -386,33 +367,16 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
         A dataset with the required data for applying the ``blendmorph``
         routines. See the ``blendmorph`` documentation for further information.
     '''
+    if met_hru is None:
+        met_hru = xr.Dataset(coords={'time': routed['time']})
     # Provide some convenience data for mapping/loops
     ref_sites = list(reference['site'].values)
     ref_segs = list(reference['seg'].values)
     hru_2_seg = topo['seg_hru_id'].values
     met_vars = set(met_hru.variables.keys()) - set(met_hru.coords)
 
-    # Prep met data structures
-    met_seg = xr.Dataset()
-    for v  in met_vars:
-        met_seg[v] = xr.DataArray(data=np.nan, dims=('time', 'seg', ),
-                            coords={'time': met_hru['time'], 'seg': topo['seg']})
-
-    # Map from hru -> segment for met data
-    # In case a mapping doesn't exist to all segments,
-    # we define a neighborhood search to spatially average
-    null_neighborhood = [-3, -2, -1, 0, 1, 2, 3]
-    for var in met_vars:
-        for seg in met_seg['seg'].values:
-            subset = np.argwhere(hru_2_seg == seg).flatten()
-            # First fallback, search in the null_neighborhood
-            if not len(subset):
-                subset = np.hstack([np.argwhere(hru_2_seg == seg-offset).flatten()
-                                    for offset in null_neighborhood])
-            # Second fallback, use domain average
-            if not len(subset):
-                subset = met_hru['hru'].values
-            met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
+    # Remap any meteorological data from hru to stream segment
+    met_seg = map_met_hru_to_seg(met_hru, topo)
 
     # Get the longest overlapping time period between all datasets
     [routed, reference, met_seg] = trim_time([routed, reference, met_seg])
