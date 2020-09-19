@@ -89,7 +89,7 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
 
 
 def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
-                    gauge_sites=None):
+                    gauge_sites=None, fill_method='forward_fill'):
     """
     boolean identifies whether a seg is a gauge with 'is_gauge'
     """
@@ -137,10 +137,17 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
             routed['up_ref_seg'].loc[{'seg':seg}] = routed['up_ref_seg'].sel(seg=cur_seg).values[()]
 
     # Fill in any remaining nulls (head/tailwaters)
-    routed['up_ref_seg'] = (routed['up_ref_seg'].where(
-        ~np.isnan(routed['up_ref_seg']), other=routed['down_ref_seg'])).ffill('seg')
-    routed['down_ref_seg'] = (routed['down_ref_seg'].where(
-        ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg'])).ffill('seg')
+    if fill_method == 'forward_fill':
+        routed['up_ref_seg'] = (routed['up_ref_seg'].where(
+            ~np.isnan(routed['up_ref_seg']), other=routed['down_ref_seg'])).ffill('seg')
+        routed['down_ref_seg'] = (routed['down_ref_seg'].where(
+            ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg'])).ffill('seg')
+    elif fill_method == 'r2':
+        pass
+    elif fill_method == 'leave_null':
+        pass
+    else:
+        raise ValueError('Invalid method provided for "fill_method"')
 
     return routed
 
