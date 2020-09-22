@@ -89,7 +89,8 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
 
 
 def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
-                    gauge_sites=None, fill_method='forward_fill'):
+                    gauge_sites=None, route_var = 'IRFroutedRunoff', 
+                    fill_method='kldiv'):
     """
     boolean identifies whether a seg is a gauge with 'is_gauge'
     """
@@ -143,7 +144,61 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         routed['down_ref_seg'] = (routed['down_ref_seg'].where(
             ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg'])).ffill('seg')
     elif fill_method == 'r2':
-        pass
+        fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
+        fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
+        
+        gauge_flows = gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose()
+        
+        for curr_seg in routed['seg'].isel(seg=fill_up_isegs):
+            max_r2 = 0.0
+            up_ref_seg = np.nan
+            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                curr_gauge_r2 = np.corrcoef(curr_seg_flow, gauge_flow.values)[0,1]**2
+                if curr_gauge_r2 > max_r2:
+                    max_r2 = curr_gauge_r2
+                    up_ref_seg = gauge_seg
+            routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
+            
+        for curr_seg in routed['seg'].isel(seg=fill_down_isegs):
+            max_r2 = 0.0
+            down_ref_seg = np.nan
+            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                curr_gauge_r2 = np.corrcoef(curr_seg_flow, gauge_flow.values)[0,1]**2
+                if curr_gauge_r2 > max_r2:
+                    max_r2 = curr_gauge_r2
+                    down_ref_seg = gauge_seg
+            routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
+        
+    elif fill_method == 'kldiv':
+        fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
+        fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
+        
+        gauge_flows = gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose()
+        
+        for curr_seg in routed['seg'].isel(seg=fill_up_isegs):
+            min_kldiv = np.inf
+            up_ref_seg = np.nan
+            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                curr_gauge_kldiv = entropy(pk=gauge_flow.values, qk=curr_seg_flow)
+                if curr_gauge_kldiv < min_kldiv:
+                    min_kldiv = curr_gauge_kldiv
+                    up_ref_seg = gauge_seg
+            routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
+            
+        for curr_seg in routed['seg'].isel(seg=fill_down_isegs):
+            min_kldiv = np.inf
+            down_ref_seg = np.nan
+            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                curr_gauge_kldiv = entropy(pk=gauge_flow.values, qk=curr_seg_flow)
+                if curr_gauge_kldiv < min_kldiv:
+                    min_kldiv = curr_gauge_kldiv
+                    down_ref_seg = gauge_seg
+            routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
+            
     elif fill_method == 'leave_null':
         pass
     else:
@@ -221,7 +276,8 @@ def map_ref_seg(routed: xr.Dataset):
 
 
 def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr.Dataset,
-                     gauge_sites = None):
+                     gauge_sites = None, route_var = 'IRFroutedRunoff', 
+                    fill_method='kldiv'):
     """
     calculates a number of variables used in blendmorph and map_var_to_seg
     ----
@@ -258,7 +314,8 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
 
     routed = map_headwater_sites(routed=routed)
     routed = map_ref_sites(routed=routed, gauge_reference=reference,
-                             gauge_sites = gauge_sites)
+                             gauge_sites = gauge_sites, route_var = route_var,
+                             fill_method = fill_method)
     routed = calculate_cdf_blend_factor(routed=routed)
     return routed
 
@@ -343,7 +400,8 @@ def map_met_hru_to_seg(met_hru, topo):
 
 
 def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
-                            met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff'):
+                            met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
+                            fill_method = 'kldiv'):
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
     allows an optional dataset of hru meteorological data to be given for conditional
@@ -387,8 +445,9 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
 
     # Get the longest overlapping time period between all datasets
     [routed, reference, met_seg] = trim_time([routed, reference, met_seg])
-    routed = calculate_blend_vars(routed, topo, reference)
-
+    routed = calculate_blend_vars(routed, topo, reference, route_var = route_var,
+                                  fill_method = fill_method)
+    
     # Put all data on segments
     seg_ref =  xr.Dataset({'reference_flow':(('time','seg'), reference['reference_flow'].values)},
                             coords = {'time': reference['time'].values, 'seg': ref_segs},)
@@ -400,3 +459,4 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
     # Merge it all together
     met_seg = xr.merge([met_seg, routed])
     return met_seg
+
