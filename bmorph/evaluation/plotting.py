@@ -848,7 +848,8 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
                         fontsize_title = 80, fontsize_legend = 68, fontsize_subplot = 60, 
                         fontsize_tick = 45, fontcolor = 'black', 
                         figsize_width = 70, figsize_height = 30,
-                        plot_colors = ['grey', 'black', 'blue', 'red']):
+                        plot_colors = ['grey', 'black', 'blue', 'red'],
+                        return_reduced_flows = False):
     """
     Plot Mean Day of Year Flows
         creates a series of subplots that plot an average year's flows
@@ -883,7 +884,9 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
         a list of strings to label the reference flows in the legend
     plot_colors: ['grey', 'black', 'blue', 'red']
         a list containing colors to be plotted for raw, ref, bc,
-        and bc_alt, respectively        
+        and bc_alt, respectively
+    return_reduced_flows : boolean
+        if True, returns the reduced flows as calculated for plotting
     ----
     Returns: fig, axs
     """
@@ -922,7 +925,6 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     fig, axs = plt.subplots(n_rows, n_cols)
     fig.suptitle(title_label, fontsize = fontsize_title, color = fontcolor, y = 1.05)
                                           
-
     for site, ax in zip(plot_sites, axs.ravel()):
         ax.plot(raw_flow_doy_df[site], color = plot_colors[0], alpha = 0.8, lw = 4)
         ax.plot(reference_flow_doy_df[site], color = plot_colors[1], alpha = 0.8, lw = 4)
@@ -945,7 +947,15 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
 
     fig.legend(plot_names, fontsize = fontsize_legend, loc = 'center right');
     
-    return fig, axs
+    if return_reduced_flows:
+        reduced_flows = xr.Dataset(coords={'site': plot_sites, 'time': doy})
+        reduced_flows[raw_var] = xr.DataArray(data = raw_flow_doy_df.values, dims = ('time', 'site') ).transpose()
+        reduced_flows[ref_var] = xr.DataArray(data = reference_flow_doy_df.values, dims = ('time', 'site') ).transpose()
+        for bc_var, bc_flow_doy_df in zip(bc_vars, bc_flow_doy_dfs):
+            reduced_flows[bc_var] = xr.DataArray(data = bc_flow_doy_df.values, dims = ('time', 'site') ).transpose()
+        return reduced_flows
+    
+    return fig, ax
     
 def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list, 
                                   start_year: str, end_year: str, 
@@ -1768,7 +1778,7 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
     fig.text(-0.04, 0.5, "Annual KL Divergence", 
              va = 'center', rotation = 'vertical', fontsize = fontsize_labels);
     
-    fig.text(0.5, -0.04, r'$KL(P_{scenario} || P_{' + f'{ref_name}' + r'})$', 
+    fig.text(0.5, -0.04, r'$KL(P_{' + f'{ref_name}' + r'} || P_{scenario})$', 
              va = 'bottom', ha = 'center', fontsize = fontsize_labels);
     
     plt.legend(handles=custom_legend(names=plot_labels, colors = plot_colors), 
