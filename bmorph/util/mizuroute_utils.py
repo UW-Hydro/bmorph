@@ -4,6 +4,7 @@ import pandas as pd
 import geopandas as gpd
 import bmorph
 import numpy as np
+from scipy.stats import entropy
 
 
 def find_up(ds, seg):
