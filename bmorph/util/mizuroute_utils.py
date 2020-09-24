@@ -22,7 +22,7 @@ def walk_down(ds, start_seg):
         return 0.0, cur_seg
     else:
         while (ds['down_seg'].sel(seg=cur_seg).values[()] in ds['seg'].values
-              and not ds['is_gauge'].sel(seg=ds['down_seg'].sel(seg=cur_seg).values[()]).values[()]):
+              and not ds['is_gauge'].sel(seg=ds['seg'].sel(seg=cur_seg).values[()]).values[()]):
             cur_seg = ds['down_seg'].sel(seg=cur_seg).values[()]
             tot_length += ds.sel(seg=cur_seg)['length'].values[()]
         cur_seg = ds['down_seg'].sel(seg=cur_seg).values[()]
@@ -35,6 +35,10 @@ def walk_up(ds, start_seg):
     if ds['is_gauge'].sel(seg=cur_seg):
         return 0.0, cur_seg
     else:
+        # assume flows are at the end of the reach, so if we are 
+        # walking upstream we will be walking through start_seg
+        # and need to account for that
+        tot_length += ds.sel(seg=cur_seg)['length'].values[()]
         while (ds['up_seg'].sel(seg=cur_seg).values[()] in ds['seg'].values
               and not ds['is_gauge'].sel(seg=ds['up_seg'].sel(seg=cur_seg).values[()]).values[()]):
             cur_seg = ds['up_seg'].sel(seg=cur_seg).values[()]
@@ -113,15 +117,18 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         if s in list(gauge_segs):
             routed['is_gauge'].loc[{'seg':s}] = True
 
+    """
     for s in routed['seg']:
         if routed.sel(seg=s)['is_gauge']:
             down_seg = routed.sel(seg=s)['down_seg'].values[()]
             down_ref_seg =  walk_down(routed, down_seg)[1]
             if down_ref_seg in routed['seg']:
             	routed['down_ref_seg'].loc[{'seg':s}] = down_ref_seg
+    """
 
     for s in routed['seg']:
         if routed.sel(seg=s)['is_gauge']:
+            routed['down_ref_seg'].loc[{'seg': s}] = s
             routed['up_ref_seg'].loc[{'seg': s}] = s
 
     for seg in routed['seg']:
@@ -137,74 +144,83 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
             cur_seg = routed['up_seg'].sel(seg=cur_seg).values[()]
         if cur_seg in routed['seg'].values:
             routed['up_ref_seg'].loc[{'seg':seg}] = routed['up_ref_seg'].sel(seg=cur_seg).values[()]
-
+            
     # Fill in any remaining nulls (head/tailwaters)
-    if fill_method == 'forward_fill':
-        routed['up_ref_seg'] = (routed['up_ref_seg'].where(
-            ~np.isnan(routed['up_ref_seg']), other=routed['down_ref_seg'])).ffill('seg')
-        routed['down_ref_seg'] = (routed['down_ref_seg'].where(
-            ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg'])).ffill('seg')
-    elif fill_method == 'r2':
-        fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
-        fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
-        
-        gauge_flows = gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose()
-        
-        for curr_seg in routed['seg'].isel(seg=fill_up_isegs):
-            max_r2 = 0.0
-            up_ref_seg = np.nan
-            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
-            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
-                curr_gauge_r2 = np.corrcoef(curr_seg_flow, gauge_flow.values)[0,1]**2
-                if curr_gauge_r2 > max_r2:
-                    max_r2 = curr_gauge_r2
-                    up_ref_seg = gauge_seg
-            routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
-            
-        for curr_seg in routed['seg'].isel(seg=fill_down_isegs):
-            max_r2 = 0.0
-            down_ref_seg = np.nan
-            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
-            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
-                curr_gauge_r2 = np.corrcoef(curr_seg_flow, gauge_flow.values)[0,1]**2
-                if curr_gauge_r2 > max_r2:
-                    max_r2 = curr_gauge_r2
-                    down_ref_seg = gauge_seg
-            routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
-        
-    elif fill_method == 'kldiv':
-        fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
-        fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
-        
-        gauge_flows = gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose()
-        
-        for curr_seg in routed['seg'].isel(seg=fill_up_isegs):
-            min_kldiv = np.inf
-            up_ref_seg = np.nan
-            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
-            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
-                curr_gauge_kldiv = entropy(pk=gauge_flow.values, qk=curr_seg_flow)
-                if curr_gauge_kldiv < min_kldiv:
-                    min_kldiv = curr_gauge_kldiv
-                    up_ref_seg = gauge_seg
-            routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
-            
-        for curr_seg in routed['seg'].isel(seg=fill_down_isegs):
-            min_kldiv = np.inf
-            down_ref_seg = np.nan
-            curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
-            for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
-                curr_gauge_kldiv = entropy(pk=gauge_flow.values, qk=curr_seg_flow)
-                if curr_gauge_kldiv < min_kldiv:
-                    min_kldiv = curr_gauge_kldiv
-                    down_ref_seg = gauge_seg
-            routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
-            
-    elif fill_method == 'leave_null':
-        pass
+    if fill_method == 'leave_null':
+        # since there should be no -1 segs from mizuroute, we can set nan's to -1 to acknowledge
+        # that they have been addressed and still set them apart from the rest of the data
+        routed['up_ref_seg'] = (routed['up_ref_seg'].where(~np.isnan(routed['up_ref_seg']), other=-1))
+        routed['down_ref_seg'] = (routed['down_ref_seg'].where(~np.isnan(routed['down_ref_seg']), other=-1))
     else:
-        raise ValueError('Invalid method provided for "fill_method"')
+        if fill_method == 'forward_fill':
+            routed['up_ref_seg'] = (routed['up_ref_seg'].where(
+                ~np.isnan(routed['up_ref_seg']), other=routed['down_ref_seg'])).ffill('seg')
+            routed['down_ref_seg'] = (routed['down_ref_seg'].where(
+                ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg'])).ffill('seg')
+        elif fill_method == 'r2':
+            fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
+            fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
 
+            gauge_flows = gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose()
+
+            for curr_seg in routed['seg'].isel(seg=fill_up_isegs):
+                max_r2 = 0.0
+                up_ref_seg = np.nan
+                curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+                for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                    curr_gauge_r2 = np.corrcoef(curr_seg_flow, gauge_flow.values)[0,1]**2
+                    if curr_gauge_r2 > max_r2:
+                        max_r2 = curr_gauge_r2
+                        up_ref_seg = gauge_seg
+                routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
+
+            for curr_seg in routed['seg'].isel(seg=fill_down_isegs):
+                max_r2 = 0.0
+                down_ref_seg = np.nan
+                curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+                for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                    curr_gauge_r2 = np.corrcoef(curr_seg_flow, gauge_flow.values)[0,1]**2
+                    if curr_gauge_r2 > max_r2:
+                        max_r2 = curr_gauge_r2
+                        down_ref_seg = gauge_seg
+                routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
+
+        elif fill_method == 'kldiv':
+            fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
+            fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
+
+            gauge_flows = gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose()
+
+            for curr_seg in routed['seg'].isel(seg=fill_up_isegs):
+                min_kldiv = np.inf
+                up_ref_seg = np.nan
+                curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+                for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                    curr_gauge_kldiv = entropy(pk=gauge_flow.values, qk=curr_seg_flow)
+                    if curr_gauge_kldiv < min_kldiv:
+                        min_kldiv = curr_gauge_kldiv
+                        up_ref_seg = gauge_seg
+                routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
+
+            for curr_seg in routed['seg'].isel(seg=fill_down_isegs):
+                min_kldiv = np.inf
+                down_ref_seg = np.nan
+                curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
+                for gauge_seg, gauge_flow in zip(gauge_segs, gauge_flows):
+                    curr_gauge_kldiv = entropy(pk=gauge_flow.values, qk=curr_seg_flow)
+                    if curr_gauge_kldiv < min_kldiv:
+                        min_kldiv = curr_gauge_kldiv
+                        down_ref_seg = gauge_seg
+                routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
+        else:
+            raise ValueError('Invalid method provided for "fill_method"')
+        
+        # check no nans are left if we are supposed to fill them
+        fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
+        fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]        
+        if len(fill_up_isegs) != 0 or len(fill_down_isegs) != 0:
+            raise Exception('fill_method error, check computations')
+        
     return routed
 
 
@@ -244,37 +260,6 @@ def calculate_cdf_blend_factor(routed: xr.Dataset):
     routed['cdf_blend_factor'] = routed['cdf_blend_factor'].where(~np.isnan(routed['cdf_blend_factor']), other=0.0)
 
     return routed
-
-
-def map_ref_seg(routed: xr.Dataset):
-    """
-    maps the nearest gauge site upsteam and down of a seg
-    """
-    if 'down_seg' not in list(routed.var()):
-        #note 'up_seg' does not show up in var()
-        raise Exception("Please run 'map_segs_topology' and 'map_up_segs' first")
-
-    for seg in routed['seg']:
-        cur_seg = seg.values[()]
-        while cur_seg in routed['seg'].values and np.isnan(routed['down_ref_seg'].sel(seg=cur_seg)):
-            cur_seg = routed['down_seg'].sel(seg=cur_seg).values[()]
-        if cur_seg in routed['seg'].values:
-            routed['down_ref_seg'].loc[{'seg':seg}] = routed['down_ref_seg'].sel(seg=cur_seg).values[()]
-
-        cur_seg = seg.values[()]
-        while cur_seg in routed['seg'].values and np.isnan(routed['up_ref_seg'].sel(seg=cur_seg)):
-            cur_seg = routed['up_seg'].sel(seg=cur_seg).values[()]
-        if cur_seg in routed['seg'].values:
-            routed['up_ref_seg'].loc[{'seg':seg}] = routed['up_ref_seg'].sel(seg=cur_seg).values[()]
-
-    # Fill in any remaining nulls (head/tailwaters)
-    routed['down_ref_seg'] = (routed['down_ref_seg'].where(
-        ~np.isnan(routed['down_ref_seg']), other=routed['up_ref_seg']))
-    routed['up_ref_seg'] = (routed['up_ref_seg'].where(
-        ~np.isnan(routed['up_ref_seg']), other=routed['down_ref_seg']))
-
-    return routed
-
 
 def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr.Dataset,
                      gauge_sites = None, route_var = 'IRFroutedRunoff', 
@@ -365,8 +350,10 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     for seg in routed['seg'].values:
         up_seg = routed['up_ref_seg'].sel(seg=seg)
         down_seg = routed['down_ref_seg'].sel(seg=seg)
-        routed[up_var].loc[{'seg': seg}] = map_var.sel(seg=up_seg).values[:]
-        routed[down_var].loc[{'seg': seg}] = map_var.sel(seg=down_seg).values[:]
+        if up_seg != -1:
+            routed[up_var].loc[{'seg': seg}] = map_var.sel(seg=up_seg).values[:]
+        if down_seg != -1:
+            routed[down_var].loc[{'seg': seg}] = map_var.sel(seg=down_seg).values[:]
 
     return routed
 
