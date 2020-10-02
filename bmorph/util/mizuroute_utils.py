@@ -117,15 +117,6 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         if s in list(gauge_segs):
             routed['is_gauge'].loc[{'seg':s}] = True
 
-    """
-    for s in routed['seg']:
-        if routed.sel(seg=s)['is_gauge']:
-            down_seg = routed.sel(seg=s)['down_seg'].values[()]
-            down_ref_seg =  walk_down(routed, down_seg)[1]
-            if down_ref_seg in routed['seg']:
-            	routed['down_ref_seg'].loc[{'seg':s}] = down_ref_seg
-    """
-
     for s in routed['seg']:
         if routed.sel(seg=s)['is_gauge']:
             routed['down_ref_seg'].loc[{'seg': s}] = s
@@ -238,7 +229,9 @@ def map_headwater_sites(routed: xr.Dataset):
     return routed
 
 
-def calculate_cdf_blend_factor(routed: xr.Dataset):
+def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
+                               gauge_sites=None, route_var = 'IRFroutedRunoff',
+                               fill_method='kldiv'):
     """
     calcultes the cumulative distirbtuion function blend factor based on distance
     to a seg's nearest up gauge site with respect to the total distance between
@@ -248,15 +241,60 @@ def calculate_cdf_blend_factor(routed: xr.Dataset):
         # needed for walk_up and walk_down
         raise Exception("Please denote headwater segs with 'is_headwaters'")
 
-    routed['distance_to_up_gauge'] = 0 * routed['is_gauge']
-    routed['distance_to_down_gauge'] = 0 * routed['is_gauge']
     routed['cdf_blend_factor'] = 0 * routed['is_gauge']
+    
+    if fill_method == 'forward_fill':
+        routed['distance_to_up_gauge'] = 0 * routed['is_gauge']
+        routed['distance_to_down_gauge'] = 0 * routed['is_gauge']
 
-    routed['distance_to_up_gauge'].values = [walk_up(routed, s)[0] for s in routed['seg']]
-    routed['distance_to_down_gauge'].values = [walk_down(routed, s)[0] for s in routed['seg']]
-    routed['cdf_blend_factor'].values = (routed['distance_to_up_gauge']
-                                        / (routed['distance_to_up_gauge']
-                                          + routed['distance_to_down_gauge'])).values
+        routed['distance_to_up_gauge'].values = [walk_up(routed, s)[0] for s in routed['seg']]
+        routed['distance_to_down_gauge'].values = [walk_down(routed, s)[0] for s in routed['seg']]
+        routed['cdf_blend_factor'].values = (routed['distance_to_up_gauge']
+                                            / (routed['distance_to_up_gauge']
+                                              + routed['distance_to_down_gauge'])).values
+    else:
+        if isinstance(gauge_sites, type(None)):
+            gauge_sites = gauge_reference['site'].values
+        else:
+            # need to typecheck since we do a for loop later and don't
+            # want to end up iterating through a string by accident
+            assert isinstance(gauge_sites, list)
+                
+        gauge_flows = xr.Dataset(
+            {
+                'reference_flow' : (('seg', 'time'), gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose().values)
+            },
+            {"seg": gauge_reference['seg'].values, "time": gauge_reference['time'].values},
+        )
+        
+        if fill_method == 'kldiv':
+            routed['kldiv_up_gauge'] = 0 * routed['is_gauge']
+            routed['kldiv_down_gauge'] = 0 * routed['is_gauge']
+
+            routed['kldiv_up_gauge'].values = [entropy(pk=gauge_flows['reference_flow'].sel(seg=routed['up_ref_seg'].sel(seg=seg)).values,
+                                                qk=routed[route_var].sel(seg=seg)) for seg in routed['seg'].values]
+            routed['kldiv_down_gauge'].values = [entropy(pk=gauge_flows['reference_flow'].sel(seg=routed['down_ref_seg'].sel(seg=seg)).values,
+                                                qk=routed[route_var].sel(seg=seg)) for seg in routed['seg'].values]
+            routed['cdf_blend_factor'].values = (routed['kldiv_up_gauge']
+                                                 / (routed['kldiv_up_gauge']
+                                                   + routed['kldiv_down_gauge'])).values
+        elif fill_method == 'r2':
+            
+            #np.corrcoef(curr_seg_flow, gauge_flow.values)[0,1]**2
+            
+            routed['r2_up_gauge'] = 0 * routed['is_gauge']
+            routed['r2_down_gauge'] = 0 * routed['is_gauge']
+
+            routed['r2_up_gauge'].values = [np.corrcoef(routed[route_var].sel(seg=seg),
+                                                        gauge_flows['reference_flow'].sel(seg=routed['up_ref_seg'].sel(seg=seg)).values)[0, 1]**2 
+                                            for seg in routed['seg'].values]
+            routed['r2_down_gauge'].values = [np.corrcoef(routed[route_var].sel(seg=seg),
+                                                        gauge_flows['reference_flow'].sel(seg=routed['down_ref_seg'].sel(seg=seg)).values)[0, 1]**2 
+                                            for seg in routed['seg'].values]
+            routed['cdf_blend_factor'].values = (routed['r2_up_gauge']
+                                                 / (routed['r2_up_gauge']
+                                                   + routed['r2_down_gauge'])).values
+        
     routed['cdf_blend_factor'] = routed['cdf_blend_factor'].where(~np.isnan(routed['cdf_blend_factor']), other=0.0)
 
     return routed
@@ -302,7 +340,12 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
     routed = map_ref_sites(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites, route_var = route_var,
                              fill_method = fill_method)
-    routed = calculate_cdf_blend_factor(routed=routed)
+    
+    #return routed
+    
+    routed = calculate_cdf_blend_factor(routed=routed, gauge_reference=reference,
+                             gauge_sites = gauge_sites, route_var = route_var,
+                             fill_method = fill_method)
     return routed
 
 
@@ -435,6 +478,8 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
     [routed, reference, met_seg] = trim_time([routed, reference, met_seg])
     routed = calculate_blend_vars(routed, topo, reference, route_var = route_var,
                                   fill_method = fill_method)
+    
+    #return routed
     
     # Put all data on segments
     seg_ref =  xr.Dataset({'reference_flow':(('time','seg'), reference['reference_flow'].values)},
