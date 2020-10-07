@@ -2026,8 +2026,7 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
                              units = r'Mean Annual Flow [$m^3/s$]',
                              figsize = (20,20), sharex = False, sharey = True, 
                              pp_kws = dict(postype='cunnane'), fontsize_labels = 30, fontsize_tick = 20,
-                             fontsize_legend = 24, markersize = 1, alpha = 0.3, 
-                             legend_bbox_to_anchor = (1.4, 1)
+                             fontsize_legend = 24, markersize = 1, alpha = 0.3, legend_bbox_to_anchor = (1.4, 1)
                       ):
     """
     Cumulative Probability Distributions
@@ -2078,7 +2077,7 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
     if len(plot_colors) < len(bc_vars):
         raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
     
-    n_rows, n_cols = determine_row_col(len(plot_sites))
+    n_rows, n_cols = bmorph.plotting.determine_row_col(len(plot_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
     axes = axes.flatten()      
@@ -2091,7 +2090,7 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
         bc_flow_df = pd.DataFrame(data = flow_dataset[bc_var].values, index = time, columns = plot_sites)
         bc_flow_dfs.append(bc_flow_df)
         
-    if ~isinstance(subset_month, type(None)):
+    if not isinstance(subset_month, type(None)):
         raw_flow_df = raw_flow_df[raw_flow_df.index.month == subset_month]
         ref_flow_df = ref_flow_df[ref_flow_df.index.month == subset_month]
         for i, bc_flow_df in enumerate(bc_flow_dfs):
@@ -2135,18 +2134,15 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
         )
         
         probscale.probplot(raw, ax=ax, pp_kws=pp_kws,
-                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, 
-                                            color = plot_colors[0], label=raw_name), 
+                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[0], label=raw_name), 
                            **common_opts)
         probscale.probplot(ref, ax=ax, pp_kws=pp_kws, 
-                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, 
-                                            color = plot_colors[1], label=ref_name), 
+                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[1], label=ref_name), 
                            **common_opts)
         
         for j, cor in enumerate(cors):
             probscale.probplot(cor, ax=ax, pp_kws=pp_kws, 
-                               scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, 
-                                                color = plot_colors[2+j], label=bc_names[j]), 
+                               scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[2+j], label=bc_names[j]), 
                                **common_opts)
         
         ax.set_title(site, fontsize = fontsize_labels, position = (0.2, 0.8))
