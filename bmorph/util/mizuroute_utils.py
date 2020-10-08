@@ -340,9 +340,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
     routed = map_ref_sites(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites, route_var = route_var,
                              fill_method = fill_method)
-    
-    #return routed
-    
+        
     routed = calculate_cdf_blend_factor(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites, route_var = route_var,
                              fill_method = fill_method)
