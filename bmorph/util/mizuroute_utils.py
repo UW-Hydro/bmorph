@@ -69,7 +69,7 @@ def find_min_kldiv(ds, curr_seg_flow):
     
     for ref_seg in ds['seg'].values:
         ref_flow = ds['reference_flow'].sel(seg=ref_seg).values
-        ref_flow_pdf = np.histogram(ref_flow, bins=total_bins, density=True)[0]
+        ref_flow_pdf = np.histogram(ref_flow, bins=curr_seg_flow_edges, density=True)[0]
         ref_flow_pdf[ref_flow_pdf == 0] = TINY_VAL
         curr_ref_kldiv = entropy(pk=ref_flow_pdf, qk=curr_seg_flow_pdf)
         if curr_ref_kldiv < min_kldiv:
