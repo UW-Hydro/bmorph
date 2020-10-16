@@ -478,6 +478,18 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
     routed = calculate_cdf_blend_factor(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites, fill_method = fill_method)
     
+    for seg in routed['seg']:
+        # if one of the refernece sites has been left null or determined 
+        # non bias correcteable according to the fill methods, then both
+        # reference sites should be considered so to prevent any weird
+        # partial bias correction attemps
+        up_ref_seg = routed['up_ref_seg'].sel(seg=seg)
+        down_ref_seg = routed['down_ref_seg'].sel(seg=seg)
+        
+        if up_ref_seg == -1 or down_ref_seg == -1:
+            routed['up_ref_seg'].loc[{'seg':seg}] = -1
+            routed['down_ref_seg'].loc[{'seg':seg}] = -1
+    
     if isinstance(min_kge, float):
         # here we are going to check in if any sites should not be bias corrected
         # according to the KGE reccommendation, and set their up_ref_seg and
@@ -502,15 +514,18 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         
         for seg in routed['seg']:
             up_ref_seg = routed['up_ref_seg'].sel(seg=seg)
-            down_ref_seg = routed['down_ref_seg'].sel(seg=seg)
             seg_flow = routed[route_var].sel(seg=seg).values
             if up_ref_seg != -1:
                 up_gauge_flow = gauge_flows['reference_flow'].sel(seg=up_ref_seg).values
                 if min_kge >= kling_gupta_efficiency(seg_flow, up_gauge_flow):
                     routed['up_ref_seg'].loc[{'seg':seg}] = -1
+                    routed['down_ref_seg'].loc[{'seg':seg}] = -1
+                    
+            down_ref_seg = routed['down_ref_seg'].sel(seg=seg)
             if down_ref_seg != -1:
                 down_gauge_flow = gauge_flows['reference_flow'].sel(seg=down_ref_seg).values
                 if min_kge >= kling_gupta_efficiency(seg_flow, down_gauge_flow):
+                    routed['up_ref_seg'].loc[{'seg':seg}] = -1
                     routed['down_ref_seg'].loc[{'seg':seg}] = -1
     
     return routed
