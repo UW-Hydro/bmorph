@@ -259,7 +259,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
 
         routed['kldiv_up_gauge'] = 0 * routed['is_gauge']
-        routed['kldiv_down_gauge'] = 0 * routed['is_gauge']
+        routed['kldiv_down_gauge'] = 0 * routed['is_gage']
 
         gauge_flows = xr.Dataset(
             {
