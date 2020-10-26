@@ -10,20 +10,20 @@ from bmorph.util import mizuroute_utils as mizutil
 import os
 os.envrion["OMP_NUM_THREADS"] = "2"
 
-reference = xr.open_dataset("test_reference.nc")
-routed = xr.open_dataset("test_routed.nc")
-topo = xr.open_dataset("test_topo.nc")
-true_fill = xr.open_dataset("true_fill_segs.nc")
-true_results = xr.open_dataset("true_results.nc")
+reference = xr.open_dataset("./bmoprh/tests/data/test_reference.nc")
+routed = xr.open_dataset("./bmoprh/tests/data/test_routed.nc")
+topo = xr.open_dataset("./bmoprh/tests/data/test_topo.nc")
+true_fill = xr.open_dataset("./bmoprh/tests/data/true_fill_segs.nc")
+true_results = xr.open_dataset("./bmoprh/tests/data/true_results.nc")
 
 test_fill_methods = ['kge', 'kldiv', 'r2', 'leave_null']
 
-    gauge_flows = xr.Dataset(
-        {
-            'reference_flow' : (('seg', 'time'), gauge_reference.sel(site=gauge_sites)['reference_flow'].tsranspose().values)
-        },
-        {"seg": gauge_reference['seg'].values, "time": gauge_reference['time'].values},
-    )
+gauge_flows = xr.Dataset(
+    {
+        'reference_flow' : (('seg', 'time'), gauge_reference.sel(site=gauge_sites)['reference_flow'].tsranspose().values)
+    },
+    {"seg": gauge_reference['seg'].values, "time": gauge_reference['time'].values},
+)
 
 def test_map_headwater_sites(routed=routed.copy):
     test_routed = mizutil.map_headwater_sites(routed)
@@ -64,8 +64,8 @@ def test_map_ref_sites(routed=routed.copy, fill_method):
                                        )
     for true_up_ref_seg, test_up_ref_seg in zip(true_fill[f"{fill_method}_up"].values, 
                                                 test_routed['up_ref_seg'].values):
-        assert true_up_ref_seg = test_up_ref_seg
+        assert true_up_ref_seg == test_up_ref_seg
     for true_down_ref_seg, test_down_ref_seg in zip(true_fill[f"{fill_method}_down"].values, 
                                                     test_routed['down_ref_seg'].values):
-        assert true_down_ref_seg = test_down_ref_seg
+        assert true_down_ref_seg == test_down_ref_seg
         
