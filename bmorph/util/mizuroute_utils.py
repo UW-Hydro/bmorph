@@ -84,7 +84,7 @@ def find_max_r2(ds, curr_seg_flow):
     return max_r2, max_r2_ref_seg
 
 def find_min_kldiv(ds, curr_seg_flow):
-     """
+    """
     find_min_kldiv
         searches through ds to find which seg has the smallest
         KL Divergence value with respect to curr_seg_flow
