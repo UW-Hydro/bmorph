@@ -1,3 +1,4 @@
+import os
 from glob import glob
 import xarray as xr
 import pandas as pd
@@ -5,6 +6,71 @@ import geopandas as gpd
 import bmorph
 import numpy as np
 from scipy.stats import entropy
+from string import Template
+import subprocess
+
+CONTROL_TEMPLATE = Template(
+"""<ancil_dir>            $ancil_dir !
+<input_dir>            $input_dir !
+<output_dir>           $output_dir !
+<sim_start>            $sim_start !
+<sim_end>              $sim_end !
+<fname_ntopOld>        $topo_file !
+<dname_nhru>           seg !
+<dname_sseg>           seg !
+<seg_outlet>           -9999 !
+<fname_qsim>           $flow_file !
+<vname_qsim>           scbc_flow !
+<vname_time>           time !
+<dname_time>           time !
+<dname_hruid>          seg !
+<vname_hruid>          seg !
+<units_qsim>           mm/d !
+<dt_qsim>              86400 !
+<is_remap>              F !
+<restart_opt>           F !
+<route_opt>             1 !
+<fname_output>          $out_name !
+<fname_state_out>       state.out.nc !
+<param_nml>             param.nml.default !
+<doesBasinRoute>        0 !
+<varname_area>          Contrib_Area !
+<varname_length>        Length !
+<varname_slope>         Slope !
+<varname_HRUid>         seg_id !
+<varname_segId>         seg_id !
+<varname_downSegId>     Tosegment !
+<varname_hruSegId>      seg_id !
+""")
+
+
+def write_mizuroute_config(region, scbc_type, time_window,
+                           config_dir='../mizuroute_configs/',
+                           topo_dir='../topologies/',
+                           input_dir='../input/',
+                           output_dir='../output/'):
+    mizuroute_config = {
+        'ancil_dir': os.path.abspath(topo_dir)+'/',
+        'input_dir': os.path.abspath(input_dir)+'/',
+        'output_dir': os.path.abspath(output_dir)+'/',
+        'sim_start': time_window[0].strftime("%Y-%m-%d"),
+        'sim_end': time_window[1].strftime("%Y-%m-%d"),
+        'topo_file': f'{region.lower()}_huc12_topology_scaled_area.nc',
+        'flow_file': f'{region.lower()}_local_{scbc_type}_scbc.nc',
+        'out_name': f'{region.lower()}_{scbc_type}_scbc'
+    }
+
+    config_path = os.path.abspath(f'{config_dir}reroute_{region.lower()}_{scbc_type}.control')
+    with open(config_path, 'w') as f:
+        f.write(CONTROL_TEMPLATE.substitute(mizuroute_config))
+    return config_path
+
+
+def run_mizuroute(mizuroute_exe, mizuroute_config):
+    cmd = f'{mizuroute_exe} {mizuroute_config}'
+    p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p.wait()
+    return p
 
 
 def find_up(ds, seg):
