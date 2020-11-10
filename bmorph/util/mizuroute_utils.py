@@ -63,7 +63,7 @@ def write_mizuroute_config(region, scbc_type, time_window,
     config_path = os.path.abspath(f'{config_dir}reroute_{region.lower()}_{scbc_type}.control')
     with open(config_path, 'w') as f:
         f.write(CONTROL_TEMPLATE.substitute(mizuroute_config))
-    return config_path
+    return config_path, mizuroute_config
 
 
 def run_mizuroute(mizuroute_exe, mizuroute_config):
@@ -480,7 +480,7 @@ def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
             assert isinstance(gauge_sites, list)
 
         if fill_method == 'kldiv':
-            routed['cdf_blend_factor'].values = (routed['kldiv_up_gauge']
+            routed['cdf_blend_factor'].values = (routed['kldiv_down_gauge']
                                                  / (routed['kldiv_up_gauge']
                                                    + routed['kldiv_down_gauge'])).values
         elif fill_method == 'r2':

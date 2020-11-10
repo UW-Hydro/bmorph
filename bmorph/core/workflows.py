@@ -396,8 +396,9 @@ def run_parallel_scbc(ds, client, region, mizuroute_exe, bmorph_config):
     futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
     results = client.gather(futures)
     unpack_and_write_netcdf(results, ds['seg'], f'../input/{region.lower()}_local_{scbc_type}_scbc.nc')
-    mizuroute_config = mizutil.write_mizuroute_config(region, scbc_type, bmorph_config['bmorph_window'])
-    mizutil.run_mizuroute(mizuroute_exe, mizuroute_config)
-    region_totals = xr.open_mfdataset(f'../reroute/{region.lower()}_{scbc_type}_scbc*').load()
+    config_path, mizuroute_config = mizutil.write_mizuroute_config(region, scbc_type, bmorph_config['bmorph_window'])
+    mizutil.run_mizuroute(mizuroute_exe, config_path)
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{region.lower()}_{scbc_type}_scbc*').load()
+    region_totals = region_totals.sel(time=slice(*bmorph_config['bmorph_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals
