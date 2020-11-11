@@ -74,6 +74,10 @@ def run_mizuroute(mizuroute_exe, mizuroute_config):
 
 
 def find_up(ds, seg):
+    """
+    finds the segment directly upstream of seg given seg is not
+    a headwater segment, (in which case np.nan is returned)
+    """
     if ds.sel(seg=seg)['is_headwaters']:
         return np.nan
     up_idx = np.argwhere(ds['down_seg'].values == seg).flatten()[0]
@@ -82,6 +86,10 @@ def find_up(ds, seg):
 
 
 def walk_down(ds, start_seg):
+    """
+    finds the nearest downstream gauge site and returns the distance
+    traveled to reach it from start_seg
+    """
     tot_length = 0.0
     cur_seg = start_seg
     if ds['is_gauge'].sel(seg=cur_seg):
@@ -96,6 +104,10 @@ def walk_down(ds, start_seg):
 
 
 def walk_up(ds, start_seg):
+    """
+    finds the nearest upstream gauge site and returns the distance
+    traveled to reach it from start_seg
+    """
     tot_length = 0.0
     cur_seg = start_seg
     if ds['is_gauge'].sel(seg=cur_seg):
@@ -114,6 +126,20 @@ def walk_up(ds, start_seg):
 
 
 def find_max_r2(ds, curr_seg_flow):
+    """
+    find_max_r2
+        searches through ds to find which seg has the greatest
+        r2 value with respect to curr_seg_flow
+    ----
+    ds: xr.Dataset
+        contains the variable 'reference_flow' to compare
+        curr_seg_flow against and the coordinate 'seg'
+    curr_seg_flow: 
+        a numpy array containing flow values that r2 is to
+        be maximized with respect to
+    Return: max_r2, max_r2_ref_seg
+        if no seg is found, max_r2 = 0 and max_r2_ref_seg = -1
+    """
     max_r2 = 0.0
     max_r2_ref_seg = -1
     for ref_seg in ds['seg'].values:
@@ -126,6 +152,20 @@ def find_max_r2(ds, curr_seg_flow):
 
 
 def find_min_kldiv(ds, curr_seg_flow):
+     """
+    find_min_kldiv
+        searches through ds to find which seg has the smallest
+        KL Divergence value with respect to curr_seg_flow
+    ----
+    ds: xr.Dataset
+        contains the variable 'reference_flow' to compare
+        curr_seg_flow against and the coordinate 'seg'
+    curr_seg_flow: 
+        a numpy array containing flow values that KL Divergence
+        is to be maximized with respect to
+    Return: min_kldiv, min_kldiv_ref_seg
+        if no seg is found, min_kldiv = -1 and min_kldiv_ref_seg = -1
+    """
     TINY_VAL = 1e-6
     min_kldiv = np.inf
     min_kldiv_ref_seg = -1
@@ -154,6 +194,9 @@ def find_min_kldiv(ds, curr_seg_flow):
     return min_kldiv, min_kldiv_ref_seg
 
 def kling_gupta_efficiency(sim, obs):
+    """
+    calculates the Kling Gupta Efficiency between two flow arrays
+    """
     obs = np.asarray(obs)
     sim = np.asarray(sim)
     obs_filtered = obs[np.logical_and(~np.isnan(obs), ~np.isnan(sim))]
@@ -169,6 +212,20 @@ def kling_gupta_efficiency(sim, obs):
     return kge
 
 def find_max_kge(ds, curr_seg_flow):
+    """
+    find_max_kge
+        searches through ds to find which seg has the larges
+        Kling Gupta Efficiency value with respect to curr_seg_flow
+    ----
+    ds: xr.Dataset
+        contains the variable 'reference_flow' to compare
+        curr_seg_flow against and the coordinate 'seg'
+    curr_seg_flow: 
+        a numpy array containing flow values that KGE
+        is to be maximized with respect to
+    Return: max_kge, max_kge_ref_seg
+        if no seg is found, max_kge = -np.inf and max_kge_ref_seg = -1
+    """
     max_kge = -np.inf
     max_kge_ref_seg = -1
     for ref_seg in ds['seg'].values:
@@ -230,7 +287,43 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
                     gauge_sites=None, route_var = 'IRFroutedRunoff',
                     fill_method='kldiv'):
     """
-    boolean identifies whether a seg is a gauge with 'is_gauge'
+    map_ref_sites
+        assigns segs within routed boolean 'is_gauge' idnetifiers and
+        what each seg's upstream and downstream reference seg designations
+        are
+    ----
+    routed: xr.Dataset
+    gauge_reference: xr.Dataset
+    gauge_sites = None
+        if None, gauge_sites will be taken as all those listed in
+        gauge_reference
+    route_var = 'IRFroutedRunoff'
+        variable name of flows used for fill_method purposes within routed
+    fill_method: str
+        While finding some upstream/downstream reference segs may be simple,
+        (segs with 'is_gauge' = True are their own reference segs, others
+        may be easy to find looking directly up or downstream), some river
+        networks may have multiple options to select gauge sites and may fail
+        to have upstream/downstream reference segs designated. fill_method
+        specifies how segs should be assigned upstream/downstream reference
+        segs for bias correction if they are missed walking upstream or downstream
+        
+        Currently supported methods:
+            'leave_null'
+                nothing is done to fill missing reference segs, np.nan values are
+                replaced with a -1 seg designation and that's it
+            'forward_fill'
+                xarray's ffill method is used to fill in any np.nan values
+            'r2'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest r2 value with
+            'kldiv'
+                reference segs are selected based on which reference site that
+                seg's flows has the smallest KL Divergence value with
+            'kge'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest KGE value with
+    Return: routed
     """
     if isinstance(gauge_sites, type(None)):
         gauge_sites = gauge_reference['site'].values
@@ -421,6 +514,21 @@ def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
     calcultes the cumulative distirbtuion function blend factor based on distance
     to a seg's nearest up gauge site with respect to the total distance between
     the two closest guage sites to the seg
+    ----
+    fill_method: str
+        see map_ref_sites for full description of how fill_method works
+        
+        Because each fill_method selects reference segs differently, calculate_blend_vars
+        needs to know how they were selected to create blend factors. Note that 'leave_null'
+        is not supported for this method because there is no filling for this method.
+        Currently supported:
+            'forward_fill'
+                cdf_blend_factor = distance_to_upstream / 
+                        (distance_to_upstream + distance_to_downstream)
+            'kldiv'
+                cdf_blend_factor = kldiv_upstream / (kldiv_upstream + kldiv_downstream)
+            'r2'
+                cdf_blend_factor = r2_upstream / (r2_upstream + r2_downstream)                
     """
     if not 'is_gauge' in list(routed.var()):
         # needed for walk_up and walk_down
@@ -456,6 +564,7 @@ def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
         elif fill_method == 'kge':
             # since kge can be negative, the blend factor ratios
             # will use kge squared to ensure they don't cancel out
+            raise Exception('kge is not currently supported, please select a different method')
             routed['cdf_blend_factor'].values = ((routed['kge_up_gauge']**2)
                                                  / ((routed['kge_up_gauge']**2)
                                                    + (routed['kge_down_gauge']**2))).values
@@ -479,6 +588,14 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
     gauge_sites: None
         contains the gauge site names from the reference dataset to be used that are
         automatically pulled from reference if None are given
+    route_var: str
+    fill_method: str
+        see map_ref_sites for more information
+    min_kge: float
+        if not None, all upstream/downstream reference seg selections will be filtered
+        according to the min_kge criteria, where seg selections that have a kge with
+        the current seg that is less that min_kge will be set to -1 and determined
+        unsuitable for bias correction
     ----
     Return: routed (xr.Dataset)
         with the following added:
@@ -587,6 +704,7 @@ def map_met_hru_to_seg(met_hru, topo):
 def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
                             fill_method = 'kldiv'):
+
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
     allows an optional dataset of hru meteorological data to be given for conditional
@@ -610,6 +728,11 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
     route_var:
         Name of the variable of the routed runoff in the ``routed``
         dataset. Defaults to ``IRFroutedRunoff``
+    fill_method:
+        see map_ref_sites for more information
+    min_kge:
+        see calculate_blend_vars for more information
+        defaults None unless fill_method = 'kge'
 
     Returns
     -------
@@ -617,6 +740,9 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
         A dataset with the required data for applying the ``blendmorph``
         routines. See the ``blendmorph`` documentation for further information.
     '''
+    if fill_method == 'kge' and min_kge is None:
+        min_kge = -0.41
+    
     if met_hru is None:
         met_hru = xr.Dataset(coords={'time': routed['time']})
     # Provide some convenience data for mapping/loops
