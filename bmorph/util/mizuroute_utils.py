@@ -112,16 +112,18 @@ def walk_up(ds, start_seg):
         cur_seg = ds['up_seg'].sel(seg=cur_seg).values[()]
         return tot_length, cur_seg
 
+
 def find_max_r2(ds, curr_seg_flow):
     max_r2 = 0.0
     max_r2_ref_seg = -1
     for ref_seg in ds['seg'].values:
-        ref_flow = ds['reference_flow'].sel(seg=ref_seg).values
+        ref_flow = ds.sel(seg=ref_seg).values
         curr_ref_r2 = np.corrcoef(curr_seg_flow, ref_flow)[0, 1]**2
         if curr_ref_r2 > max_r2:
             max_r2 = curr_ref_r2
             max_r2_ref_seg = ref_seg
     return max_r2, max_r2_ref_seg
+
 
 def find_min_kldiv(ds, curr_seg_flow):
     TINY_VAL = 1e-6
@@ -134,7 +136,7 @@ def find_min_kldiv(ds, curr_seg_flow):
     curr_seg_flow_pdf[curr_seg_flow_pdf == 0] = TINY_VAL
 
     for ref_seg in ds['seg'].values:
-        ref_flow = ds['reference_flow'].sel(seg=ref_seg).values
+        ref_flow = ds.sel(seg=ref_seg).values
         ref_flow_pdf = np.histogram(ref_flow, bins=curr_seg_flow_edges, density=True)[0]
         ref_flow_pdf[ref_flow_pdf == 0] = TINY_VAL
         curr_ref_kldiv = entropy(pk=ref_flow_pdf, qk=curr_seg_flow_pdf)
@@ -170,7 +172,7 @@ def find_max_kge(ds, curr_seg_flow):
     max_kge = -np.inf
     max_kge_ref_seg = -1
     for ref_seg in ds['seg'].values:
-        ref_flow = ds['reference_flow'].sel(seg=ref_seg).values
+        ref_flow = ds.sel(seg=ref_seg).values
         curr_ref_kge = kling_gupta_efficiency(curr_seg_flow, ref_flow)
         if curr_ref_kge > max_kge:
             max_kge = curr_ref_kge
@@ -247,9 +249,6 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
     for s in routed['seg']:
         if s in list(gauge_segs):
             routed['is_gauge'].loc[{'seg':s}] = True
-
-    for s in routed['seg']:
-        if routed.sel(seg=s)['is_gauge']:
             routed['down_ref_seg'].loc[{'seg': s}] = s
             routed['up_ref_seg'].loc[{'seg': s}] = s
 
@@ -286,23 +285,16 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         routed['r2_up_gauge'] = 0 * routed['is_gauge']
         routed['r2_down_gauge'] = 0 * routed['is_gauge']
 
-        gauge_flows = xr.Dataset(
-            {
-                'reference_flow' : (('seg', 'time'), gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose().values)
-            },
-            {"seg": gauge_reference['seg'].values, "time": gauge_reference['time'].values},
-        )
-
         for curr_seg in routed['seg'].values:
             up_ref_seg = np.nan
             curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
             if np.isnan(routed['up_ref_seg'].sel(seg=curr_seg).values):
-                up_ref_r2, up_ref_seg = find_max_r2(gauge_flows, curr_seg_flow)
+                up_ref_r2, up_ref_seg = find_max_r2(routed[route_var].sel(seg=gauge_segs), curr_seg_flow)
                 routed['r2_up_gauge'].loc[{'seg':curr_seg}] = up_ref_r2
                 routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
             else:
                 # this seg has already been filled in, but r2 still needs to be calculated
-                ref_flow = gauge_flows['reference_flow'].sel(seg=routed['up_ref_seg'].sel(seg=curr_seg)).values
+                ref_flow = routed[route_var].sel(seg=routed['up_ref_seg'].sel(seg=curr_seg)).values
                 up_ref_r2 = np.corrcoef(curr_seg_flow, ref_flow)[0, 1]**2
                 routed['r2_up_gauge'].loc[{'seg':curr_seg}] = up_ref_r2
 
@@ -310,12 +302,12 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
             down_ref_seg = np.nan
             curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
             if np.isnan(routed['down_ref_seg'].sel(seg=curr_seg).values):
-                down_ref_r2, down_ref_seg = find_max_r2(gauge_flows, curr_seg_flow)
+                down_ref_r2, down_ref_seg = find_max_r2(routed[route_var].sel(seg=gauge_segs), curr_seg_flow)
                 routed['r2_down_gauge'].loc[{'seg':curr_seg}] = down_ref_r2
                 routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
             else:
                 # this seg has already been filled in, but r2 still needs to be calculated
-                ref_flow = gauge_flows['reference_flow'].sel(seg=routed['down_ref_seg'].sel(seg=curr_seg)).values
+                ref_flow = routed[route_var].sel(seg=routed['down_ref_seg'].sel(seg=curr_seg)).values
                 down_ref_r2 = np.corrcoef(curr_seg_flow, ref_flow)[0, 1]**2
                 routed['r2_down_gauge'].loc[{'seg':curr_seg}] = down_ref_r2
 
@@ -326,18 +318,10 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
 
         routed['kldiv_up_gauge'] = 0 * routed['is_gauge']
         routed['kldiv_down_gauge'] = 0 * routed['is_gauge']
-
-        gauge_flows = xr.Dataset(
-            {
-                'reference_flow' : (('seg', 'time'), gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose().values)
-            },
-            {"seg": gauge_reference['seg'].values, "time": gauge_reference['time'].values},
-        )
-
         for curr_seg in routed['seg'].values:
             curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
             if np.isnan(routed['up_ref_seg'].sel(seg=curr_seg).values):
-                up_ref_kldiv, up_ref_seg = find_min_kldiv(gauge_flows, curr_seg_flow)
+                up_ref_kldiv, up_ref_seg = find_min_kldiv(routed[route_var].sel(seg=gauge_segs), curr_seg_flow)
                 routed['kldiv_up_gauge'].loc[{'seg':curr_seg}] = up_ref_kldiv
                 routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
             else:
@@ -349,8 +333,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
                     curr_seg_flow, bins=total_bins, density=True)
                 curr_seg_flow_pdf[curr_seg_flow_pdf == 0] = TINY_VAL
 
-                ref_flow = gauge_flows['reference_flow'].sel(
-                    seg=routed['up_ref_seg'].sel(seg=curr_seg).values).values
+                ref_flow = routed[route_var].sel(seg=routed['up_ref_seg'].sel(seg=curr_seg).values).values
                 ref_flow_pdf = np.histogram(ref_flow, bins=curr_seg_flow_edges, density=True)[0]
                 ref_flow_pdf[ref_flow_pdf == 0] = TINY_VAL
 
@@ -360,7 +343,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         for curr_seg in routed['seg'].values:
             curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
             if np.isnan(routed['down_ref_seg'].sel(seg=curr_seg).values):
-                down_ref_kldiv, down_ref_seg = find_min_kldiv(gauge_flows, curr_seg_flow)
+                down_ref_kldiv, down_ref_seg = find_min_kldiv(routed[route_var].sel(seg=gauge_segs), curr_seg_flow)
                 routed['kldiv_down_gauge'].loc[{'seg':curr_seg}] = down_ref_kldiv
                 routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
             else:
@@ -372,8 +355,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
                     curr_seg_flow, bins=total_bins, density=True)
                 curr_seg_flow_pdf[curr_seg_flow_pdf == 0] = TINY_VAL
 
-                ref_flow = gauge_flows['reference_flow'].sel(
-                    seg=routed['down_ref_seg'].sel(seg=curr_seg).values).values
+                ref_flow = routed[route_var].sel(seg=routed['down_ref_seg'].sel(seg=curr_seg).values).values
                 ref_flow_pdf = np.histogram(ref_flow, bins=curr_seg_flow_edges, density=True)[0]
                 ref_flow_pdf[ref_flow_pdf == 0] = TINY_VAL
 
@@ -388,23 +370,16 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         routed['kge_up_gauge'] = 0 * routed['is_gauge']
         routed['kge_down_gauge'] = 0 * routed['is_gauge']
 
-        gauge_flows = xr.Dataset(
-            {
-                'reference_flow' : (('seg', 'time'), gauge_reference.sel(site=gauge_sites)['reference_flow'].transpose().values)
-            },
-            {"seg": gauge_reference['seg'].values, "time": gauge_reference['time'].values},
-        )
-
         for curr_seg in routed['seg'].values:
             up_ref_seg = np.nan
             curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
             if np.isnan(routed['up_ref_seg'].sel(seg=curr_seg).values):
-                up_ref_kge, up_ref_seg = find_max_kge(gauge_flows, curr_seg_flow)
+                up_ref_kge, up_ref_seg = find_max_kge(routed[route_var].sel(seg=gauge_segs), curr_seg_flow)
                 routed['kge_up_gauge'].loc[{'seg':curr_seg}] = up_ref_kge
                 routed['up_ref_seg'].loc[{'seg':curr_seg}] = up_ref_seg
             else:
                 # this seg has already been filled in, but kge still needs to be calculated
-                ref_flow = gauge_flows['reference_flow'].sel(seg=routed['up_ref_seg'].sel(seg=curr_seg)).values
+                ref_flow = routed[route_var].sel(seg=routed['up_ref_seg'].sel(seg=curr_seg)).values
                 up_ref_kge = kling_gupta_efficiency(curr_seg_flow, ref_flow)
                 routed['kge_up_gauge'].loc[{'seg':curr_seg}] = up_ref_kge
 
@@ -412,25 +387,16 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
             down_ref_seg = np.nan
             curr_seg_flow = routed[route_var].sel(seg=curr_seg).values
             if np.isnan(routed['down_ref_seg'].sel(seg=curr_seg).values):
-                down_ref_kge, down_ref_seg = find_max_kge(gauge_flows, curr_seg_flow)
+                down_ref_kge, down_ref_seg = find_max_kge(routed[route_var].sel(seg=gauge_segs), curr_seg_flow)
                 routed['kge_down_gauge'].loc[{'seg':curr_seg}] = down_ref_kge
                 routed['down_ref_seg'].loc[{'seg':curr_seg}] = down_ref_seg
             else:
                 # this seg has already been filled in, but kge still needs to be calculated
-                ref_flow = gauge_flows['reference_flow'].sel(seg=routed['down_ref_seg'].sel(seg=curr_seg)).values
+                ref_flow = routed[route_var].sel(seg=routed['down_ref_seg'].sel(seg=curr_seg)).values
                 down_ref_kge = kling_gupta_efficiency(curr_seg_flow, ref_flow)
                 routed['kge_down_gauge'].loc[{'seg':curr_seg}] = down_ref_kge
     else:
         raise ValueError('Invalid method provided for "fill_method"')
-
-    return routed
-
-    if fill_method != 'leave_null':
-        # check no nans are left if we are supposed to fill them
-        fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
-        fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
-        if len(fill_up_isegs) != 0 or len(fill_down_isegs) != 0:
-            raise Exception('fill_method error, check computations')
 
     return routed
 
@@ -495,12 +461,11 @@ def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
                                                    + (routed['kge_down_gauge']**2))).values
 
     routed['cdf_blend_factor'] = routed['cdf_blend_factor'].where(~np.isnan(routed['cdf_blend_factor']), other=0.0)
-
     return routed
 
 def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr.Dataset,
                          gauge_sites = None, route_var = 'IRFroutedRunoff',
-                         fill_method='kldiv', min_kge = -0.41):
+                         fill_method='kldiv'):
     """
     calculates a number of variables used in blendmorph and map_var_to_seg
     ----
@@ -528,19 +493,10 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         'down_ref_seg'
     """
     routed = map_segs_topology(routed=routed, topology=topology)
-
-    # check if trim_time should be suggested
-    t_reference = reference.time.values[[0, -1]]
-    t_routed = routed.time.values[[0, -1]]
-    if t_reference[0] != t_routed[0] or t_reference[1] != t_routed[1]:
-        raise Exception("Please ensure reference and routed have the same starting and ending times, (this can be done with trim_time)")
-
     routed = map_headwater_sites(routed=routed)
     routed = map_ref_sites(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites, route_var = route_var,
                              fill_method = fill_method)
-    #return routed
-
     routed = calculate_cdf_blend_factor(routed=routed, gauge_reference=reference,
                              gauge_sites = gauge_sites, fill_method = fill_method)
 
@@ -555,44 +511,6 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         if up_ref_seg == -1 or down_ref_seg == -1:
             routed['up_ref_seg'].loc[{'seg':seg}] = -1
             routed['down_ref_seg'].loc[{'seg':seg}] = -1
-
-    if isinstance(min_kge, float):
-        # here we are going to check in if any sites should not be bias corrected
-        # according to the KGE reccommendation, and set their up_ref_seg and
-        # down_ref_seg to -1 to prevent other variables from using the reference
-        # sites selected in bias correction
-
-        if isinstance(gauge_sites, type(None)):
-            gauge_sites = reference['site'].values
-        else:
-            # need to typecheck since we do a for loop later and don't
-            # want to end up iterating through a string by accident
-            assert isinstance(gauge_sites, list)
-
-        gauge_segs = reference.sel(site=gauge_sites)['seg'].values
-
-        gauge_flows = xr.Dataset(
-            {
-                'reference_flow' : (('seg', 'time'), reference.sel(site=gauge_sites)['reference_flow'].transpose().values)
-            },
-            {"seg": reference['seg'].values, "time": reference['time'].values},
-        )
-
-        for seg in routed['seg']:
-            up_ref_seg = routed['up_ref_seg'].sel(seg=seg)
-            seg_flow = routed[route_var].sel(seg=seg).values
-            if up_ref_seg != -1:
-                up_gauge_flow = gauge_flows['reference_flow'].sel(seg=up_ref_seg).values
-                if min_kge >= kling_gupta_efficiency(seg_flow, up_gauge_flow):
-                    routed['up_ref_seg'].loc[{'seg':seg}] = -1
-                    routed['down_ref_seg'].loc[{'seg':seg}] = -1
-
-            down_ref_seg = routed['down_ref_seg'].sel(seg=seg)
-            if down_ref_seg != -1:
-                down_gauge_flow = gauge_flows['reference_flow'].sel(seg=down_ref_seg).values
-                if min_kge >= kling_gupta_efficiency(seg_flow, down_gauge_flow):
-                    routed['up_ref_seg'].loc[{'seg':seg}] = -1
-                    routed['down_ref_seg'].loc[{'seg':seg}] = -1
 
     return routed
 
@@ -619,22 +537,10 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
         f'down_{var_label}'
         f'up_{var_label}'
     """
-
-    if not 'down_seg' in list(routed.var()):
-        raise Exception("Please run calculate_blend_vars before running this function")
-
-    # check if trim_time should be suggested
-    t_map_var = map_var.time.values[[0, -1]]
-    t_routed = routed.time.values[[0, -1]]
-    if t_map_var[0] != t_routed[0] or t_map_var[1] != t_routed[1]:
-        raise Exception("Please ensure reference and routed have the same starting and ending times, (this can be done with trim_time)")
-
     down_var = f'down_{var_label}'
     up_var = f'up_{var_label}'
-
     # need to override dask array data protections
     map_var.load()
-
     routed[down_var] = np.nan * map_var
     routed[up_var] = np.nan * map_var
 
@@ -680,7 +586,7 @@ def map_met_hru_to_seg(met_hru, topo):
 
 def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
-                            fill_method = 'kldiv', min_kge = -0.41):
+                            fill_method = 'kldiv'):
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
     allows an optional dataset of hru meteorological data to be given for conditional
@@ -725,9 +631,7 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
     # Get the longest overlapping time period between all datasets
     [routed, reference, met_seg] = trim_time([routed, reference, met_seg])
     routed = calculate_blend_vars(routed, topo, reference, route_var = route_var,
-                                  fill_method = fill_method, min_kge=min_kge)
-
-    #return routed
+                                  fill_method = fill_method)
 
     # Put all data on segments
     seg_ref =  xr.Dataset({'reference_flow':(('time','seg'), reference['reference_flow'].values)},
