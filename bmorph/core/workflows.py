@@ -7,6 +7,63 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10, 
         rtol=1e-7, atol=0, method='hist'):
+    """
+    
+    
+    Parameters
+    ---------
+    raw_ts: pd.Series
+        Raw flow timeseries.
+    train_ts: pd.Series
+        Flow timeseries to train the bias correction model with.
+    obs_ts: pd.Series
+        Observed/reference flow timeseries.
+    training_window: pd.date_range
+        Date range to train timeseries on.
+    bmorph_window: pd.date_range
+        Date range to apply bmorph onto flow timeseries.
+    reference_window: pd.date_range
+        Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
+    window_size: int
+        Total overlap CDF windows have with each other, distributed evenly
+        before and after the application window.
+    n_smooth_long: int
+        Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
+        The nsmooth value in this case is typically much larger than the one
+        used for the bmorph function itself. For example, 365 days.
+    n_smooth_short: int
+        Number of elements that will be smoothed when determining CDFs used
+        for the bmorph function itself.
+    train_on_year: boolean
+        ???
+    raw_y: pd.Series, optional
+        Raw time series of the second time series variable for mdcdedcdfm.
+    train_y: pd.Series, optional
+        Training second time series.
+    obs_y: pd.Series, optional
+        Target second time series.
+    bw: int
+        Bandwidth for KernelDensity.
+    xbins: int
+        Bins for the first time series.
+    ybins: int
+        Bins for the second time series.
+    rtol: float
+        The desired relatie tolerance of the result for KernelDensity.
+    atol: float
+        The desired absolute tolerance of the result for KernelDensity.
+    method: str
+        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+        using kde2D are the only supported methods.
+    
+    Returns
+    -------
+    bmorph_corr_ts: pd.Series
+        Returns a time series of length of an interval in the bmoprh window 
+        with bmorphed values.
+    bmorph_mulitpliers: pd.Series
+        ???
+    """
     
     training_window = slice(*training_window)
     bmorph_window = slice(*bmorph_window)
@@ -33,7 +90,7 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
             offset = raw_ts_window.stop - raw_cdf_window.stop
             raw_cdf_window = slice(raw_cdf_window.start + offset, raw_ts_window.stop)
         
-        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window,raw_bmorph_window, obs_ts, train_ts, 
+        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window, raw_bmorph_window, obs_ts, train_ts, 
                                           training_window, n_smooth_short, raw_y, obs_y, train_y, 
                                           bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
                                           method=method)
@@ -57,6 +114,63 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         window_size, n_smooth_long=None, n_smooth_short=5,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10, 
         rtol=1e-6, atol=1e-8, method='hist'):
+    """
+    
+    
+    Parameters
+    ---------
+    raw_ts: pd.Series
+        Raw flow timeseries.
+    train_ts: pd.Series
+        Flow timeseries to train the bias correction model with.
+    obs_ts: pd.Series
+        Observed/reference flow timeseries.
+    training_window: pd.date_range
+        Date range to train timeseries on.
+    bmorph_window: pd.date_range
+        Date range to apply bmorph onto flow timeseries.
+    reference_window: pd.date_range
+        Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
+    bmorph_step: pd.DateOffset
+        Difference between bmorph application intervals.
+    window_size: int
+        Total overlap CDF windows have with each other, distributed evenly
+        before and after the application window.
+    n_smooth_long: int, optional
+        Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
+        The nsmooth value in this case is typically much larger than the one
+        used for the bmorph function itself. For example, 365 days.
+    n_smooth_short: int
+        Number of elements that will be smoothed when determining CDFs used
+        for the bmorph function itself.
+    raw_y: pd.Series, optional
+        Raw time series of the second time series variable for mdcdedcdfm.
+    train_y: pd.Series, optional
+        Training second time series.
+    obs_y: pd.Series, optional
+        Target second time series.
+    bw: int
+        Bandwidth for KernelDensity.
+    xbins: int
+        Bins for the first time series.
+    ybins: int
+        Bins for the second time series.
+    rtol: float
+        The desired relatie tolerance of the result for KernelDensity.
+    atol: float
+        The desired absolute tolerance of the result for KernelDensity.
+    method: str
+        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+        using kde2D are the only supported methods.
+    
+    Returns
+    -------
+    bmorph_corr_ts: pd.Series
+        Returns a time series of length of an interval in the bmoprh window 
+        with bmorphed values.
+    bmorph_multipliers: pd.Series
+        ???
+    """
     
     assert isinstance(bmorph_step, pd.DateOffset)
     
@@ -123,25 +237,77 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             truth_upstream_y = None, truth_downstream_y = None,
                             bw=3, xbins=200, ybins=10, atol=0, rtol=1e-7, method='hist'):
     """
-    Apply Annual bmorph Blending
-        applies the bmorph bias correction and blends the multipliers
-        computed by bmorph to produce a statistically bias corrected
-        streamflow data set
-    ----
+    Applies the bmorph bias correction and blends the multipliers
+    computed by bmorph to produce a statistically bias corrected
+    streamflow data set
+    
+    Parameters
+    ----------
     raw_upstream_ts: pd.Series
+        
     raw_downstream_ts: pd.Series
+        
     train_upstream_ts: pd.Series
+        
     train_downstream_ts: pd.Series
+        
     truth_upstream_ts: pd.Series
+        
     truth_downstream_ts: pd.Series
+        
     training_window: pd.date_range
+        
     bmorph_window: pd.date_range
+        Date range to apply bmorph onto flow timeseries.
     reference_window: pd.date_range
+        Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
     window_size: int
-    blend_factor: 
+        Total overlap CDF windows have with each other, distributed evenly
+        before and after the application window.
+    blend_factor: np.array
+        
     n_smooth_long: int
+        Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
+        The nsmooth value in this case is typically much larger than the one
+        used for the bmorph function itself. For example, 365 days.
     n_smooth_short: int
+        Number of elements that will be smoothed when determining CDFs used
+        for the bmorph function itself.
     train_on_year: boolean
+        ???
+    raw_upstream_y: pd.Series, optional
+    
+    raw_downstream_y: pd.Series, optional
+    
+    train_upstream_y: pd.Series, optional
+    
+    train_downstream_y: pd.Series, optional
+    
+    truth_upstream_y: pd.Series, optional
+    
+    truth_downstream_y: pd.Series, optional
+    
+    bw: int
+        Bandwidth for KernelDensity.
+    xbins: int
+        Bins for the first time series.
+    ybins: int
+        Bins for the second time series.
+    atol: float
+        The desired absolute tolerance of the result for KernelDensity.
+    rtol: float
+        The desired relatie tolerance of the result for KernelDensity.
+    method: str
+        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+        using kde2D are the only supported methods.
+    
+    Returns
+    -------
+    bc_totals:
+        Returns a time series of length of an interval in the bmoprh window 
+        with bmorphed values.
+    bc_multipliers:
+        ???
     """
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
@@ -228,6 +394,77 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             train_upstream_y = None, train_downstream_y = None,
                             truth_upstream_y = None, truth_downstream_y = None,
                             bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, method='hist'):
+    """
+    
+    
+    Parameters
+    ---------
+    raw_upstream_ts: pd.Series
+        
+    raw_downstream_ts: pd.Series
+        
+    train_upstream_ts: pd.Series
+        
+    train_downstream_ts: pd.Series
+        
+    truth_upstream_ts: pd.Series
+        
+    truth_downstream_ts: pd.Series
+        
+    training_window: pd.date_range
+        
+    bmorph_window: pd.date_range
+        Date range to apply bmorph onto flow timeseries.
+    reference_window: pd.date_range
+        Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
+    bmorph_step: pd.DateOffset
+        Difference between bmorph application intervals.
+    window_size: int
+        Total overlap CDF windows have with each other, distributed evenly
+        before and after the application window.
+    blend_factor: np.array
+        
+    n_smooth_long: int, optional
+        Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
+        The nsmooth value in this case is typically much larger than the one
+        used for the bmorph function itself. For example, 365 days.
+    n_smooth_short: int
+        Number of elements that will be smoothed when determining CDFs used
+        for the bmorph function itself.
+    raw_upstream_y: pd.Series, optional
+        
+    raw_downstream_y: pd.Series, optional
+        
+    train_upstream_y: pd.Series, optional
+        
+    train_downstream_y: pd.Series, optional
+        
+    truth_upstream_y: pd.Series, optional
+        
+    truth_downstream_y: pd.Series, optional
+        
+    bw: int
+        Bandwidth for KernelDensity.
+    xbins: int
+        Bins for the first time series.
+    ybins: int
+        Bins for the second time series.
+    rtol: float
+        The desired relatie tolerance of the result for KernelDensity.
+    atol: float
+        The desired absolute tolerance of the result for KernelDensity.
+    method: str
+        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+        using kde2D are the only supported methods.
+    
+    Returns
+    -------
+    bc_totals: pd.Series
+        Returns a time series of length of an interval in the bmoprh window 
+        with bmorphed values.
+    bc_multipliers: pd.Series
+        ???
+    """
     
     assert isinstance(bmorph_step, pd.DateOffset)
     
