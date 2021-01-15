@@ -8,7 +8,7 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10, 
         rtol=1e-7, atol=0, method='hist'):
     """
-    
+    Bias correction is performed by bmorph on yearly intervals 
     
     Parameters
     ---------
@@ -62,7 +62,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         Returns a time series of length of an interval in the bmoprh window 
         with bmorphed values.
     bmorph_mulitpliers: pd.Series
-        ???
+        Returns a time series of equal length to bc_totals used to scale the
+        raw flow values into the bmorphed values returned in bc_totals.
     """
     
     training_window = slice(*training_window)
@@ -169,7 +170,8 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         Returns a time series of length of an interval in the bmoprh window 
         with bmorphed values.
     bmorph_multipliers: pd.Series
-        ???
+        Returns a time series of equal length to bc_totals used to scale the
+        raw flow values into the bmorphed values returned in bc_totals.
     """
     
     assert isinstance(bmorph_step, pd.DateOffset)
@@ -244,17 +246,21 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     Parameters
     ----------
     raw_upstream_ts: pd.Series
-        
+        Raw flow timeseries corresponding to the upstream proportioned flows.
     raw_downstream_ts: pd.Series
-        
+        Raw flow timerseries corresponding to the downstream proportioned flows.
     train_upstream_ts: pd.Series
-        
+        Flow timeseries to train the bias correction model with for the upstream
+        proportioned flows.
     train_downstream_ts: pd.Series
-        
+        Flow timeseries to train the bias correction model with for the downstream
+        proportioned flows.
     truth_upstream_ts: pd.Series
-        
+        Observed/reference flow timeseries corresponding to the upstream proportioned
+        flows.
     truth_downstream_ts: pd.Series
-        
+        Observed/reference flow timeseries corresponding to the downstream proportioned
+        flows.
     training_window: pd.date_range
         
     bmorph_window: pd.date_range
@@ -265,8 +271,13 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Total overlap CDF windows have with each other, distributed evenly
         before and after the application window.
     blend_factor: np.array
-        
+        An array determining how upstream and downstream bmorphing is proportioned.
+        This is determined by the fill_method used in mizuroute_utils. The blend_factor
+        entries are the proportion of upstream multiplers and totals added with
+        1-blend_factor of downstream multipliers and totals.
     n_smooth_long: int
+        This functionality is still to be implemented.
+        
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
@@ -307,7 +318,8 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Returns a time series of length of an interval in the bmoprh window 
         with bmorphed values.
     bc_multipliers:
-        ???
+        Returns a time series of equal length to bc_totals used to scale the
+        raw flow values into the bmorphed values returned in bc_totals.
     """
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
@@ -400,17 +412,21 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     Parameters
     ---------
     raw_upstream_ts: pd.Series
-        
+        Raw flow timeseries corresponding to the upstream proportioned flows.
     raw_downstream_ts: pd.Series
-        
+        Raw flow timerseries corresponding to the downstream proportioned flows.
     train_upstream_ts: pd.Series
-        
+        Flow timeseries to train the bias correction model with for the upstream
+        proportioned flows.
     train_downstream_ts: pd.Series
-        
+        Flow timeseries to train the bias correction model with for the downstream
+        proportioned flows.
     truth_upstream_ts: pd.Series
-        
+        Observed/reference flow timeseries corresponding to the upstream proportioned
+        flows.
     truth_downstream_ts: pd.Series
-        
+        Observed/reference flow timeseries corresponding to the downstream proportioned
+        flows.
     training_window: pd.date_range
         
     bmorph_window: pd.date_range
@@ -423,8 +439,13 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Total overlap CDF windows have with each other, distributed evenly
         before and after the application window.
     blend_factor: np.array
-        
+        An array determining how upstream and downstream bmorphing is proportioned.
+        This is determined by the fill_method used in mizuroute_utils. The blend_factor
+        entries are the proportion of upstream multiplers and totals added with
+        1-blend_factor of downstream multipliers and totals.
     n_smooth_long: int, optional
+        This functionality is still to be implemented.
+        
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
@@ -463,7 +484,8 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Returns a time series of length of an interval in the bmoprh window 
         with bmorphed values.
     bc_multipliers: pd.Series
-        ???
+        Returns a time series of equal length to bc_totals used to scale the
+        raw flow values into the bmorphed values returned in bc_totals.
     """
     
     assert isinstance(bmorph_step, pd.DateOffset)
