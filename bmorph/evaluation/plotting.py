@@ -26,17 +26,20 @@ from statsmodels.distributions.empirical_distribution import ECDF
 #      scatter_series_axes
 #*****************************************************************************************
 
-def custom_legend(names: List,colors=colors99p99):
-    """
-    Custom Legend
-        creates a list of patches to be passed in as
-        `handels` for the plt.legends function
-    ----
-    names: a list of legend names
-    colors: a list of colors
+def custom_legend(names:List, colors=colors99p99):
+    """Creates a list of patches to be passed in as `handels` for the plt.legends function.
+    
+    Parameters
+    ----------
+    names : list
+        Legend names.
+    colors : list
+        A list of the colors corresponding to `names`.
 
-    It is assumed that the order of colors and corresponding
-    names for plotted values match already
+    Returns
+    -------
+    handles
+        ???
     """
     legend_elements = list()
     for i,name in enumerate(names):
@@ -44,22 +47,33 @@ def custom_legend(names: List,colors=colors99p99):
     return legend_elements
 
 def calc_water_year(df: pd.DataFrame):
-    """
-    Calculate Hydrologic Year
-    ----
+    """Calculates hydrologic year.
+    
+    Parameters
+    ----------
+    df: pandas.DataFrame 
+        Flow timeseries with a DataTime index.
 
-    df: pandas DataFrame with a DataTime index
-
-    Returns: an index grouped by Hydrologic Year
+    Returns
+    -------
+    ???
+        A pandas.DataFrame index grouped by hydrologic year.
 
     """
     return df.index.year + (df.index.month >= 10).astype(int)
 
 def find_index_hyear(data: pd.DataFrame) -> np.int:
-    """
-    finds the index of the first hydrologic year
-    ----
+    """ Finds the index of the first hydrologic year.
+    
+    Parameters
+    ----------
     data: pd.DataFrame
+        Flow timeseries with a DateTime index.
+        
+    Returns
+    -------
+    int
+        Index of the first hydrologic year.
     """
     hyear = pd.Timestamp(0)
     i = 0
@@ -72,21 +86,27 @@ def find_index_hyear(data: pd.DataFrame) -> np.int:
     return i
 
 def determine_row_col(n:int, pref_rows = True):
-    """
-    Determine Rows and Columns
-        calculates a rectangular subplot layout that
-        contains at least n subplots, some may need to
-        be turned off in plotting
-    ----
-    n: int
-        total number of plots
-    pref_rows: boolean
-        If True, and only a rectangular arrangment
-        is possible, then put the longer dimension
-        in n_rows. If False, then it is
-        placed in the n_columns
-    return: int, int
-        n_rows, n_columns
+    """Determines rows and columns for rectangular subplots
+    
+    Calculates a rectangular subplot layout that contains at least n subplots, 
+    some may need to be turned off in plotting. If a square configuration is
+    possible, then a square configuration will be proposed. This helps automate
+    the process of plotting a variable number of subplots.
+    
+    Parameters
+    ----------
+    n : int
+        Total number of plots.
+    pref_rows : boolean
+        If True, and only a rectangular arrangment is possible, then put the 
+        longer dimension in n_rows. If False, then it is placed in the n_columns.
+        
+    Returns
+    -------
+    n_rows : int
+        Number of rows for matplotlib.subplot.
+    n_columns : int
+        Number of columns for matplotlib.subplot.
     """
     if n < 0:
         raise Exception("Please enter a positive n")
@@ -112,12 +132,19 @@ def determine_row_col(n:int, pref_rows = True):
         return int_sqrt_n+1, int_sqrt_n+1
     
 def log10_1p(x: np.ndarray):
-    """
-    Return the log10 of one plus the input array, element-wise.
-    ----
-    x: numpy.ndarray
-    ----
-    Returns: y: numpy.ndarray
+    """Return the log10 of one plus the input array, element-wise.
+    
+    Parameters
+    ----------
+    x : numpy.ndarray
+        An array of values greater than -1. If values are less than or
+        equal to -1, then a domain error will occur in computing the
+        logarithm.
+     
+    Returns
+    --------
+    y : numpy.ndarray
+        Array of the values having the log10(element+1) computer.
     """
     y = np.nan*x
     for i, element in enumerate(x):
@@ -144,15 +171,19 @@ def scatter_series_axes(data_x, data_y, label: str, color: str, alpha: float,
 #*****************************************************************************************
 
 def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
-    """
-    Percent Bias Sites
-        calculates percent bias on a hydrologic year
-        and site-by-site basis
-    ----
-    observed: pd.DataFrame
-        dataframe containing all observations
-    predicted: pd.DataFrame
-        dataframe containing all predictions
+    """Calculates percent bias on a hydrologic year and site-by-site basis.
+    
+    Parameters
+    ----------
+    observed : pd.DataFrame
+        Dataframe containing all observations.
+    predicted : pd.DataFrame
+        Dataframe containing all predictions.
+        
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe contain the percent bias computed.
     """
     #finds the start of the first hydraulic year
     i = find_index_hyear(observed)
@@ -190,15 +221,19 @@ def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
     return pbias_site_df
 
 def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
-    """
-    Difference Max Flow Sites
-        calculates difference in maximum flows
-        on a hydrologic year and site-by-site basis
-    ----
-    observed: pd.DataFrame
-        dataframe containing all observations
-    predicted: pd.DataFrame
-        dataframe containing all predictions
+    """Calculates difference in maximum flows on a hydrologic year and site-by-site basis.
+    
+    Parameters
+    ----------
+    observed : pandas.DataFrame
+        Dataframe containing all observations.
+    predicted: pandas.DataFrame
+        Dataframe containing all predictions.
+        
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing the difference in maximum flows.
     """
     #finds the start of the first hydraulic year
     i = find_index_hyear(observed)
@@ -238,19 +273,23 @@ def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
     return diff_maxflow_sites_df
 
 def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd.DataFrame):
-    """
-    Percent Bias Box Plotter
-        plots box plots of numerous models grouped
-        by site
-    ----
-    observed: pd.Dataframe
-        a dataframe containing observations
-    names: list
-        a list of the model names
+    """Plots box plots of numerous models grouped by site.
+    
+    Parameters
+    ----------
+    observed : pd.Dataframe
+        Dataframe containing observations.
+    names  : list
+        List of the model names.
     colors: list
-        a list of colors to be plotted
-    *models: any number of pd.DataFrame objects
-        to be evaluated
+        List of colors to be plotted.
+    *models : List[pandas.DataFrame]
+        Any number of pandas.DataFrame objects to be evaluated.
+        
+    Returns
+    -------
+    fig : matplotlib.figure
+    ax : matplotlib.axes
     """
     num_models = len(models)
     sites = observed.columns
@@ -294,19 +333,23 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
     return fig, ax
 
 def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd.DataFrame):
-    """
-    Difference Max Flow Box Plotter
-        plots box plots of numerous models grouped
-        by site
-    ----
-    observed: pd.Dataframe
+    """Plots box plots of numerous models grouped by site.
+    
+    Parameters
+    ----------
+    observed : pd.Dataframe
         a dataframe containing observations
-    names: list
-        a list of the model names
+    names : list
+        List of the model names.
     colors: list
-        a list of colors to be plotted
-    *models: any number of pd.DataFrame objects
-        to be evaluated
+        List of colors to be plotted.
+    *models : List[pandas.DataFrame]
+        Any number of pandas.DataFrame objects to be evaluated.
+        
+    Returns
+    -------
+    fig : matplotlib.figure
+    ax : matplotlib.axes
     """
     num_models = len(models)
     sites = observed.columns
@@ -352,10 +395,10 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
 
 def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list, 
                       compare: dict, compare_key: str, site: str, colors = colors99p99):
-    """
-    Site Differences Scatter Plot
-        creates a scatter plot of Raw-BC versus some measure
-    ----
+    """Creates a scatter plot of Raw-BC versus some measure.
+    
+    Parameters
+    ----------
 
     predictions: dictionary containing
         'Prediction Names':Prediction pandas DataFrame.
@@ -374,6 +417,11 @@ def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list,
         printed on the horizontal axis
     site: a single site designiation to be examined in the
         plot. This will be listed as the title of the plot
+        
+    Returns
+    -------
+    fig : matplotlib.figure
+    ax : matplotlib.axes
 
     """
     #retreiving DataFrames and establishing data to be plotted
