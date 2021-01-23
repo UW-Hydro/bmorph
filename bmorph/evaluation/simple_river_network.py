@@ -197,7 +197,7 @@ class SimpleRiverNetwork:
         self.network_graph = plotting.create_nxgraph(self.adj_mat)
         self.network_positions = plotting.organize_nxgraph(self.network_graph)
 
-        self.clearend_markers(self.outlet)
+        self.clear_end_markers(self.outlet)
 
 
     def __eq__(self, other):
@@ -307,7 +307,7 @@ class SimpleRiverNetwork:
         self.adj_mat = np.zeros(shape = (0))
         self.outlet.upstream = list()
 
-    def clearend_markers(self,node):
+    def clear_end_markers(self,node):
         """Sets all upstream `end_marker`'s to False.
         
         Sets all end_mark in nodes at and upstream of node to False.
@@ -321,7 +321,7 @@ class SimpleRiverNetwork:
         if node:
             node.end_marker = False
             for upstream in node.upstream:
-                self.clearend_markers(upstream)
+                self.clear_end_markers(upstream)
 
     def update_node_area(self, node: SegNode):
         """Updates the desired node with basin area information.
@@ -833,7 +833,7 @@ class SimpleRiverNetwork:
         return pfaf_map
 
     def generate_weight_map(self):
-        """
+        """ Creates a list proportional upstream area ratios for each `seg_id_values`.
         
         Creates a list of fractional weights equivalent
         to the node's upstream area divided by the overall
@@ -843,7 +843,8 @@ class SimpleRiverNetwork:
         Returns
         -------
         list
-            
+            (river segment's cumulative upstream area)/(total basin area) for each
+            river segment corresponding to the `seg_id`'s in `seg_id_values`.
         """
         weight_map = list()
         total_area = self.topo['Basin_Area'].values.sum()
@@ -855,14 +856,17 @@ class SimpleRiverNetwork:
         return weight_map
 
     def generate_mainstream_map(self):
-        """
+        """Highlights the mainstream for plotting in draw_network.
+        
         Creates a list of which nodes are part of the
         mainstream in order of the `seg_id_values`.
         
         Returns
         -------
         list
-            
+            int booleans denoting whether a river segment is part of the
+            mainstream, 1, or off the mainstream, 0, corresponding to
+            each `seg_id` in `seg_id_values`.
         """
         mainstream, tributaries = self.sort_streams(self.outlet)
         mainstream_ids = list()
@@ -873,14 +877,22 @@ class SimpleRiverNetwork:
         return mainstream_seg_map
 
     def generate_pfaf_color_map(self):
-        """
-        Creates a pd.Series to assign a unqiue color to each
-        first level pfafstetter basin.
+        """Extracts the first pfaffstetter digit of each code for colorcoding.
+        
+        This prepares a `color_measure` for draw_network, where each unique
+        first level pfaffstetter basin can be assigned it's own color by
+        a Colormap. If a SegNode has the `pfaf_code` "1234", then its will
+        have the value "1" in returned map. Using a qualitative colormap
+        of 10 distinct colors, such as matplotlib's "tab10", is recommended
+        since there are 10 unique pfafstetter digits, (0 to 9).
         
         Returns
         -------
         pandas.Series
-            
+            Map of color codes for `pfaf_code` of each SegNode to the
+            indicies of each SegNode corresponding to its `seg_id` in
+            `seg_id_values`. The index should not be reassigned as it
+            is used to match the correct nodes together in draw_network.
         """
         pfaf_color_map = list()
         for i,seg_id in enumerate(self.seg_id_values):
@@ -893,19 +905,24 @@ class SimpleRiverNetwork:
         """Highlight specific SegNode's in a SimpleRiverNetwork.
         
         Takes a list of `seg_id`'s and creates a pandas.Series
-        that highlights the nodes in the list.
+        that highlights the nodes in the list. This is best used
+        as a diagnostic tool, finding where a specific river segment
+        is located on a network map. Using a colormap that has notably
+        different colors on the extremes, such as matplotlib's "Reds",
+        is recommended to make highlighted nodes stand out.
         
         Parameters
         ----------
         seg_ids : list
-            a list of seg_id values that are to be marked
-            apart from the rest of the seg_ids
+            A list of `seg_id` values to mark specific SegNode's apart
+            from other SegNode's.
             
         Returns
         -------
         list
-            A list that will identify these highlighted
-            nodes for draw_network.
+            A list that will identify these highlighted nodes for 
+            draw_network by int booleans, 1 is to be higlighted
+            while 0 is not.
         """
         return pd.Series(self.seg_id_values).isin(seg_ids).astype(int)
 
@@ -941,6 +958,16 @@ class SimpleRiverNetwork:
     def pfaf_aggregate(self):
         """Aggregates the flow network by one pfafstetter level.
         
+        This "rolls up" a SimpleRiverNetwork to simplify the overall map,
+        similar to decreasing the number of lines in a contour plot to
+        make it more legible. If the longest `pfaf_code` in the network is
+        four digits long, such as "1234" or "5678", then all of the SegNodes
+        sharing the first three digits will be replaced by a singular SegNode
+        with the `pfaf_code` of those first three digits. For example: if you
+        have `pfaf_code`'s "1231", "1232", "1233", and "1234", then they become
+        a SegNode with the `pfaf_code` "123". Basin area for each SegNode is
+        summed to create the basin area of the new SegNode. Aggregating other
+        properties is still in progress.     
         """
         # we will be looking to reduce the total number of levels by 1
         # in each aggregation cycle
@@ -1020,23 +1047,32 @@ class SimpleRiverNetwork:
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
 
     def color_network_graph(self, measure, cmap):
-        """
+        """Creats a dictionary and colorbar depicting `measure`.
         
         Parameters
         ----------
-        measure :
-        
-        cmap :
-        
+        measure : pandas.Series, optional
+            Describes how colors for each SegNode should be 
+            allocated relative to a linear colormap. The index
+            is expected to match the indicies of `seg_id_values`
+            as a 0:len(`seg_id_values`)-1 array. If no measure is
+            specified, then colors will be assigned sequentially in 
+            order of `seg_id_values`.
+        cmap : matplotlib.colors.LinearSegmentedColormap
+            Colormap to be used for coloring the SimpleRiverNewtork
+            plot.
+            
         Returns
         -------
         color_dict : dict
-        
-        color_bar : 
-        
+            Dictionary of {i:color} where i is the index of the
+            SegNode's `seg_id` in `seg_id_values`.
+        color_bar : ScalarMappable
+            A color bar used to plot color values determined by `measure`
+            for plotting in draw_network.
         """
         if type(measure) != type(None):
-            return plotting.color_code_nxgraph(self.network_graph,measure,cmap)
+            return plotting.color_code_nxgraph(self.network_graph, measure, cmap)
         else:
             color_bar = None
             segs = np.arange(0,len(self.seg_id_values))
@@ -1045,66 +1081,82 @@ class SimpleRiverNetwork:
             return color_dict, color_bar
 
     def size_network_graph(self, measure):
-        """
-        
-        Parameters
-        ----------
-        measure: 
-            
-            
-        Returns
-        -------
-        dict
-            
-        """
+        """TODO: Implement"""
         segs = np.arange(0,len(self.seg_id_values))
         size_vals = segs/len(segs)
         size_dict = {f'{seg}': 200*size_vals(i) for i, seg in zip(size_vals,segs)}
         return size_dict
 
-    def draw_network(self,label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'),
+    def draw_network(self, label_map=[], color_measure=None, cmap = mpl.cm.get_cmap('hsv'),
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
-                     with_labels=False,with_cbar=False,with_background=True,cbar_labelsize=10,
+                     with_labels=False, with_cbar=False, with_background=True, cbar_labelsize=10,
                      edge_color='k', alpha=1, cbar_title = '', cbar_label_pad=40):
-        """Plots the network through networkx.
+        """Plots the river network through networkx.
+        
+        Plots the visual component of the SimpleRiverNetwork where spatial connections
+        between river segments can be seen. This graphical tool may not match the 
+        topographical shape of the actual river network, but it should be similar. 
+        Visualizng how the river segments are connected virtually can help find errors
+        in the construction of large models or locate where analysis only associated
+        with the `seg_id` of a river segment corresponds to the pseudo-physical network.
+        Plotting the network with labels, highlighting specific nodes, color coding by
+        pfafstetter basin, and other coloring can help visually connect this plot with
+        a topographical plot.
         
         Parameters
         ----------
-        label_map : list
-        
-        color_measure : pandas.Series
-        
-        cmap : matplotlib.colors.LinearSegmentedColormap
-        
-        node_size : float
-        
-        font_size : float
-        
-        font_weight : str
-        
-        node_shape : str
-        
-        linewidths : float
-        
-        font_color : str
-        
-        with_labels : boolean
-        
-        with_cbar : boolean
-        
-        with_background : boolean
-        
-        cbar_labelsize : float
-        
-        edge_color : str
-        
+        label_map : list, optional
+            Text to be plotted on top of each node in the same order as `seg_id_values`.
+            There must be a value for each `seg_id` in `seg_id_values` and the values must
+            be unique, otherwise an error will arise in plotting.
+        color_measure : pandas.Series, optional
+            Describes how colors for each SegNode should be allocated relative to a linear 
+            colormap. The index is expected to match the indicies of `seg_id_values` as a 
+            0:len(`seg_id_values`)-1 array.
+        cmap : matplotlib.colors.LinearSegmentedColormap, optional
+            Colormap to be used for coloring the SimpleRiverNewtork plot. This is defaulted
+            as matplotlib.cm.get_cmap('hsv'), a vibrant set of colors to alert that a more
+            specific colormap has not been specified.
+        node_size : float, optional
+            Plotting size the nodes, defaulting at 200.
+        font_size : float, optional
+            Font size of the text from `label_map` on top of each node, defaulted at 8.
+        font_weight : str, optional
+            Font weight of the text from `label_map` on top of each node, defaulted as 
+            `bold`.
+        node_shape : str, optional
+            Shape of the plotted nodes, defaults as 's' for square. Networkx uses can use 
+            any one of 'so^>v<dph8'.
+        linewidths : float, optional
+            Width of the connecting lines between nodes, defaults as 2.
+        font_color : str, optional
+           Font color of the text from `label_map` on top of each node, defaulted as `w`
+           for white.
+        with_labels : boolean, optional
+            Whether labels should be plotted on top of each node, True, or not, False. 
+            This is defaulted as False.
+        with_cbar : boolean, optional
+            Whether a colorbar should be plotted right of the network plot, True, or
+            not, False. This is defaulted as False.
+        with_background : boolean, optional
+            Whether a background should be plotted with the network figure, True, or 
+            not, False. This is defaulted as True. If desiring to download the image
+            with a transparent background, such as a PNG, then set this to False.
+        cbar_labelsize : float, optional
+            Font size of the labels on the colorbar that can be attached in `with_cbar`
+            being set to True, defaulted as 10.
+        edge_color : str, optional
+            Node outline color of each node, defaulted as 'k' for black.
         alpha : float
-        
-        cbar_title : str
-        
-        cbar_label_pad : float
-        
+            Transparancy of each node, where 1 is perfectly opaque and 0 is perfectly
+            transparent. This is primarly useful in draw_multi_measure, where plots
+            are overlayed on top of each other.
+        cbar_title : str, optional
+            Title of the colorbar that can be attached in `with_cbar` being set to True.
+            This is defaulted as '' to exclude a title.
+        cbar_label_pad : float, optional
+            Padding for the colorbar labels, defaulted as 40.
         """
 
         if type(color_measure) != type(None):
@@ -1167,15 +1219,50 @@ class SimpleRiverNetwork:
             
     def draw_multi_measure(self, color_dict, label_map = [], 
                      node_size = 200, font_size = 8, font_weight = 'bold', node_shape = 's', 
-                     linewidths = 2, font_color = 'w', alpha = 1.0,
+                     linewidths = 2, font_color = 'w', 
                      with_labels=False, with_cbar=False, with_background=True):
-        """
-            draw_multi_measure
-                plots several networkx plots of user specified transparency for a single
-                SimpleRiverNetwork to compare mutliple measures at once.
-            ----
-            color_dict:
-                a dictionary set up as {name: [pd.Series,cmap, alpha]}
+        """Overlays multiple network plots to compare multiple measures at once.
+        
+        Plots several networkx plots of user specified transparency for a single
+        SimpleRiverNetwork to compare mutliple measures at once. For example, if
+        dataset_1 is "Blues" and dataset_2 is "Reds", then a bivariate colormap
+        can be used where shades of purple would represent the combinations of
+        dataset_1 and dataset_2.
+            
+        Parameters    
+        ----------
+        color_dict : dict
+            Expected as {name: [pandas.Series, cmap, alpha]} to organize which colormap
+            applies to which data.
+        label_map : list, optional
+            Text to be plotted on top of each node in the same order as `seg_id_values`.
+            There must be a value for each `seg_id` in `seg_id_values` and the values must
+            be unique, otherwise an error will arise in plotting.
+        node_size : float, optional
+            Plotting size the nodes, defaulting at 200.
+        font_size : float, optional
+            Font size of the text from `label_map` on top of each node, defaulted at 8.
+        font_weight : str, optional
+            Font weight of the text from `label_map` on top of each node, defaulted as 
+            `bold`.
+        node_shape : str, optional
+            Shape of the plotted nodes, defaults as 's' for square. Networkx uses can use 
+            any one of 'so^>v<dph8'.
+        linewidths : float, optional
+            Width of the connecting lines between nodes, defaults as 2.
+        font_color : str, optional
+           Font color of the text from `label_map` on top of each node, defaulted as `w`
+           for white.
+        with_labels : boolean, optional
+            Whether labels should be plotted on top of each node, True, or not, False. 
+            This is defaulted as False.
+        with_cbar : boolean, optional
+            Whether a colorbar should be plotted right of the network plot, True, or
+            not, False. This is defaulted as False.
+        with_background : boolean, optional
+            Whether a background should be plotted with the network figure, True, or 
+            not, False. This is defaulted as True. If desiring to download the image
+            with a transparent background, such as a PNG, then set this to False.
         """
         # first we will double check that the alpha's do not sum to more than 1, for this
         # may muddle the data
@@ -1194,20 +1281,25 @@ class SimpleRiverNetwork:
                                   with_cbar=with_cbar, with_background=with_background)
 
     def aggregate_measure_sum(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
-        """
-        aggregate_measure_sum
-            determines the sum measure value for the given variable based on how
-            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
-            the SimpleRiverNetwork
+        """This is a preliminary function.
+        
+        Determines the sum measure value for the given variable based on how
+        SimpleRiverNetwork has been aggregated and provides a pandas.Series to plot on
+        the SimpleRiverNetwork.
+        
+        Parameters
         ----
-        dataset_seg_ids:
-            a np.ndarray containing all the seg_id values according to the original
-            topology. this should be in the same order seg order as variable
-        variable:
-            a np.ndarray containing all the variable values according to the original
-            topology. this should be in the same order seg order as dataset_seg_ids
-        return:
-            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        dataset_seg_ids : numpy.ndarray
+            Contains all the seg_id values according to the original
+            topology. This should be in the same order seg order as variable.
+        variable : numpy.ndarray
+            Contains all the variable values according to the original
+            topology. This should be in the same order seg order as dataset_seg_ids.
+            
+        Returns
+        -------
+        pandas.Series
+            A pandas.Series formated as: (seg_id_values_index, aggregated measure)
         """
         # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
 
@@ -1230,20 +1322,25 @@ class SimpleRiverNetwork:
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
 
     def aggregate_measure_mean(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
-        """
-        aggregate_measure_mean
-            determines the mean measure value for the given variable based on how
-            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
-            the SimpleRiverNetwork
-        ----
-        dataset_seg_ids:
-            a np.ndarray containing all the seg_id values according to the original
-            topology. this should be in the same order seg order as variable
-        variable:
-            a np.ndarray containing all the variable values according to the original
-            topology. this should be in the same order seg order as dataset_seg_ids
-        return:
-            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """This is a preliminary function.
+        
+        Determines the mean measure value for the given variable based on how
+        SimpleRiverNetwork has been aggregated and provides a pandas.Series to plot on
+        the SimpleRiverNetwork.
+        
+        Parameters
+        ----------
+        dataset_seg_ids : numpy.ndarray
+            Contains all the seg_id values according to the original
+            topology. This should be in the same order seg order as variable.
+        variable : numpy.ndarray
+            Contains all the variable values according to the original
+            topology. This should be in the same order seg order as dataset_seg_ids.
+        
+        Returns
+        -------
+        pandas.Series
+            A pandas.Series formated as: (seg_id_values_index, aggregated measure)
         """
         # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
 
@@ -1266,20 +1363,25 @@ class SimpleRiverNetwork:
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
 
     def aggregate_measure_median(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
-        """
-        aggregate_measure_median
-            determines the median measure value for the given variable based on how
-            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
-            the SimpleRiverNetwork
-        ----
-        dataset_seg_ids:
-            a np.ndarray containing all the seg_id values according to the original
-            topology. this should be in the same order seg order as variable
-        variable:
-            a np.ndarray containing all the variable values according to the original
-            topology. this should be in the same order seg order as dataset_seg_ids
-        return:
-            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """This is a preliminary function.
+        
+        Determines the median measure value for the given variable based on how
+        SimpleRiverNetwork has been aggregated and provides a pandas.Series to plot on
+        the SimpleRiverNetwork.
+        
+        Parameters
+        ----------
+        dataset_seg_ids : numpy.ndarray
+            Contains all the seg_id values according to the original
+            topology. This should be in the same order seg order as variable.
+        variable : numpy.ndarray
+            Contains all the variable values according to the original
+            topology. This should be in the same order seg order as dataset_seg_ids.
+        
+        Returns
+        -------
+        pandas.Series
+            A pandas.Series formated as: (seg_id_values_index, aggregated measure).
         """
         # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
 
@@ -1302,20 +1404,25 @@ class SimpleRiverNetwork:
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
 
     def aggregate_measure_max(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
-        """
-        aggregate_measure_max
-            determines the maximum measure value for the given variable based on how
-            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
-            the SimpleRiverNetwork
-        ----
-        dataset_seg_ids:
-            a np.ndarray containing all the seg_id values according to the original
-            topology. this should be in the same order seg order as variable
-        variable:
-            a np.ndarray containing all the variable values according to the original
-            topology. this should be in the same order seg order as dataset_seg_ids
-        return:
-            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        """This is a preliminary function.
+        
+        Determines the maximum measure value for the given variable based on how
+        SimpleRiverNetwork has been aggregated and provides a pandas.Series to plot on
+        the SimpleRiverNetwork.
+        
+        Parameters
+        ----------
+        dataset_seg_ids : numpy.ndarray
+            Contains all the seg_id values according to the original
+            topology. This should be in the same order seg order as variable.
+        variable : numpy.ndarray
+            Contains all the variable values according to the original
+            topology. This should be in the same order seg order as dataset_seg_ids.
+            
+        Returns
+        -------
+        pandas.Series
+            A pandas.Series formated as: (seg_id_values_index, aggregated measure)
         """
         # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
 
@@ -1339,19 +1446,23 @@ class SimpleRiverNetwork:
 
     def aggregate_measure_min(self, dataset_seg_ids: np.ndarray, variable: np.ndarray)-> pd.Series:
         """
-        aggregate_measure_min
-            determines the minimum measure value for the given variable based on how
-            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
-            the SimpleRiverNetwork
-        ----
-        dataset_seg_ids:
-            a np.ndarray containing all the seg_id values according to the original
-            topology. this should be in the same order seg order as variable
-        variable:
-            a np.ndarray containing all the variable values according to the original
-            topology. this should be in the same order seg order as dataset_seg_ids
-        return:
-            a pd.Series formated as: (seg_id_values_index, aggregated measure)
+        Determines the minimum measure value for the given variable based on how
+        SimpleRiverNetwork has been aggregated and provides a pandas.Series to plot on
+        the SimpleRiverNetwork.
+        
+        Parameters
+        ----------
+        dataset_seg_ids : numpy.ndarray
+            Contains all the seg_id values according to the original
+            topology. This should be in the same order seg order as variable.
+        variable : numpy.ndarray
+            Contains all the variable values according to the original
+            topology. This should be in the same order seg order as dataset_seg_ids.
+            
+        Returns
+        -------
+        pandas.Series
+            A pandas.Series formated as: (seg_id_values_index, aggregated measure)
         """
         # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
 
@@ -1374,22 +1485,26 @@ class SimpleRiverNetwork:
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
 
     def aggregate_measure(self, dataset_seg_ids: np.ndarray, variable: np.ndarray, aggregation_function)-> pd.Series:
-        """
-        aggregate_measure
-            aggregates the measure value for the given variable based on how
-            SimpleRiverNetwork has been aggregated and provides a pd.Series to plot on
-            the SimpleRiverNetwork
-        ----
-        dataset_seg_ids:
-            a np.ndarray containing all the seg_id values according to the original
-            topology. this should be in the same order seg order as variable
-        variable:
-            a np.ndarray containing all the variable values according to the original
-            topology. this should be in the same order seg order as dataset_seg_ids
-        aggregation_function:
-            a function to be passed in on how the aggregated segs should have this variable
+        """This is a preliminary function.
+        
+        Aggregates the measure value for the given variable based on how
+        SimpleRiverNetwork has been aggregated and provides a pandas.Series to plot on
+        the SimpleRiverNetwork.
+        
+        Parameters
+        ----------
+        dataset_seg_ids : numpy.ndarray
+            Contains all the seg_id values according to the original
+            topology. This should be in the same order seg order as variable.
+        variable : numpy.ndarray
+            Contains all the variable values according to the original
+            topology. This should be in the same order seg order as dataset_seg_ids.
+        aggregation_function : numpy function
+            A function to be passed in on how the aggregated segs should have this variable
             combined, recommended as a numpy function like np.sum, np.median, np.mean ...
-        return:
+            
+        Returns
+        -------
             a pd.Series formated as: (seg_id_values_index, aggregated measure)
         """
         # color_measure, (for plotting) is formmated as (seg_id_values_index, value)
@@ -1413,18 +1528,27 @@ class SimpleRiverNetwork:
         return pd.Series(data = new_measure_data, index = np.arange(0,len(self.seg_id_values)))
 
     def spawn_srn(self, spawn_outlet):
+        """Creates a new SimpleRiverNetwork from `spawn_outlet` and upstream of it.
+        
+        A new SimpleRiverNetwork structure is generated from the current network. This is
+        useful if modeling a large watershed and desire to focus on a specific element of
+        it without having to reselect out all the nodes, for example: the Snake River Basin
+        within the Columbia River Basin dataset.
+        
+        Parameters
+        ----------
+        spawn_outlet : int
+            The `seg_id`of a SegNode in the current SimpleRiverNetwork to generate from. This 
+            creates an outlet that the new tree is to be spawned from.
+            
+        Returns
+        -------
+        SimpleRiverNetwork
+            A new SimpleRiverNetwork with the outlet set to `spawn_outlet`. Properites are
+            transferred from the pervious SimpleRiverNetwork to this one, but any SegNodes
+            not upstream from `spawn_outlet` are not included in this new one.
         """
-        spawn_srn
-            creates a new SimpleRiverNetwork from that
-            given network and upstream of it
-        ----
-        spawn_outlet:
-            the seg_id of an outlet that the new tree
-            is to be spawned from
-        return:
-            a new SimpleRiverNetwork
-        """
-        self.clearend_markers
+        self.clear_end_markers
         spawn_segIDs = list()
         for node in spawn_outlet:
             spawn_segIDs.append(node.seg_id)
