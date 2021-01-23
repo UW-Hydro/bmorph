@@ -90,99 +90,59 @@ class SimpleRiverNetwork:
     adj_mat : numpy.array
         A square adjacency matrix size N, where N is the length of seg_id_values,
         that can be used to graph the SimpleRiverNetwork, where the row/column 
-        index i corresponds to seg_id i in seg_id_values.        
+        index i corresponds to seg_id i in seg_id_values.
+    network_graph : networkx.graph
+        A networkx graph part of the visual component of the network.
+    network_positions : dictionary
+        A dictionary with networkx nodes as keys and positions as values,
+        using in the plotting of the network.
         
     Methods
-    -------
-    parse_upstream
-        Recursively constructs network by searching what
-        SegNodes are upstream of the current SegNode
-        and updates the current SegNode's upstream list
-        while also building the adjacency matrix.
-    collect_upstream_nodes
-        Finds all nodes upstream of a node and returns
-        a list of them.
-    clear_network
-        Sets the adjacency matrix to an empty array and
-        sets the upstream designation of the outlet to an
-        empty list, clearing the shape of the network
-        upstream of the outlet. This does not reset
-        the topograpghy or seg_id_values, so the original
-        shape can be rebuilt.
-    update_node_area
-        Updates the desired node with basin area information.
-    net_upstream_area
-        Calculates the basin area upstream of node of interest.
-        This does include the area of the node of interest
-    count_net_upstream
-        Counts the number of nodes upstream of a
-        node, including the original node
-    find_branch
-        Locates a node that branches into 2+ nodes,
-        returning what node branches and any
-        nodes prior to the branch taht where in a row
-    find_node
-        Searches for and returns a node with the desired
-        seg_id upstream of a starting_node. If the node
-        cannot be found, None is returned
-    find_like_pfaf
-        Finds all nodes with the matching digit at the exact
-        same location in pfaf_code and returns all of them
-        in a list
-    append_pfaf
-        Adds a pfaffstetter code digit to all upstream nodes
-    append_sequential
-        Adds odd digits to the pfaf_codes of SegNodes in
-        a row, or in sequence. this ensures all SegNodes
-        within the SimpleRiverNetwork have a unique code
-    sort_streams
-        Returns which branches are part of the mainstream and which
-        are part of the tributaries
-    find_tributary_basins
-        Finds the four tributaries with the largest drainage areas
-    encode_pfaf
-        Recursively encodes pfafstetter codes on a SimpleRiverNetwork
-    sort_by_pfaf
-        Sorts a list of SegNode's in decreasing order
-        of a pfaf_digit at the given degree
-    generate_pfaf_map
-        Creates a list of pfaf_code values in the order
-        of the seg_id_values, including the seg_id_values.
-        this is a little more cluttered, reccommended only
-        for debugging purposes
-    generate_pfaf_codes
-        Creates a list of pfaf_code values in the order
-        of the seg_id_values
-    generate_weight_map
-        Creates a list of fractional weights equivalent
-        to the node's upstream area divided by the overall
-        basin_area of the whole SimpleRiverNetwork.
-        these are in order of the seg_id_values
-    pfaf_aggregate
-        Aggregates the flow network by one pfafstetter level
-    draw_network
-        Plots the network through networkx
-    draw_multi_measure
-        Plots several networkx plots of user specified transparency for a single
-        SimpleRiverNetwork to compare mutliple measures at once
-    generate_mainstream_map
-        Creates a list of which nodes are part of the
-        mainstream in order of the seg_id_values
-    generate_pfaf_color_map
-        Creates a pd.Series to assign a unqiue color to each
-        first level pfafstetter basin
-    generate_node_highlight_map
-        Takes a list of seg_ids and creats a pd.Series
-        that highlights the nodes in the list
-    reconstruct_adj_mat
-        Rebuilds the adjacency matrix from an existing flow tree
-    pfaf_aggregate
-        Aggregates the flow network by one pfafstetter level
-    spawn_srn
-        Creates a new SimpleRiverNetwork from that
-        given network and upstream of it
+    -------    
+    draw_network(label_map=[], color_measure=None)
+        Plots the river network through networkx.
+    draw_multi_measure(color_dict, label_map = [])
+        Overlays multiple network plots to compare multiple measures at once.
+    find_node(target_id, node:SegNode)
+        Linear search of SimpleRiverNetwork for a specific SegNode.
+    find_like_pfaf(node:SegNode, target_pfaf_digits: list, degree:int)
+        Finds nodes based on pfaffstetter codes.
+    collect_upstream_nodes(node:SegNode)
+        Finds all upstream SegNode's.    
+    generate_pfaf_map()
+        List of pfaffstetter codes corresponding to `seg_id_values`.
+    generate_weight_map()
+        Creates a list proportional upstream area ratios for each `seg_id_values`.
+    generate_mainstream_map()
+        Highlights the mainstream for plotting in draw_network.
+    generate_pfaf_color_map()
+        Extracts the first pfaffstetter digit of each code for colorcoding.
+    generate_node_highlight_map(seg_ids:list)
+        Highlight specific SegNode's in a SimpleRiverNetwork.
+    pfaf_aggregate()
+        Aggregates the flow network by one pfafstetter level.
+    spawn_srn(spawn_outlet)
+        Creates a new SimpleRiverNetwork from `spawn_outlet` and upstream of it.
     """
     def __init__(self, topo: xr.Dataset, pfaf_seed = int, outlet_index = 0, max_pfaf_level=42):
+        """Creates a SimpleRiverNetwork object.
+        
+        Parameters
+        ----------
+        topo : xarray.Dataset
+            Dataset describing the topography of the river network.
+        pfaf_seed : int, optional
+            Prefixing digit for the network's pfafstetter encoding.
+        outlet_index : 0
+            Where the outlet of the river network is located in topo. This is the 
+            index value of the river segment's `seg_id` that identifies the network's
+            outlet to construct the tree from. This defaults as 0, assuming the first
+            entry is the outlet.
+        max_pfaf_level : int
+            The maximum number of levels encode_pfaf will run forbefore raising a 
+            RuntimeError. By default, this is set to the arbitrary number 42 as a safety
+            mechanism.
+        """
         self.topo = topo
         self.seg_id_values = topo['seg_id'].values
         self.outlet = SegNode(seg_id=self.seg_id_values[outlet_index], pfaf_code=str(pfaf_seed))
@@ -798,7 +758,7 @@ class SimpleRiverNetwork:
         return sorted_nodes
 
     def generate_pfaf_map(self):
-        """ List of pfaffstetter codes corresponding to `seg_id_values`.
+        """List of pfaffstetter codes corresponding to `seg_id_values`.
         
         Creates a list of pfaf_code values in the order
         of the seg_id_values, including the `seg_id_values.
@@ -833,7 +793,7 @@ class SimpleRiverNetwork:
         return pfaf_map
 
     def generate_weight_map(self):
-        """ Creates a list proportional upstream area ratios for each `seg_id_values`.
+        """Creates a list proportional upstream area ratios for each `seg_id_values`.
         
         Creates a list of fractional weights equivalent
         to the node's upstream area divided by the overall
