@@ -705,7 +705,29 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         Variable name of flows used for fill_method purposes within routed.
         This is defaulted as 'IRFroutedRunoff'.
     fill_method: str
-        Visit map_ref_sites for more information. This is defaulted as 'kldiv'.
+        While finding some upstream/downstream reference segs may be simple,
+        (segs with 'is_gauge' = True are their own reference segs, others
+        may be easy to find looking directly up or downstream), some river
+        networks may have multiple options to select gauge sites and may fail
+        to have upstream/downstream reference segs designated. 'fill_method'
+        specifies how segs should be assigned upstream/downstream reference
+        segs for bias correction if they are missed walking upstream or downstream.
+        
+        Currently supported methods:
+            'leave_null'
+                nothing is done to fill missing reference segs, np.nan values are
+                replaced with a -1 seg designation and that's it
+            'forward_fill'
+                xarray's ffill method is used to fill in any np.nan values
+            'r2'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest r2 value with
+            'kldiv' (default)
+                reference segs are selected based on which reference site that
+                seg's flows has the smallest KL Divergence value with
+            'kge'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest KGE value with
     min_kge: float
         If not None, all upstream/downstream reference seg selections will be filtered
         according to the min_kge criteria, where seg selections that have a kge with
@@ -927,7 +949,29 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
         Name of the variable of the routed runoff in the ``routed``
         dataset. Defaults to ``IRFroutedRunoff``.
     fill_method: str
-        Visit map_ref_sites for more information.
+        While finding some upstream/downstream reference segs may be simple,
+        (segs with 'is_gauge' = True are their own reference segs, others
+        may be easy to find looking directly up or downstream), some river
+        networks may have multiple options to select gauge sites and may fail
+        to have upstream/downstream reference segs designated. 'fill_method'
+        specifies how segs should be assigned upstream/downstream reference
+        segs for bias correction if they are missed walking upstream or downstream.
+        
+        Currently supported methods:
+            'leave_null'
+                nothing is done to fill missing reference segs, np.nan values are
+                replaced with a -1 seg designation and that's it
+            'forward_fill'
+                xarray's ffill method is used to fill in any np.nan values
+            'r2'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest r2 value with
+            'kldiv' (default)
+                reference segs are selected based on which reference site that
+                seg's flows has the smallest KL Divergence value with
+            'kge'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest KGE value with
     min_kge: float, optional
         Visit calculate_blend_vars for more information
         defaults None unless fill_method = 'kge'.

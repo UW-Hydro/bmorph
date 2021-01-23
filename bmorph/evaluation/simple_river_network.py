@@ -24,7 +24,7 @@ class SegNode():
         Containing what is directly upstream from this SegNode.
     basin_area : float
         Summative Basin Area for this seg.
-    end_marker : boolean
+    _end_marker : boolean
         TRUE if this SegNode marks the end of an interbasin during 
         simple_river_network.ecode_pfaf. This variable is only used during
         the encoding of pfaffstetter codes for the SimpleRiverNetwork and
@@ -41,7 +41,7 @@ class SegNode():
         self.upstream: List[SegNode] = list()
         self.basin_area: None
 
-        self.end_marker = False
+        self._end_marker = False
         self.encoded = False
 
     def __repr__(self):
@@ -67,7 +67,7 @@ class SegNode():
 
 
 class SimpleRiverNetwork:
-    """
+    """Psuedo-physical visualization of watershed models.
     
     The SimpleRiverNetwork maps nodes within a
     given topography to visualize their arragments
@@ -93,6 +93,7 @@ class SimpleRiverNetwork:
         index i corresponds to seg_id i in seg_id_values.
     network_graph : networkx.graph
         A networkx graph part of the visual component of the network.
+        More information about NetworkX can be found at https://networkx.org/
     network_positions : dictionary
         A dictionary with networkx nodes as keys and positions as values,
         using in the plotting of the network.
@@ -268,18 +269,18 @@ class SimpleRiverNetwork:
         self.outlet.upstream = list()
 
     def clear_end_markers(self,node):
-        """Sets all upstream `end_marker`'s to False.
+        """Sets all upstream `_end_marker`'s to False.
         
         Sets all end_mark in nodes at and upstream of node to False.
         
         Parameters
         ----------
         node : SegNode
-            SegNode to start setting end_marker to False and moving
+            SegNode to start setting _end_marker to False and moving
             upstream from.
         """
         if node:
-            node.end_marker = False
+            node._end_marker = False
             for upstream in node.upstream:
                 self.clear_end_markers(upstream)
 
@@ -315,7 +316,7 @@ class SimpleRiverNetwork:
             Aggregate upstream area.
         """
         net_area = 0
-        if node and not node.end_marker:
+        if node and not node._end_marker:
             net_area = node.basin_area
 
             for upstream_node in node.upstream:
@@ -328,10 +329,10 @@ class SimpleRiverNetwork:
         return net_area
 
     def force_upstream_area(self, node:SegNode):
-        """Aggregates upstream basin area regardless of `end_marker`.
+        """Aggregates upstream basin area regardless of `_end_marker`.
         
         Calculates the basin area upstream of node of interest, ignoring
-        `end_marker`. This does include the area of the node of interest.
+        `_end_marker`. This does include the area of the node of interest.
         
         Parameters
         ----------
@@ -353,9 +354,9 @@ class SimpleRiverNetwork:
         return net_area
 
     def check_upstream_end_marking(self, node: SegNode):
-        """Checks if any directly upstream nodes are marked by `end_marker`.
+        """Checks if any directly upstream nodes are marked by `_end_marker`.
         
-        Checks if any nodes directly upstream are `end_marker`'s and 
+        Checks if any nodes directly upstream are `_end_marker`'s and 
         returns True if so.
          
         Parameters 
@@ -366,11 +367,11 @@ class SimpleRiverNetwork:
         Returns
         -------
         boolean
-            If any directly upstream nodes are marked by `end_marker`.
+            If any directly upstream nodes are marked by `_end_marker`.
         """
         end_marker_ahead = False
         for upstream_node in node.upstream:
-            if upstream_node.end_marker:
+            if upstream_node._end_marker:
                 end_marker_ahead = True
 
         return end_marker_ahead
@@ -392,7 +393,7 @@ class SimpleRiverNetwork:
             Number of SegNode's upstream.
         """
         count = 0
-        if node and not node.end_marker:
+        if node and not node._end_marker:
             count += 1
             for upstream_node in node.upstream:
                 count += self.count_net_upstream(upstream_node)
@@ -420,7 +421,7 @@ class SimpleRiverNetwork:
         branch = None
         orig_node = node
         sequential_nodes = []
-        while not node.end_marker and node.upstream and not branch:
+        while not node._end_marker and node.upstream and not branch:
             if len(node.upstream) > 1:
                 branch = node
             else:
@@ -505,7 +506,7 @@ class SimpleRiverNetwork:
         pfaf_digit : int
             The digit to be added to the pfaffstetter codes.
         """
-        if not node.end_marker:
+        if not node._end_marker:
             node.pfaf_code += str(pfaf_digit)
             for upstream_node in node.upstream:
                 self.append_pfaf(upstream_node, pfaf_digit)
@@ -685,7 +686,7 @@ class SimpleRiverNetwork:
                     #4. unmark upstream and continue parsing
                     #5. update interbasin_root
                     for upstream_node in mainstream.upstream:
-                        upstream_node.end_marker = True
+                        upstream_node._end_marker = True
 
                     self.append_pfaf(interbasin_root, pfaf_digit)
                     self.encode_pfaf(interbasin_root, level=level+1)
@@ -694,7 +695,7 @@ class SimpleRiverNetwork:
                         all_seq_nodes.append(snodes)
 
                     for upstream_node in mainstream.upstream:
-                        upstream_node.end_marker = False
+                        upstream_node._end_marker = False
 
                     interbasin_root = mainstreams[mainstream_index+1]
                     pfaf_digit += 1 #converts to even to prep for tributary_basin
