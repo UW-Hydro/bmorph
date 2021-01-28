@@ -56,7 +56,7 @@ def calc_water_year(df: pd.DataFrame):
 
     Returns
     -------
-    ???
+    pandas.DataFrame.index
         A pandas.DataFrame index grouped by hydrologic year.
 
     """
@@ -175,9 +175,9 @@ def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
     
     Parameters
     ----------
-    observed : pd.DataFrame
+    observed : pandas.DataFrame
         Dataframe containing all observations.
-    predicted : pd.DataFrame
+    predicted : pandas.DataFrame
         Dataframe containing all predictions.
         
     Returns
@@ -277,7 +277,7 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
     
     Parameters
     ----------
-    observed : pd.Dataframe
+    observed : pandas.Dataframe
         Dataframe containing observations.
     names  : list
         List of the model names.
@@ -288,8 +288,7 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
         
     Returns
     -------
-    fig : matplotlib.figure
-    ax : matplotlib.axes
+    matplotlib.figure, matplotlib.axes
     """
     num_models = len(models)
     sites = observed.columns
@@ -337,7 +336,7 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
     
     Parameters
     ----------
-    observed : pd.Dataframe
+    observed : pandas.Dataframe
         a dataframe containing observations
     names : list
         List of the model names.
@@ -348,8 +347,7 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
         
     Returns
     -------
-    fig : matplotlib.figure
-    ax : matplotlib.axes
+    matplotlib.figure, matplotlib.axes
     """
     num_models = len(models)
     sites = observed.columns
@@ -400,28 +398,28 @@ def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list,
     Parameters
     ----------
 
-    predictions: dictionary containing
-        'Prediction Names':Prediction pandas DataFrame.
-        'Prediction Names' will be printed in the legend
-    raw_key: the key for the predictions dictionary
-        that directs to the raw data that each model will
-        be subtracting
-    model_keys: a list of keys pertaining to the correction
-        models that are wanting to be plotted
-    compare: a dictionary containing
-        'Measure name':measure pandas DataFrame.
-        These are what is being plotted against on the
-        horizontal-axis
-    compare_key: the mkey for the measure desired in
-        the compare dictionary. 'compare_key' will be
-        printed on the horizontal axis
-    site: a single site designiation to be examined in the
-        plot. This will be listed as the title of the plot
+    predictions : dict
+        Expects {'Prediction Names' : Prediction pandas.DataFrame}.
+        'Prediction Names' will be printed in the legend.
+    raw_key : str 
+        The key for the predictions dictionary that directs to the 
+        raw data that each model will be subtracting.
+    model_keys : list
+        A list of dictoionary keys pertaining to the correction models 
+        that are wanting to be plotted.
+    compare : dict 
+        Expecting {'Measure name' : measure pandas.DataFrame}.
+        These are what is being plotted against on the horizontal-axis.
+    compare_key : str
+        The dictionary key for the measure desired in the compare dictionary. 
+        'compare_key' will be printed on the horizontal axis.
+    site : str
+        A single site designiation to be examined in the plot. This will 
+        be listed as the title of the plot.
         
     Returns
     -------
-    fig : matplotlib.figure
-    ax : matplotlib.axes
+    matplotlib.figure, matplotlib.axes
 
     """
     #retreiving DataFrames and establishing data to be plotted
@@ -448,32 +446,39 @@ def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list,
 
 def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: list, uncor_key: str,
                                sites = [], multi = True, colors = colors99p99):
-    """
-    Statistical Corrections Plot 2D
-        creates a scatter plot of the flow after corrections
-        are applied and beforehand in relation to observations
-    ----
-    compuations: a dictionary containing
-        "Correction Name": correction pandas DataFrame
-    datum_key: contains the key for the compuations dictionary
+    """Creates a scatter plot of the flow before/after corrections relative to observations.
+    
+    Parameters
+    ----------
+    compuations : dict
+        Expecting {"Correction Name": correction pandas.DataFrame}.
+    datum_key : str
+        Contains the dictionary key for the `compuations` dictionary
         that accesses what baseline the corrections should be
-        compared to. This is typically observations
-    cor_keys: a list of the keys accessing the correction
-        DataFrames in computations. These will be printed in
-        the legend.
-    uncor_key: the key that accesses the uncorrected data
-        in computations
-    sites: a list or a singular site to be compared in the plot.
-        If multi is set to False and this is not changed to a
+        compared to. This is typically observations.
+    cor_keys : list
+        Dictionary keys accessing the correction DataFrames in `computations`. 
+        These will be printed in the legend.
+    uncor_key : str
+        The dictionary key that accesses the uncorrected data in `computations`.
+    sites : list
+        Site(s) to be compared in the plot, can have a size of 1.
+        If `multi` is set to False and this is not changed to a
         single site, then the first value in the list will be
-        chosen
-    multi: boolean that determines whether the plot uses data
-        from multiple sites or a single site
-    colors: a list of colors as strings to be plotted from.
-        plotting colors are different for each correction
+        chosen.
+    multi : boolean
+        Determines whether the plot uses data from multiple sites or a 
+        single site, defaults as True.
+    colors : list[str]
+        Colors as strings to be plotted from.
+        Plotting colors are different for each correction
         DataFrame, but same across sites for a singular
         correction. An error will be thrown if there are
-        more cor_keys then colors
+        more `cor_keys` then `colors`.
+        
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
 
     """
     #retreiving DataFrames and establishing data to be plotted
@@ -566,34 +571,34 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
 
 def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_key: str,
                       sites = [], multi = True, colors = colors99p99, show_legend = True):
-    """
-    Anomaly Plot 2D
-        Plots two correction models against each other after
-        each is subtracted from a set of Raw data
-    ----
-    compuations: a dictionary containing
-        "Correction Name": correction pandas DataFrame
-    datum_key: contains the key for the compuations dictionary
+    """Plots two correction models against each other after Raw is subracted from each.
+    
+    Parameters
+    ----------
+    compuations : dict
+        Expecting {"Correction Name": correction pandas.DataFrame}.
+    datum_key : str
+        Dictionary key for the `compuations` dictionary
         that accesses what baseline the corrections should be
-        compared to. This is typically observations
-    vert_key: contains the key for the compuations dictionary
-        that accesses the model to be plotted on the vertical
-        axis
-    horz_key: contains the key for the compuations dictionary
-        that accesses the model to be plotted on the horizontal
-        axis
-    sites: a list or a singular site to be compared in the plot.
-        If multi is set to False and this is not changed to a
+        compared to. This is typically observations.
+    vert_key : str
+        Dictionary key for the `compuations` dictionary that accesses the 
+        model to be plotted on the vertical axis.
+    horz_key : str
+        Dictionary key for the `compuations` dictionary that accesses the 
+        model to be plotted on the horizontal axis.
+    sites : list
+        Site(s) to be compared in the plot, can have a size of 1.
+        If `multi` is set to False and this is not changed to a
         single site, then the first value in the list will be
-        chosen
-    multi: boolean that determines whether the plot uses data
-        from multiple sites or a single site
-    colors: a list of colors as strings to be plotted from.
-        plotting colors are different for each correction
-        DataFrame, but same across sites for a singular
-        correction. An error will be thrown if there are
-        more cor_keys then colors
-
+        chosen.
+    multi : boolean 
+        Whether the plot uses data from multiple sites or a single site.
+    colors : list
+        Colors as strings to be plotted from. Plotting colors are different 
+        for each correction DataFrame, but same across sites for a singular
+        correction. An error will be thrown if there are  more `cor_keys` then 
+        colors.
     """
     #retreiving DataFrames and establishing data to be plotted
     datum = computations[datum_key]
@@ -633,6 +638,31 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
 
 def rmseFracPlot(data_dict: dict, obs_key: str, sim_keys: list,
                 sites = [], multi = True, colors = colors99p99):
+    """
+    
+    Parameters
+    ----------
+    data_dict : dict
+        Expecting {"Data Name": data pandas.DataFrame}.
+    obs_key : str
+        Dictionary key for the `compuations` dictionary that accesses the 
+        observations to be used as true in calculating root mean squares.
+    sim_keys : list
+        Dictionary keys accessing the simulated DataFrames in `computations`,
+        used in predictions in calculating root mean squares.
+    sites : list
+        Site(s) to be compared in the plot, can have a size of 1.
+        If `multi` is set to False and this is not changed to a
+        single site, then the first value in the list will be
+        chosen.
+    multi : boolean 
+        Whether the plot uses data from multiple sites or a single site.
+    colors : list
+        Colors as strings to be plotted from. Plotting colors are different 
+        for each correction DataFrame, but same across sites for a singular
+        correction. An error will be thrown if there are  more `sim_keys` then 
+        colors.    
+    """
     #retrieving data and flooring time stamps
     observations = data_dict[obs_key]
     observations.index = observations.index.floor('d')
@@ -703,26 +733,41 @@ def rmseFracPlot(data_dict: dict, obs_key: str, sim_keys: list,
 #      create_adj_mat
 #      create_nxgraph
 #      organize_nxgraph
-#      color_code_nxgraph_sorted
 #      color_code_nxgraph
 #      draw_dataset
 #*****************************************************************************************
 
 def find_upstream(topo: xr.Dataset, segID: int, return_segs: list = []):
-    """
-    find_upstream
-        finds what segID is directly upstream from
-        the xarray Dataset
-    ----
-    topo: xarray Dataset of topography
-    segID: current segID of interest
-    return_segs: list of what segID's are upstream
+    """Finds what river segment is directly upstream from the xarray.Dataset.
+    
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Contains river network topography. Expecting each river segment's 
+        immeditate downstream river segment is designated by 'Tosegment'/
+    segID : int
+        Current river segment identification number.
+    return_segs : list 
+        River segment identification numbers upstream from `segID`.
+        This defaults as an empty list to be filled by the method.
     """
     upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
     upsegIDs = topo['seg_id'][upsegs].values
     return_segs += list(upsegs)
 
 def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list = []) -> np.ndarray:
+    """???
+    
+    Parameters
+    ----------
+    topo : xarray.Dataset
+    segID : int
+    return_segs : list
+    
+    Returns
+    -------
+    numpy.ndarray
+    """
     upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
     upsegIDs = topo['seg_id'][upsegs].values
     return_segs += list(upsegs)
@@ -731,17 +776,19 @@ def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list = []) -> n
     return np.unique(return_segs).flatten()
 
 def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
-    """
-    create_adj_mat
-        Forms the adjacency matrix for the graph
-        of the topography
-        Note that this is independent of whatever
-        the segments are called, it is a purely a
-        map of the relative object locations
-    ----
-    topo: xarray Dataset containing topographical information
+    """Forms the adjacency matrix for the graph of the topography.
+    
+    Note that this is independent of whatever the segments are called, it 
+    is a purely a map of the relative object locations.
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Describes the topograph of the river network.
 
-    return: ndarray that is the adjacency matrix
+    Returns
+    --------
+    numpy.ndarray 
+        An adjacency matrix describing the river network.
     """
     #creates the empty adjacency matrix
     N = topo.dims['seg']
@@ -758,62 +805,57 @@ def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
     return adj_mat
 
 def create_nxgraph(adj_mat: np.ndarray) -> nx.Graph:
-    """
-    create_nxGraph
-        creates a NetworkX Graph object given an
-        adjacency matrix
-    ----
-    adj_mat: a numpy ndarray containing the desired
-        adjacency matrix
+    """Creates a NetworkX Graph object given an adjacency matrix.
+    
+    Parameters
+    ----------
+    adj_mat : numpy.ndarray
+        Adjacency matrix describing the river network.
 
-    returns: NetworkX Graph of respective nodes
+    Returns
+    -------
+    networkx.graph
+        NetworkX Graph of respective nodes.    
     """
     topog = nx.from_numpy_matrix(adj_mat)
     return topog
 
 def organize_nxgraph(topo: nx.Graph):
-    """
-    organize_nxgraph
-        orders the node positions hierarchical based on
-        the "dot" layout and given topography Dataset
-    ----
-    topo: xarray Dataset containing segment identifications
+    """Orders the node positions into a hierarchical structure. 
+    
+    Based on the "dot" layout and given topography.
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Contains river segment identifications and relationships.
+    
+    Returns
+    -------
+    networkx.positions ???
     """
     pos = nx.drawing.nx_agraph.graphviz_layout(topo, prog = 'dot')
     return pos
 
-def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series,
-                              cmap=mpl.cm.get_cmap('plasma'))-> dict:
-    """
-    color_cod_nxgraph
-        creates a dictionary mapping of nodes
-        to color values
-    ----
-    graph: nx.graph to be color coded
-
-    measure: pd.Series with segment ID's as
-        the index and desired measures as values
-    """
-    #sets up color diversity
-    segs = measure.sort_values().index
-    color_steps = np.arange(0, 1, 1 / len(segs))
-
-    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_steps, segs)}
-    return color_dict
-
 def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
                        cmap = mpl.cm.get_cmap('coolwarm_r'))-> dict:
-    """
-    color_code_nxgraph
-        creates a dictionary mapping of nodes
-        to color values
-    ----
-    graph: nx.graph to be color coded
-
-    measure: pd.Series with segment ID's as
-        the index and desired measures as values
-
-    cmap: colormap to be used
+    """Creates a dictionary mapping of nodes to color values.
+    
+    Parameters
+    ----------
+    graph: networkx.graph 
+        Graph to be color coded
+    measure : pandas.Series 
+        Contains river segment ID's as the index and desired measures as 
+        values.
+    cmap : matplotlib.colors.LinearSegmentedColormap
+        Colormap to be used for coloring the SimpleRiverNewtork
+        plot. This defaults as 'coolwarm_r'.
+        
+    Returns
+    -------
+    dict
+        Dictionary of {i:color} where i is the index of the river
+        segment.
 
     """
     if np.where(measure < 0)[0].size == 0:
@@ -844,21 +886,22 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
         return color_dict, color_bar
 
 def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm_r')):
-    """
-    draw_dataset
-        draws a networkx graph from a topological
-        xrarray Dataset and color codes it based on
-        a pandas Series
-    ----
-    topo: xr.Dataset containing topologcial information
-
-    color_measure: pd.Series where indicies are concurrent
-        with the number of segs in topo. Typically this contains
-        statistical information about the flows that will be
-        color coded by least to greatest value
-
-    cmap: a mpl colormap to use in conjunction with color_measure.
-        The default is diverging color map, 'coolwarm'
+    """"Plots the river network through networkx.
+    
+    Draws a networkx graph from a topological xrarray.Dataset and color codes 
+    it based on a pandas.Series.
+    
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Contains river segment identifications and relationships.
+    color_measure : pandas.Series 
+        Indicies are concurrent with the number of segs in topo. 
+        Typically this contains statistical information about the flows 
+        that will be color coded by least to greatest value.
+    cmap : matplotlib.colors.LinearSegmentedColormap
+        Colormap to be used for coloring the SimpleRiverNewtork
+        plot. This defaults as 'coolwarm_r'.
     """
     topo_adj_mat = create_adj_mat(topo)
     topo_graph = create_nxgraph(topo_adj_mat)
@@ -899,45 +942,63 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
                         figsize_width = 70, figsize_height = 30,
                         plot_colors = ['grey', 'black', 'blue', 'red'],
                         return_reduced_flows = False):
-    """
-    Plot Mean Day of Year Flows
-        creates a series of subplots that plot an average year's flows
-        per gauge site
-    ---
-    flow_dataset: xr.Dataset
-        contatains raw, reference, and bias corrected flows
-    plot_sites: list
-        a list of sites to be plotted
-    reduce_func: function
-        a function to apply to flows grouped by dayofyear,
-        default = np.mean
-    vertical_label: str
-        a string label for the vertical axis representing
-        the reduce_func, defaults as:
-        f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit np.mean
-    title_label: str
-        a string lable for the figure title representing
-        the reduce_func, defaults as:
-        f'Annual Mean Flows' to fit np.mean
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    raw_name: str
-        the string to label the raw flows in the legend
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    ref_name: str
-        the string to label the refernce flows in the legend
-    bc_vars: list
-        a list of strings to access the bias corrected flows in flow_dataset
+    """Creates a series of subplots that plot an average year's flows per gauge site.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contatains raw, reference, and bias corrected flows.
+    plot_sites : list
+        Sites to be plotted.
+    reduce_func : function
+        A function to apply to flows grouped by dayofyear, defaults as np.mean.
+    vertical_label : str
+        Label for the vertical axis representing the `reduce_func`, defaults as
+        f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit `reduce_func` as np.mean.
+    title_label : str
+        Lable for the figure title representing the reduce_func, defaults as
+        f'Annual Mean Flows' to fit `reduce_func` as np.mean.
+    raw_var : str, optional
+        Dictionary key to access the raw flows in `flow_dataset`, defaults as
+        'IRFroutedRunoff'.
+    raw_name : str, optional
+        Label for the raw flows in the legend, defaults as 'Mizuroute Raw'.
+    ref_var : str, optional
+        Dictionary key to access the reference flows in `flow_dataset`, defaults
+        as 'upstream_ref_flow'.
+    ref_name : str, optional
+        Label for the reference flows in the legend, defaults as 'upstream_ref_flow'.
+    bc_vars : list
+        Dictionary keys to access the bias corrected flows in `flow_dataset`.
     bc_names: list
-        a list of strings to label the reference flows in the legend
-    plot_colors: ['grey', 'black', 'blue', 'red']
-        a list containing colors to be plotted for raw, ref, bc,
-        and bc_alt, respectively
-    return_reduced_flows : boolean
-        if True, returns the reduced flows as calculated for plotting
-    ----
-    Returns: fig, axs
+        Labels for the bias corrected flows in the legend, expected in the same
+        order as `bc_vars`.
+    plot_colors : list, optional
+        Colors to be plotted for `raw_var`, `ref_var`, `bc_vars` respectively. 
+        Defaults as ['grey', 'black', 'blue', 'red'].
+    return_reduced_flows : boolean, optional
+        If True, returns the reduced flows as calculated for plotting, defaults
+        as False. This is typically used for debugging purposes.
+    fontsize_title : int, optional
+        Font size of the plot title, defaults as 80.
+    fontsize_legend : int, optional 
+        Font size of the plot legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Font size for the subplots, defaults as 60.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults 45.
+    fontcolor : str, optional
+        Color of the font, defaults as 'black'
+    figsize_width : int, optional
+        Width of the figure, defaults as 70.
+    figusize_height : int, optional
+        Height of the figure, defaults as 30.
+    
+    Returns
+    -------
+    xarray.Dataset or (matplotlib.figure, matplotlib.axes)
+        If `return_reduced_flows` is False, matplotlib.figure and matplotlib.axes,
+        otherwise the reduced_flows are returned as the xarray.Dataset.
     """
     
     if len(bc_vars) == 0:
@@ -1012,26 +1073,25 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list,
                                   cmap = mpl.cm.get_cmap('coolwarm_r'),
                                   blank_plot_color = 'w', fontcolor = 'black',
                                   fontsize_title=60, fontsize_tick = 30, fontsize_label = 45):
-    """
-    Plot Differences in Spearman Rank
-        creates a site-to-site rank correlation difference comparioson
-        plot with a map of the given basin
-    ----
-    flow_dataset: xr.Dataset
-        contains raw as 'raw_flow' and bias corrected as 'bias_corrected_total_flow'
+    """Creates a site-to-site rank correlation difference comparison plot with a map of the basin.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contains raw as 'raw_flow' and bias corrected as 'bias_corrected_total_flow'
         flow values, times of the flow values, and the names of the sites where those
         flow values exist
-    gauge_sites: list
-        a list of gauge sites to be plotted
-    start_year: str
-        string formatted as 'yyyy-mm-dd' to start rank correlation window
-    end_year: str
-        string formatted as 'yyyy-mm-dd' to end rank correlation winodw
-    relative_locations_triu: pd.DataFrame
-        denotes which sites are connected with a '1' and has the lower
-        triangle set to '0'
-    basin_map_png:
-        a png file containing the basin map with site values marked    
+    gauge_sites : list
+        Gauge sites to be plotted.
+    start_year : str
+        String formatted as 'yyyy-mm-dd' to start rank correlation window.
+    end_year : str
+        String formatted as 'yyyy-mm-dd' to end rank correlation window.
+    relative_locations_triu : pandas.DataFrame
+        Denotes which sites are connected with a '1' and has the lower
+        triangle set to '0'.
+    basin_map_png : png file
+        The basin map with site values marked.  
     """
     
     mpl.rcParams['figure.figsize'] = (40, 20)
@@ -1102,28 +1162,48 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list,
     plt.tight_layout
     plt.show() 
     
-def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, 
-                       ref_flow: pd.DataFrame, bc_flow: pd.DataFrame, 
-                       colors: list, title= 'Flow Residuals', 
-                       fontsize_title = 80, fontsize_legend = 68, 
-                       fontsize_subplot = 60, fontsize_tick = 45, fontcolor = 'black',
-                       pos_cone_guide = False, neg_cone_guide = False):
-    """
-    Correction Scatter
-        Plots differences between the raw and reference flows on the horizontal
-        and differences between the bias corrected and refrerence on the vertical.
-        This compares corrections needed before and after the bias correction method
-        is applied.
-    ----
-    site_dict: dict {subgroup name: list of segments in subgroup}
-        how sites are to be seperated
-    raw_flow: pd.DataFrame
-        accesses the raw flows in the flow_dataset
-    ref_flow: pd.DataFrame
-        accesses the reference flows in the flow_dataset
-    bc_flow: pd.DataFrame
-        accesses the bias corrected flows in the flow_dataset
-    colors
+def correction_scatter(site_dict:dict, raw_flow:pd.DataFrame, 
+                       ref_flow:pd.DataFrame, bc_flow:pd.DataFrame, 
+                       colors:list, title='Flow Residuals', 
+                       fontsize_title=80, fontsize_legend=68, 
+                       fontsize_subplot=60, fontsize_tick=45, fontcolor='black',
+                       pos_cone_guide=False, neg_cone_guide=False):
+    """Difference from reference flows before and after correction.
+
+    Plots differences between the raw and reference flows on the horizontal
+    and differences between the bias corrected and refrerence on the vertical.
+    This compares corrections needed before and after the bias correction method
+    is applied.
+    
+    Parameters
+    ----------
+    site_dict : dict 
+        Expects {subgroup name: list of segments in subgroup} how sites are to be 
+        seperated.
+    raw_flow : pandas.DataFrame
+        Contains flows before correction.
+    ref_flow : pandas.DataFrame
+        Contains the reference flows to compare `raw_flow` and `bc_flow`.
+    bc_flow : pandas.DataFrame
+        Contains flows after correction.
+    colors : list
+        Colors to be plotted for each site in `site_dict`.
+    title : str, optional
+        Title label for the plot, defaults as 'Flow Residuals'.
+    fontsize_title : int, optional
+        Fontsize of the title, defaults as 80.
+    fontsize_legend : int, optional
+        Fontsize of the legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Fontsize of the subplots, defaults as 60.
+    fontsize_tick : int, optional
+        Fontsize of the ticks, defaults as 45.
+    fontcolor : str, optional
+        Color of the font, defaults as 'black'.
+    pos_cone_guide : boolean, optional
+        If True, plots a postive 1:1 line through the origin for reference. 
+    neg_cone_guide : boolean, optional
+        If True, plots a negative 1:1 line through the origin for reference.
     """
     num_plots = len(site_dict.keys())
     n_rows, n_cols = determine_row_col(num_plots)
@@ -1158,17 +1238,17 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame,
             ref_line_ext = ref_line_max
             if np.abs(ref_line_min) > ref_line_ext:
                 ref_line_ext = np.abs(ref_line_min)
-            ax.plot([-ref_line_ext,ref_line_ext], [0,0], color='k', linestyle='--')
+            ax.plot([-ref_line_ext, ref_line_ext], [0,0], color='k', linestyle='--')
             
             if pos_cone_guide and neg_cone_guide:
-                ax.plot([-ref_line_ext,ref_line_ext], [-ref_line_ext,ref_line_max], color='k', linestyle='--')
-                ax.plot([-ref_line_ext,ref_line_ext], [ref_line_ext,-ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext, ref_line_ext], [-ref_line_ext, ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext, ref_line_ext], [ref_line_ext, -ref_line_max], color='k', linestyle='--')
             elif pos_cone_guide:
-                ax.plot([0,ref_line_ext], [0,ref_line_ext], color='k', linestyle='--')
-                ax.plot([0,ref_line_ext], [0,-ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
             elif neg_cone_guide:
-                ax.plot([0,-ref_line_ext], [0,ref_line_ext], color='k', linestyle='--')
-                ax.plot([0,-ref_line_ext], [0,-ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, -ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, -ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
             
         else:
             ax.axis('off')
@@ -1185,10 +1265,12 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
                       bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='M'), total_bins=None,
                       title_freq='Monthly', fontsize_title=90, fontsize_subplot_title=60, 
                     fontsize_tick=40, fontsize_labels=84):
-    """
-    Percent Bias Difference Histogram
-        creates a number of histogram subplots by each given site that 
-        plot the difference in percent bias before and after bias correction 
+    """ Percent Bias Difference Histogram
+    
+    Creates a number of histogram subplots by each given site that 
+    plot the difference in percent bias before and after bias correction. --------------------------------- (left off)
+    
+    
     ----
     sites: list
         a list of sites that are the columns of the flow DataFrames
