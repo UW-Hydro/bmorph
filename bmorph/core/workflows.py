@@ -238,7 +238,7 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             train_upstream_y = None, train_downstream_y = None,
                             truth_upstream_y = None, truth_downstream_y = None,
                             bw=3, xbins=200, ybins=10, atol=0, rtol=1e-7, method='hist'):
-    """[short description]
+    """Bias correction is performed by blending bmorphed flows on yearly intervals.
     
     Applies the bmorph bias correction and blends the multipliers
     computed by bmorph to produce a statistically bias corrected
@@ -413,7 +413,7 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             train_upstream_y = None, train_downstream_y = None,
                             truth_upstream_y = None, truth_downstream_y = None,
                             bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, method='hist'):
-    """[short description]
+    """Bias correction is performed by blending bmorphed flows on user defined intervals.
     
     Applies the bmorph bias correction and blends the multipliers
     computed by bmorph to produce a statistically bias corrected
