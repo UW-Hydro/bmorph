@@ -286,7 +286,9 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Number of elements that will be smoothed when determining CDFs used
         for the bmorph function itself.
     train_on_year : boolean
-        ???
+        Fits a new target CDF for each year in the training period, rather than a
+        single CDF for the entire period. This should only be used for testing
+        purposes.
     raw_upstream_y : pandas.Series, optional
         Raw time series of the second time series variable for mdcdedcdfm corresponding
         to upstream proportioned flows.
