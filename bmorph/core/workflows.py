@@ -507,7 +507,6 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Returns a time series of equal length to bc_totals used to scale the
         raw flow values into the bmorphed values returned in bc_totals.
     """
-    
     assert isinstance(bmorph_step, pd.DateOffset)
 
     if bmorph_step == pd.DateOffset(days=1):
