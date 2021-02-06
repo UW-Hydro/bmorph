@@ -8,7 +8,6 @@ Directory Setup
     mizuroute_configs
     notebooks
     output
-    reroute
     topologies
     
 Common Naming Conventions

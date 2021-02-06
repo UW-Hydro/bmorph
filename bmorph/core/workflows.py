@@ -677,3 +677,10 @@ def run_parallel_scbc(ds, client, region, mizuroute_exe, bmorph_config):
     region_totals = region_totals.sel(time=slice(*bmorph_config['bmorph_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals
+
+def bmorph_to_dataarray(dict_flows, name):
+    da = xr.DataArray(np.vstack(dict_flows.values()), dims=('site', 'time'))
+    da['site'] = list(dict_flows.keys())
+    da['time'] = list(dict_flows.values())[0].index
+    da.name = name
+    return da.transpose()
