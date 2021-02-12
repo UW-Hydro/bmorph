@@ -1,14 +1,14 @@
 ``bmorph`` Example Workflow
 ===========================
 
-How to setup data for and bias correct it through **bmorph**. 
+This page describes how to setup data for and bias correct it through ``bmorph``. 
 If you want to save time in copying over the code discussed in this file
 you can copy the Jupyterlab Notebook ``run_bmorph_template.ipynb``.
 
 Import Packages and Load Data
 -----------------------------
-We will be using xarray and pandas in this example notebook
-in addition to numpy, (which you could import directly intsead of using magic).
+We will be using numpy, xarray, and pandas in this example notebook.
+Note numpy can imported directly intsead of using magic if desired.
  
 .. code:: ipython3    
     
@@ -16,19 +16,17 @@ in addition to numpy, (which you could import directly intsead of using magic).
     import xarray as xr
     import pandas as pd
     
-We will mainly deal with bmorph.workflows, but it is still
-helpful to distinguish bmorph.mizuroute_utils in specific because
-it is purely a data processing script.
+We will mainly deal with ``bmorph.workflows``, our primary organizing script, but will also use ``bmorph.mizuroute_utils`` to pre-process your data for bmorph.
     
 .. code:: ipython3 
 
     import bmorph
     from bmorph.util import mizuroute_utils as mizutil
     
-Setting up a client for parallelism can help spead up the process
-of bias correction immensely, espeically if working with large or numerous
-watersheds, which is useful if still calibrating which meterological variable
-you want to condition to, (or just saving time in general).
+Setting up a client for parallelism can help speed up the process
+of bias correction immensely, espeically if you are working with large or numerous
+watersheds. Calibrating which meterological variable you want to condition to can take
+some time, so parralelism is recommended in especially the initial uses of ``bmorph``.
 
 .. code:: ipython3 
 
@@ -37,21 +35,22 @@ you want to condition to, (or just saving time in general).
 In case you are just copying this over, the client is only set up with
 one thread and one worker to prevent accidentally overburdening any
 machine this is running on. If you actually want to use parallelism, 
-be sure to change this!
+make sure to change this!
     
 .. code:: ipython3     
 
     client = Client(threads_per_worker=1, n_workers=1) #Increase for parallel power!!!
 
-Here you provide the gauge site names and their respective river segment identification
-numbers, or sites and segs. This will be used throughout to ensure there isn't data mismatch.
+Next you provide the gauge site names and their respective river segment identification
+numbers, or ``site``'s and ``seg``'s. This will be used throughout to ensure the data does
+not get mismatched.
 
 .. code:: ipython3     
     
     site_to_seg = { site_0_name : site_0_seg, ...} # Input this mapping or read it from a text file before running!
 
-Since it's always nice to be able to access the data you just filled out without much struggle, here we create
-some other useful forms of these gauge sites for later use.
+Since it is nice to be able to access the data you just filled out without much struggle, here we create
+some other useful forms of these gauge site mappings for later use.
 
 .. code:: ipython3 
 
@@ -59,20 +58,25 @@ some other useful forms of these gauge sites for later use.
     ref_sites = list(site_to_seg.keys())
     ref_segs = list(site_to_seg.values())
     
-Here we load in topographical data (topo), meterological data (met), 
-uncorrected flows (raw) and reference flows (ref).
+Next we load in topographical data (topo), meterological data (met), 
+uncorrected flows (raw), and reference flows (ref). Note that some
+fields have placeholder names that you should update before running.
+If some data is not accessible in a single function call, be sure to collapse
+it into a single file first before loading them. File designation calls assume
+this code is in a folder seperate from the data, but that this code's containing
+folder is at the same heirarchy as the folders containing the data. A description
+of how your project directory is expected to be set up can be foudn in ``data.rst``.
     
 .. code:: ipython3 
     
-    basin_topo = xr.open_dataset('../topologies/basin_topology_file_name.nc').load() # loading the data will help speed up things later
+    basin_topo = xr.open_dataset('../topologies/basin_topology_file_name.nc').load() 
     
 Sometimes meterological data may only be available for a larger region
 or watershed than anlayzing, so the following data will be described under such
 an assumption.
     
 Here we load in some example meterological data: minimum temperature (tmin), seasonal precipitation (prec),
-and maximum temperature (tmax). You can use similar or completely different data, just note naming referencing
-should be universally updated.
+and maximum temperature (tmax). You can use similar or completely different data, just note naming should be universally updated and unused names should be deleted or commented out completely.
 
 .. code:: ipython3 
 
@@ -87,9 +91,9 @@ will take care of mapping these hru's to seg's.
     
     watershed_met['hru'] = (watershed_met['hru'] - 1.7e7).astype(np.int32)
     
-And last not be certainly not least, we need the flows themselves! bmorph operates as a post-processing method,
-meaning a streamflow routing through mizuroute should occur before running all this. As a result, loading
-up the raw flows involves combining a number of flow netcdf files, hence the open_mfdataset.
+And last not be certainly not least, we need the flows themselves! ``bmorph`` is a post-processing method,
+meaning a streamflow routing through mizuroute should occur before running all of this. As a result, loading
+up the raw flows involves combining a number of flow netcdf files, hence the ``open_mfdataset``.
 
 .. code:: ipython3 
 
@@ -97,7 +101,7 @@ up the raw flows involves combining a number of flow netcdf files, hence the ope
     watershed_raw['seg'] = watershed_raw.isel(time=0)['reachID'].astype(np.int32)
     watershed_ref = xr.open_dataset('../input/nrni_reference_flows.nc').load().rename({'outlet':'site'})[['seg', 'seg_id', 'reference_flow']]
     
-And in order to select data for the basin of analysis from the larger watershed, we 
+In order to select data for the basin of analysis from the larger watershed, we 
 need the topology of the larger watershed as well.
 
 .. code:: ipython3 
@@ -133,8 +137,8 @@ for the specific basin we want to analyze.
         if site in basin_ref['site']:
             basin_ref['seg'].loc[{'site': site}] = seg
     
-Now we pass it off to `mizuroute_to_blendmorph`, the primary utility 
-function for automating bmorph preprocesing.
+Now we pass it off to ``mizuroute_to_blendmorph``, the primary utility 
+function for automating ``bmorph`` pre-procesing.
     
 .. code:: ipython3 
 
@@ -145,24 +149,23 @@ function for automating bmorph preprocesing.
 Apply ``bmorph`` bias correction
 --------------------------------
 
-Almost to actually bias correcting! First we need to specify some parameters 
+We are almost to actually bias correcting! First we need to specify some parameters 
 for correction. Returning to these parameters can help fine tune your bias 
 corrections to the basin you are analyzing.
 
-In this notebook, all four variations of bmorph are demonstrated: 
+In this notebook, all four variations of ``bmorph`` are demonstrated: 
 IBC_U, IBC_C, SCBC_U, and SCBC_C, as described in ``bias_correction.rst``.
 
-The `train_window` is what we will use to train the bias correction
+The ``train_window`` is what we will use to train the bias correction
 model. This is the time range that is representative of the
-basin's behavior that bmorph should strive to mirror.
+basin's expected behavior that ``bmorph`` should strive to mirror.
 
-The `bmorph_window` is when bmorph should be applied to the series,
-effectively when bias correction should be applied.
+The ``bmorph_window`` is when ``bmorph`` should be applied to the series for
+bias correction.
 
-Lastly the `reference_window` is used to smooth the bias correction
-with when in the reference flows we should compare the bmorph'ed
-flows to. This is recommended to be set as the same as the
-`train_window`.
+Lastly the ``reference_window`` is when the reference flows should be used to 
+smooth the bias corrected flows. This is recommended to be set as equivalent to the
+``train_window``.
     
 .. code:: ipython3 
 
@@ -170,19 +173,23 @@ flows to. This is recommended to be set as the same as the
     bmorph_window = pd.date_range('1991-01-01', '2005-12-30')[[0, -1]]
     reference_window = train_window
     
-`interval` is how long bmoprh application intervals should be, 
-recommended to be a factor of years to preserver hydrologic 
-relationships. Note that for pandas.DateOffset, 'year' and 'years' 
-are different and an 's' should always be included here for bmorph 
-to run properly.
+``interval`` is the length of``bmorph``'s application intervals, 
+typically a factor of years to preserver hydrologic 
+relationships. Note that for ``pandas.DateOffset``, 'year' and 'years' 
+are different and an 's' should always be included here for ``bmorph``
+to run properly, even for a single year.
 
-`overlap` describes how many days cumulative distribtuion function
-windows for bias correction should overlap in total with each other.
+``overlap`` describes how many days the bias correction cumulative distribtuion function
+windows should overlap in total with each other. ``overlap`` is evenly distributed before
+and after this window.
 
-`condition_var` names the variable to use in conditioning, such as maximum
+``condition_var`` names the variable to use in conditioning, such as maximum
 temperature (tmax), seasonal precipitation (seasonal_precip), or 
 minimum temperature (tmin). At this time, only one conditioning
-meterological variable can be used per bmorph exectuion.
+meterological variable can be used per ``bmorph`` execution. In this example,
+``tmax`` and ``seasonal_precip`` have been commented out to select ``tmin`` as
+the conditioning variable. If you wish to change this, be sure to either change
+which variables are commented out or change the value of ``condition_var`` itself.
     
 .. code:: ipython3 
 
@@ -193,7 +200,7 @@ meterological variable can be used per bmorph exectuion.
     #condition_var = 'seasonal_precip'
     condition_var = 'tmin'
 
-Here we name some configuration parameters for bmorph's conditional and univariate
+Here we name some configuration parameters for ``bmorph``'s conditional and univariate
 bias correction metods, respectively. If you have been following along with the
 rest of the naming conventions in this section so far, then there is
 nothing you need to change here.
@@ -217,13 +224,13 @@ nothing you need to change here.
         'bmorph_overlap': overlap,
     }
 
-You made it! Now we can actually bias correction with bmorph! Depending
+You made it! Now we can actually bias correction with ``bmorph``! Depending
 on the size of your data and use of parallelism or not, the following cells
 will likely take the longest to run, so make certain everything else looks
 good to you before running it.
 
 First off we run the Independent Bias Corrections, which is completely contained
-in the cell below. If you are interested in bmorph's spatial consitency and conditioing
+in the cell below. If you are interested in ``bmorph``'s spatial consitency and conditioing
 bias corrections, this cell is not it. However, it can be useful to run at least once
 so you have a baseline method to compare to as you fine tune variables.
 
@@ -231,7 +238,7 @@ Here we run through each of the gauge sites and correct them
 individually. Since independent bias correction can only be performed
 at locations with reference data, corrections are only performed at
 the gauge sites here. If you have not changed any naming conventions
-so far, then there is nothing that you need to alter here, it has all
+so far, then there is nothing that you need to alter here, it has all already
 been extracted above for your convenience.
 
 .. code:: ipython3
@@ -263,12 +270,12 @@ been extracted above for your convenience.
 
 
     
-Here you specify where `mizuroute` is installed on your system
+Here you specify where ``mizuroute`` is installed on your system
 and set up some variables to store total flows.
 
-`region` will be used to write and load files according to the
+``region`` will be used to write and load files according to the
 basin's name, make certain to update this with the actual name of
-the basin you're analyzing so you can track where different files
+the basin you are analyzing so you can track where different files
 are writen.
 
 .. code:: ipython3
@@ -279,7 +286,7 @@ are writen.
     conditioned_totals = {}
     region = # basin name
     
-Now we use `run_parallel_scbc` to do the rest! This may take a while ...
+Now we use ``run_parallel_scbc`` to do the rest! This may take a while ...
 
 .. code:: ipython3
 
@@ -292,7 +299,7 @@ Now we use `run_parallel_scbc` to do the rest! This may take a while ...
         conditioned_totals[site] = conditioned_totals['IRFroutedRunoff'].sel(seg=seg)
 
 Lastly we combine all the data into a singular xarray.Dataset, putting a nice little bow
-on your basin's analysis. If you did not run any parts of bmoprh, make certain to comment
+on your basin's analysis. If you did not run all parts of bmoprh, make certain to comment
 out those lines below.
 
 .. code:: ipython3
