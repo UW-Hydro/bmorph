@@ -1,7 +1,9 @@
 ``bmorph`` Example Workflow
 ===========================
 
-This notebook demonstrates how to setup data for and bias correct it through **bmorph**.
+How to setup data for and bias correct it through **bmorph**. 
+If you want to save time in copying over the code discussed in this file
+you can copy the Jupyterlab Notebook ``run_bmorph_template.ipynb``.
 
 Import Packages and Load Data
 -----------------------------
@@ -275,7 +277,7 @@ are writen.
     
     unconditioned_totals = {}
     conditioned_totals = {}
-    region = 'basin'
+    region = # basin name
     
 Now we use `run_parallel_scbc` to do the rest! This may take a while ...
 
