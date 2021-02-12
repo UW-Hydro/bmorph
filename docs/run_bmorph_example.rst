@@ -5,11 +5,11 @@ This notebook demonstrates how to setup data for and bias correct it through **b
 
 Import Packages and Load Data
 -----------------------------
-
-.. code:: ipython3
+ We will be using xarray and pandas in this example notebook
+ in addition to numpy, (which you could import directly intsead of using magic).
+ 
+.. code:: ipython3    
     
-    # We will be using xarray and pandas in this example notebook
-    # in addition to numpy, (which you could import directly intsead of using magic).
     %pylab inline
     import xarray as xr
     import pandas as pd
