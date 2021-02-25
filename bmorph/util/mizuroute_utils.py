@@ -459,7 +459,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
             routed['up_ref_seg'].loc[{'seg': s}] = s
 
     for seg in routed['seg']:
-        cur_seg = seg.values[()]
+        cur_seg = seg.values[()]nd
         while cur_seg in routed['seg'].values and np.isnan(routed['down_ref_seg'].sel(seg=cur_seg)):
             cur_seg = routed['down_seg'].sel(seg=cur_seg).values[()]
         if cur_seg in routed['seg'].values:

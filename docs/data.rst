@@ -25,8 +25,15 @@ Common Naming Conventions
 Mizuroute
 ---------
 
+configuration
+
 Utilities
 ---------
+
+mizuroute_to_blendmorph
+
+reference site selection & cdf blend factor
+
 
 
 Output Specifications
@@ -34,3 +41,4 @@ Output Specifications
 
 Rerouting Corrected Flows
 -------------------------
+
