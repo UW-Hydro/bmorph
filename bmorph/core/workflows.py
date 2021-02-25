@@ -29,35 +29,37 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
     window_size : int
         Total overlap CDF windows have with each other, distributed evenly
         before and after the application window.
-    n_smooth_long : int
+    n_smooth_long : int, optional
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
-    n_smooth_short : int
+    n_smooth_short : int, optional
         Number of elements that will be smoothed when determining CDFs used
         for the bmorph function itself.
-    train_on_year : boolean
+    train_on_year : boolean, optional
         Fits a new target CDF for each year in the training period, rather than a
         single CDF for the entire period. This should only be used for testing
         purposes.
     raw_y : pandas.Series, optional
-        Raw time series of the second time series variable for mdcdedcdfm.
+        Raw time series of the second time series variable for conditioning.
     train_y : pandas.Series, optional
         Training second time series.
     obs_y : pandas.Series, optional
         Target second time series.
-    bw : int
-        Bandwidth for KernelDensity.
-    xbins : int
-        Bins for the first time series.
-    ybins : int
-        Bins for the second time series.
-    rtol : float
-        The desired relatie tolerance of the result for KernelDensity.
-    atol : float
-        The desired absolute tolerance of the result for KernelDensity.
-    method : str
-        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+    bw : int, optional
+        Bandwidth for KernelDensity. This should only be used if `method='kde'`.
+    xbins : int, optional
+        Bins for the first time series. This should only be used if `method='hist'`.
+    ybins : int, optional
+        Bins for the second time series. This should only be used if `method='hist'`.
+    rtol : float, optional
+        The desired relatie tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
+    atol : float, optional
+        The desired absolute tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
+    method : str, optional
+        Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
     
     Returns
@@ -143,27 +145,29 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
-    n_smooth_short : int
+    n_smooth_short : int, optional
         Number of elements that will be smoothed when determining CDFs used
         for the bmorph function itself.
     raw_y : pandas.Series, optional
-        Raw time series of the second time series variable for mdcdedcdfm.
+        Raw time series of the second time series variable for conditioning.
     train_y : pandas.Series, optional
         Training second time series.
     obs_y : pandas.Series, optional
         Target second time series.
-    bw : int
-        Bandwidth for KernelDensity.
-    xbins : int
-        Bins for the first time series.
-    ybins : int
-        Bins for the second time series.
-    rtol : float
-        The desired relatie tolerance of the result for KernelDensity.
-    atol : float
-        The desired absolute tolerance of the result for KernelDensity.
+    bw : int, optional
+        Bandwidth for KernelDensity. This should only be used if `method='kde'`.
+    xbins : int, optional
+        Bins for the first time series. This should only be used if `method='hist'`.
+    ybins : int, optional
+        Bins for the second time series. This should only be used if `method='hist'`.
+    rtol : float, optional
+        The desired relatie tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
+    atol : float, optional
+        The desired absolute tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
     method : str
-        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+        Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
     
     Returns
@@ -248,21 +252,17 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     Parameters
     ----------
     raw_upstream_ts : pandas.Series
-        Raw flow timeseries corresponding to the upstream proportioned flows.
+        Raw flow timeseries corresponding to the upstream  flows.
     raw_downstream_ts : pandas.Series
-        Raw flow timerseries corresponding to the downstream proportioned flows.
+        Raw flow timerseries corresponding to the downstream  flows.
     train_upstream_ts : pandas.Series
-        Flow timeseries to train the bias correction model with for the upstream
-        proportioned flows.
+        Flow timeseries to train the bias correction model with for the upstream flows.
     train_downstream_ts : pandas.Series
-        Flow timeseries to train the bias correction model with for the downstream
-        proportioned flows.
+        Flow timeseries to train the bias correction model with for the downstream flows.
     truth_upstream_ts : pandas.Series
-        Observed/reference flow timeseries corresponding to the upstream proportioned
-        flows.
+        Observed/reference flow timeseries corresponding to the upstream flows.
     truth_downstream_ts : pandas.Series
-        Observed/reference flow timeseries corresponding to the downstream proportioned
-        flows.
+        Observed/reference flow timeseries corresponding to the downstream flows.
     training_window : pandas.date_range
         Date range to train the bias correction model.
     bmorph_window : pandas.date_range
@@ -277,49 +277,47 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         This is determined by the fill_method used in mizuroute_utils. The blend_factor
         entries are the proportion of upstream multiplers and totals added with
         1-blend_factor of downstream multipliers and totals.
-    n_smooth_long : int
+    n_smooth_long : int, optional
         This functionality is still to be implemented.
         
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
-    n_smooth_short : int
+    n_smooth_short : int, optional
         Number of elements that will be smoothed when determining CDFs used
         for the bmorph function itself.
-    train_on_year : boolean
+    train_on_year : boolean, optional
         Fits a new target CDF for each year in the training period, rather than a
         single CDF for the entire period. This should only be used for testing
         purposes.
     raw_upstream_y : pandas.Series, optional
-        Raw time series of the second time series variable for mdcdedcdfm corresponding
-        to upstream proportioned flows.
+        Raw time series of the second time series variable for conditioning corresponding
+        to upstream flows.
     raw_downstream_y : pandas.Series, optional
-        Raw time series of the second time series variable for mdcdedcdfm corresponding
-        to downstream proportioned flows.
+        Raw time series of the second time series variable for conditioning corresponding
+        to downstream flows.
     train_upstream_y : pandas.Series, optional
-        Training second time series variable for mdcdedcdfm correpsonding to downstream
-        proportioned flows.
+        Training second time series variable for conditioning correpsonding to downstream flows.
     train_downstream_y : pandas.Series, optional
-        Training second time series variable for mdcdedcdfm correpsonding to upstream
-        proportioned flows.
+        Training second time series variable for conditioning correpsonding to upstream flows.
     truth_upstream_y : pandas.Series, optional
-        Target second time series variable for mdcdedcdfm corresponding to upstream
-        proportioned flows.
+        Target second time series variable for conditioning corresponding to upstream flows.
     truth_downstream_y : pandas.Series, optional
-        Target second time series variable for mdcdedcdfm corresponding to downtream
-        proportioned flows.
-    bw : int
-        Bandwidth for KernelDensity.
-    xbins : int
-        Bins for the first time series.
-    ybins : int
-        Bins for the second time series.
-    atol : float
-        The desired absolute tolerance of the result for KernelDensity.
-    rtol : float
-        The desired relatie tolerance of the result for KernelDensity.
-    method : str
-        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+        Target second time series variable for conditioning corresponding to downtream flows.
+    bw : int, optional
+        Bandwidth for KernelDensity. This should only be used if `method='kde'`.
+    xbins : int, optional
+        Bins for the first time series. This should only be used if `method='hist'`.
+    ybins : int, optional
+        Bins for the second time series. This should only be used if `method='hist'`.
+    rtol : float, optional
+        The desired relatie tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
+    atol : float, optional
+        The desired absolute tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
+    method : str, optional
+        Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
     
     Returns
@@ -340,7 +338,7 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     reference_window = slice(*reference_window)
     raw_ts_window = slice(pd.to_datetime(raw_upstream_ts.index.values[0]),
                           pd.to_datetime(raw_upstream_ts.index.values[-1]))
-    # Check if there is enough data input to run mdcdedcdfm for both upstream
+    # Check if there is enough data input to run conditioning for both upstream
     # and downstream bmorphs. Boolean used here instead of later to make certain
     # both upstream and downstream use the same method and to minimze checks within
     # the for-loop
@@ -426,21 +424,17 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     Parameters
     ---------
     raw_upstream_ts : pandas.Series
-        Raw flow timeseries corresponding to the upstream proportioned flows.
+        Raw flow timeseries corresponding to the upstream flows.
     raw_downstream_ts : pandas.Series
-        Raw flow timerseries corresponding to the downstream proportioned flows.
+        Raw flow timerseries corresponding to the downstream flows.
     train_upstream_ts : pandas.Series
-        Flow timeseries to train the bias correction model with for the upstream
-        proportioned flows.
+        Flow timeseries to train the bias correction model with for the upstream flows.
     train_downstream_ts : pandas.Series
-        Flow timeseries to train the bias correction model with for the downstream
-        proportioned flows.
+        Flow timeseries to train the bias correction model with for the downstream flows.
     truth_upstream_ts : pandas.Series
-        Observed/reference flow timeseries corresponding to the upstream proportioned
-        flows.
+        Observed/reference flow timeseries corresponding to the upstream flows.
     truth_downstream_ts : pandas.Series
-        Observed/reference flow timeseries corresponding to the downstream proportioned
-        flows.
+        Observed/reference flow timeseries corresponding to the downstream flows.
     training_window : pandas.date_range
         Date range to train the bias correction model.
     bmorph_window : pandas.date_range
@@ -467,35 +461,33 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Number of elements that will be smoothed when determining CDFs used
         for the bmorph function itself.
     raw_upstream_y : pandas.Series, optional
-        Raw time series of the second time series variable for mdcdedcdfm corresponding
-        to upstream proportioned flows.
+        Raw time series of the second time series variable for conditioning corresponding
+        to upstream flows.
     raw_downstream_y : pandas.Series, optional
-        Raw time series of the second time series variable for mdcdedcdfm corresponding
-        to downstream proportioned flows.
+        Raw time series of the second time series variable for conditioning corresponding
+        to downstream flows.
     train_upstream_y : pandas.Series, optional
-        Training second time series variable for mdcdedcdfm correpsonding to downstream
-        proportioned flows.
+        Training second time series variable for conditioning correpsonding to downstream flows.
     train_downstream_y : pandas.Series, optional
-        Training second time series variable for mdcdedcdfm correpsonding to upstream
-        proportioned flows.
+        Training second time series variable for conditioning correpsonding to upstream flows.
     truth_upstream_y : pandas.Series, optional
-        Target second time series variable for mdcdedcdfm corresponding to upstream
-        proportioned flows.
+        Target second time series variable for conditioning corresponding to upstream flows.
     truth_downstream_y : pandas.Series, optional
-        Target second time series variable for mdcdedcdfm corresponding to downtream
-        proportioned flows.
-    bw : int
-        Bandwidth for KernelDensity.
-    xbins : int
-        Bins for the first time series.
-    ybins : int
-        Bins for the second time series.
-    rtol : float
-        The desired relatie tolerance of the result for KernelDensity.
-    atol : float
-        The desired absolute tolerance of the result for KernelDensity.
-    method : str
-        Method to use for mdcdedcdfm. Currently 'hist' using hist2D and 'kde'
+        Target second time series variable for conditioning corresponding to downtream flows.
+    bw : int, optional
+        Bandwidth for KernelDensity. This should only be used if `method='kde'`.
+    xbins : int, optional
+        Bins for the first time series. This should only be used if `method='hist'`.
+    ybins : int, optional
+        Bins for the second time series. This should only be used if `method='hist'`.
+    rtol : float, optional
+        The desired relatie tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
+    atol : float, optional
+        The desired absolute tolerance of the result for KernelDensity. 
+        This should only be used if `method='kde'`.
+    method : str, optional
+        Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
     
     Returns
@@ -521,7 +513,7 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     raw_ts_window = slice(pd.to_datetime(raw_upstream_ts.index.values[0]),
                           pd.to_datetime(raw_upstream_ts.index.values[-1]))
 
-    # Check if there is enough data input to run mdcdedcdfm for both upstream
+    # Check if there is enough data input to run conditioning for both upstream
     # and downstream bmorphs. Boolean used here instead of later to make certain
     # both upstream and downstream use the same method and to minimze checks within
     # the for-loop
