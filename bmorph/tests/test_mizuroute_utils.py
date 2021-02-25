@@ -43,19 +43,19 @@ def test_find_up(routed=routed.copy()):
 def test_find_max_r2(routed=routed.copy()):
     true_r2_fill = true_fill.sel(fill_method='r2')['true_seg']
     for true_fill_seg, test_flow in zip(true_r2_fill.values, routed['flow'].values):
-        test_fill_seg = mizutil.find_max_r2(gauge_flows, test_flow)[1]
+        test_fill_seg = mizutil.find_max_r2(gauge_flows['reference_flow'], test_flow)[1]
         assert true_fill_seg == test_fill_seg
         
 def test_find_max_kge(routed=routed.copy()):
     true_kge_fill = true_fill.sel(fill_method='kge')['true_seg']
     for true_fill_seg, test_flow in zip(true_kge_fill.values, routed['flow'].values):
-        test_fill_seg = mizutil.find_max_kge(gauge_flows, test_flow)[1]
+        test_fill_seg = mizutil.find_max_kge(gauge_flows['reference_flow'], test_flow)[1]
         assert true_fill_seg == test_fill_seg
         
 def test_find_min_kldiv(routed=routed.copy()):
     true_kldiv_fill = true_fill.sel(fill_method='kldiv')['true_seg']
     for true_fill_seg, test_flow in zip(true_kldiv_fill.values, routed['flow'].values):
-        test_fill_seg = mizutil.find_min_kldiv(gauge_flows, test_flow)[1]
+        test_fill_seg = mizutil.find_min_kldiv(gauge_flows['reference_flow'], test_flow)[1]
         assert true_fill_seg == test_fill_seg
         
 def test_map_ref_sites(routed=routed.copy(), fill_methods=test_fill_methods):
