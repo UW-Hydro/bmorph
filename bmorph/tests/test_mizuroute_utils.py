@@ -7,11 +7,11 @@ import xarray as xr
 import bmorph
 from bmorph.util import mizuroute_utils as mizutil
 
-reference = xr.open_dataset("data/test_reference.nc")
-routed = xr.open_dataset("data/test_routed.nc")
-topo = xr.open_dataset("data/test_topo.nc")
-true_fill = xr.open_dataset("data/true_fill_segs.nc")
-true_results = xr.open_dataset("data/true_results.nc")
+reference = xr.open_dataset("./bmorph/tests/data/test_reference.nc")
+routed = xr.open_dataset("./bmorph/tests/data/test_routed.nc")
+topo = xr.open_dataset("./bmorph/tests/data/test_topo.nc")
+true_fill = xr.open_dataset("./bmorph/tests/data/true_fill_segs.nc")
+true_results = xr.open_dataset("./bmorph/tests/data/true_results.nc")
 
 test_fill_methods = ['kge', 'kldiv', 'r2', 'leave_null']
 
