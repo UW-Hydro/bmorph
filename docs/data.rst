@@ -26,13 +26,57 @@ Mizuroute
 ---------
 
 configuration
+^^^^^^^^^^^^^
+
+.. code:: ipython3
+
+    CONTROL_TEMPLATE = Template(
+    """<ancil_dir>         $ancil_dir !
+    <input_dir>            $input_dir !
+    <output_dir>           $output_dir !
+    <sim_start>            $sim_start !
+    <sim_end>              $sim_end !
+    <fname_ntopOld>        $topo_file !
+    <dname_nhru>           seg !
+    <dname_sseg>           seg !
+    <seg_outlet>           -9999 !
+    <fname_qsim>           $flow_file !
+    <vname_qsim>           scbc_flow !
+    <vname_time>           time !
+    <dname_time>           time !
+    <dname_hruid>          seg !
+    <vname_hruid>          seg !
+    <units_qsim>           mm/d !
+    <dt_qsim>              86400 !
+    <is_remap>              F !
+    <restart_opt>           F !
+    <route_opt>             1 !
+    <fname_output>          $out_name !
+    <fname_state_out>       state.out.nc !
+    <param_nml>             param.nml.default !
+    <doesBasinRoute>        0 !
+    <varname_area>          Contrib_Area !
+    <varname_length>        Length !
+    <varname_slope>         Slope !
+    <varname_HRUid>         seg_id !
+    <varname_segId>         seg_id !
+    <varname_downSegId>     Tosegment !
+    <varname_hruSegId>      seg_id !
+    """)
+    
+.. include:: mizuroute_example.control
 
 Utilities
 ---------
 
 mizuroute_to_blendmorph
+^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 reference site selection & cdf blend factor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 
 
