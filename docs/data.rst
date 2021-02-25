@@ -14,11 +14,9 @@ Common Naming Conventions
 -------------------------
 
 `seg` is an individual river segment containing a single reach
-`hru` is a hydrologic residence unit that feeds into a single seg,
-    but each seg could have multiple hru's feeding into it
+`hru` is a hydrologic residence unit that feeds into a single seg, but each seg could have multiple hru's feeding into it
 `seg_id` is the identification number for a `seg`
-`site` is the gauge site name for river segments with gauge data,
-    not all segments have them
+`site` is the gauge site name for river segments with gauge data, not all segments have them
 
 
 
@@ -28,10 +26,11 @@ Mizuroute
 configuration
 ^^^^^^^^^^^^^
 
+should look like this ....
+
 .. code:: ipython3
 
-    CONTROL_TEMPLATE = Template(
-    """<ancil_dir>         $ancil_dir !
+    <ancil_dir>         $ancil_dir !
     <input_dir>            $input_dir !
     <output_dir>           $output_dir !
     <sim_start>            $sim_start !
@@ -62,10 +61,8 @@ configuration
     <varname_segId>         seg_id !
     <varname_downSegId>     Tosegment !
     <varname_hruSegId>      seg_id !
-    """)
     
-.. include:: mizuroute_example.control
-
+    
 Utilities
 ---------
 
@@ -83,6 +80,12 @@ reference site selection & cdf blend factor
 Output Specifications
 =====================
 
-Rerouting Corrected Flows
--------------------------
+Rerouting Local Corrected Flows
+-------------------------------
+
+
+Citations
+=========
+
+.. [Ref] Mizukami, M. Clark, M. P., Sampson, K., Nijssen, B., Mao, Y., McMillan, H., Viger, R. J., Markstrom, S. L., Hay, L
 
