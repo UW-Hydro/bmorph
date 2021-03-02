@@ -1,4 +1,4 @@
-.. currentmodule:: metsim
+.. currentmodule:: bmorph
 .. _api:
 
 #############
