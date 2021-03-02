@@ -12,19 +12,19 @@ documentation.
 Workflows
 =========
 
-.. automodule:: bmorph.workflows
+.. automodule:: bmorph.core.workflows
     :members:
 
 BMORPH
 ======
 
-.. automodule:: bmorph.bmorph
+.. automodule:: bmorph.core.bmorph
     :members:
 
 Local Flows
 ============
 
-.. automodule:: bmorph.local_flows
+.. automodule:: bmorph.core.local_flows
     :members:
 
 mizuRoute Utilities
