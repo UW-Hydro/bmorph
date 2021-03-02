@@ -20,23 +20,26 @@ from statsmodels.distributions.empirical_distribution import ECDF
 # Plotting Helper Functions:
 #      custom_legend
 #      calc_water_year
-#      find_index_hyear
+#      find_index_water_year
 #      determin_row_col
 #      log10_1p
 #      scatter_series_axes
 #*****************************************************************************************
 
-def custom_legend(names: List,colors=colors99p99):
-    """
-    Custom Legend
-        creates a list of patches to be passed in as
-        `handels` for the plt.legends function
-    ----
-    names: a list of legend names
-    colors: a list of colors
+def custom_legend(names:List, colors=colors99p99):
+    """Creates a list of patches to be passed in as `handles` for the plt.legends function.
+    
+    Parameters
+    ----------
+    names : list
+        Legend names.
+    colors : list
+        A list of the colors corresponding to `names`.
 
-    It is assumed that the order of colors and corresponding
-    names for plotted values match already
+    Returns
+    -------
+    handles
+        Handle parameter for matplotlib.legend.
     """
     legend_elements = list()
     for i,name in enumerate(names):
@@ -44,49 +47,66 @@ def custom_legend(names: List,colors=colors99p99):
     return legend_elements
 
 def calc_water_year(df: pd.DataFrame):
-    """
-    Calculate Hydrologic Year
-    ----
+    """Calculates the water year.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame 
+        Flow timeseries with a DataTimeIndex.
 
-    df: pandas DataFrame with a DataTime index
-
-    Returns: an index grouped by Hydrologic Year
+    Returns
+    -------
+    pandas.DataFrame.index
+        A pandas.DataFrame index grouped by water year.
 
     """
     return df.index.year + (df.index.month >= 10).astype(int)
 
-def find_index_hyear(data: pd.DataFrame) -> np.int:
+def find_index_water_year(data: pd.DataFrame) -> np.int:
+    """ Finds the index of the first hydrologic year.
+    
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Flow timeseries with a DateTime index.
+        
+    Returns
+    -------
+    int
+        Index of the first hydrologic year.
     """
-    finds the index of the first hydrologic year
-    ----
-    data: pd.DataFrame
-    """
-    hyear = pd.Timestamp(0)
+    water_year = pd.Timestamp(0)
     i = 0
-    while hyear == pd.Timestamp(0):
+    while water_year == pd.Timestamp(0):
         date = data.index[i]
         if date.month == 10 and date.day == 1:
-            hyear = date
+            water_year = date
         else:
             i = i + 1
     return i
 
 def determine_row_col(n:int, pref_rows = True):
-    """
-    Determine Rows and Columns
-        calculates a rectangular subplot layout that
-        contains at least n subplots, some may need to
-        be turned off in plotting
-    ----
-    n: int
-        total number of plots
-    pref_rows: boolean
-        If True, and only a rectangular arrangment
-        is possible, then put the longer dimension
-        in n_rows. If False, then it is
-        placed in the n_columns
-    return: int, int
-        n_rows, n_columns
+    """Determines rows and columns for rectangular subplots
+    
+    Calculates a rectangular subplot layout that contains at least n subplots, 
+    some may need to be turned off in plotting. If a square configuration is
+    possible, then a square configuration will be proposed. This helps automate
+    the process of plotting a variable number of subplots.
+    
+    Parameters
+    ----------
+    n : int
+        Total number of plots.
+    pref_rows : boolean
+        If True, and only a rectangular arrangment is possible, then put the 
+        longer dimension in n_rows. If False, then it is placed in the n_columns.
+        
+    Returns
+    -------
+    n_rows : int
+        Number of rows for matplotlib.subplot.
+    n_columns : int
+        Number of columns for matplotlib.subplot.
     """
     if n < 0:
         raise Exception("Please enter a positive n")
@@ -112,12 +132,19 @@ def determine_row_col(n:int, pref_rows = True):
         return int_sqrt_n+1, int_sqrt_n+1
     
 def log10_1p(x: np.ndarray):
-    """
-    Return the log10 of one plus the input array, element-wise.
-    ----
-    x: numpy.ndarray
-    ----
-    Returns: y: numpy.ndarray
+    """Return the log10 of one plus the input array, element-wise.
+    
+    Parameters
+    ----------
+    x : numpy.ndarray
+        An array of values greater than -1. If values are less than or
+        equal to -1, then a domain error will occur in computing the
+        logarithm.
+     
+    Returns
+    --------
+    y : numpy.ndarray
+        Array of the values having the log10(element+1) computer.
     """
     y = np.nan*x
     for i, element in enumerate(x):
@@ -126,6 +153,25 @@ def log10_1p(x: np.ndarray):
 
 def scatter_series_axes(data_x, data_y, label: str, color: str, alpha: float, 
                         ax = None) -> plt.axes:
+    """Creates a scatter axis for plotting.
+    
+    Parameters
+    ----------
+    data_x : array-like
+        Data for the x series.
+    data_y : array-like
+        Data for the y series.
+    label : str
+        Name for the axes.
+    color : str
+        Color for the markers.
+    alpha : float
+        Transparency for the markers.
+    
+    Returns
+    -------
+    matplotlib.axes
+    """
     if ax is None:
         fig, ax = plt.subplots()
     ax.scatter(data_x, data_y, label = label, color = color, alpha = alpha)
@@ -140,42 +186,46 @@ def scatter_series_axes(data_x, data_y, label: str, color: str, alpha: float,
 #      site_diff_scatter
 #      stat_corrections_scatter2D
 #      anomaly_scatter2D
-#      rmseFracePlot
+#      rmseFraePlot
 #*****************************************************************************************
 
 def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
-    """
-    Percent Bias Sites
-        calculates percent bias on a hydrologic year
-        and site-by-site basis
-    ----
-    observed: pd.DataFrame
-        dataframe containing all observations
-    predicted: pd.DataFrame
-        dataframe containing all predictions
+    """Calculates percent bias on a hydrologic year and site-by-site basis.
+    
+    Parameters
+    ----------
+    observed : pandas.DataFrame
+        Dataframe containing all observations.
+    predicted : pandas.DataFrame
+        Dataframe containing all predictions.
+        
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe contain the percent bias computed.
     """
     #finds the start of the first hydraulic year
-    i = find_index_hyear(observed)
-    hyear_start = observed.index[i]
+    i = find_index_water_year(observed)
+    water_year_start = observed.index[i]
     #counts the number of hydraylic years
-    hyears = 0
+    water_years = 0
     while i < len(observed):
         date = observed.index[i]
         if date.month == 9 and date.day == 30:
-            hyears = hyears + 1
+            water_years = water_years + 1
         i = i + 1
 
     pbias_site_df = pd.DataFrame(columns = observed.columns, 
-                                 index = pd.Series(range(0, hyears)))
+                                 index = pd.Series(range(0, water_years)))
     pbias_current_year = pd.DataFrame(columns = observed.columns)
 
-    for i in range(0, hyears):
+    for i in range(0, water_years):
         #establish end of hydraulic year
-        hyear_end = hyear_start + pd.Timedelta(364.25, unit = 'd')
+        water_year_end = water_year_start + pd.Timedelta(364.25, unit = 'd')
 
         #need to truncate datetimes since time indicies do not align
-        O = observed.loc[hyear_start : hyear_end]
-        P = predicted.loc[hyear_start : hyear_end]
+        O = observed.loc[water_year_start : water_year_end]
+        P = predicted.loc[water_year_start : water_year_end]
         O.index = O.index.floor('d')
         P.index = P.index.floor('d')
 
@@ -185,44 +235,48 @@ def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         pbias_site_df.iloc[i] = pbias_current_year.iloc[0].T
 
         #set up next hydraulic year
-        hyear_start = hyear_start + pd.Timedelta(365.25, unit = 'd')
+        water_year_start = water_year_start + pd.Timedelta(365.25, unit = 'd')
 
     return pbias_site_df
 
 def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
-    """
-    Difference Max Flow Sites
-        calculates difference in maximum flows
-        on a hydrologic year and site-by-site basis
-    ----
-    observed: pd.DataFrame
-        dataframe containing all observations
-    predicted: pd.DataFrame
-        dataframe containing all predictions
+    """Calculates difference in maximum flows on a hydrologic year and site-by-site basis.
+    
+    Parameters
+    ----------
+    observed : pandas.DataFrame
+        Dataframe containing all observations.
+    predicted : pandas.DataFrame
+        Dataframe containing all predictions.
+        
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing the difference in maximum flows.
     """
     #finds the start of the first hydraulic year
-    i = find_index_hyear(observed)
-    hyear_start = observed.index[i]
+    i = find_index_water_year(observed)
+    water_year_start = observed.index[i]
 
     #counts the number of hydraylic years
-    hyears = 0
+    water_years = 0
     while i < len(observed):
         date = observed.index[i]
         if date.month == 9 and date.day == 30:
-            hyears = hyears + 1
+            water_years = water_years + 1
         i = i + 1
 
     diff_maxflow_sites_df = pd.DataFrame(columns = observed.columns, 
-                                         index = pd.Series(range(0,hyears)))
+                                         index = pd.Series(range(0,water_years)))
     diff_maxflow_current_year = pd.DataFrame(columns = observed.columns)
 
-    for i in range(0,hyears):
+    for i in range(0,water_years):
         #establish end of hydraulic year
-        hyear_end = hyear_start + pd.Timedelta(364.25, unit = 'd')
+        water_year_end = water_year_start + pd.Timedelta(364.25, unit = 'd')
 
         #need to truncate datetimes since time indicies do not align
-        O = observed.loc[hyear_start : hyear_end]
-        P = predicted.loc[hyear_start : hyear_end]
+        O = observed.loc[water_year_start : water_year_end]
+        P = predicted.loc[water_year_start : water_year_end]
         O.index = O.index.floor('d')
         P.index = P.index.floor('d')
 
@@ -232,25 +286,28 @@ def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         diff_maxflow_sites_df.iloc[i] = diff_maxflow_current_year.iloc[0].T
 
         #set up next hydraulic year
-        hyear_start = hyear_start + pd.Timedelta(365.25, unit = 'd')
+        water_year_start = water_year_start + pd.Timedelta(365.25, unit = 'd')
 
 
     return diff_maxflow_sites_df
 
 def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd.DataFrame):
-    """
-    Percent Bias Box Plotter
-        plots box plots of numerous models grouped
-        by site
-    ----
-    observed: pd.Dataframe
-        a dataframe containing observations
-    names: list
-        a list of the model names
+    """Plots box plots of numerous models grouped by site.
+    
+    Parameters
+    ----------
+    observed : pandas.Dataframe
+        Dataframe containing observations.
+    names  : list
+        List of the model names.
     colors: list
-        a list of colors to be plotted
-    *models: any number of pd.DataFrame objects
-        to be evaluated
+        List of colors to be plotted.
+    *models : List[pandas.DataFrame]
+        Any number of pandas.DataFrame objects to be evaluated.
+        
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
     """
     num_models = len(models)
     sites = observed.columns
@@ -294,19 +351,22 @@ def pbias_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd
     return fig, ax
 
 def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *models: pd.DataFrame):
-    """
-    Difference Max Flow Box Plotter
-        plots box plots of numerous models grouped
-        by site
-    ----
-    observed: pd.Dataframe
+    """Plots box plots of numerous models grouped by site.
+    
+    Parameters
+    ----------
+    observed : pandas.Dataframe
         a dataframe containing observations
-    names: list
-        a list of the model names
+    names : list
+        List of the model names.
     colors: list
-        a list of colors to be plotted
-    *models: any number of pd.DataFrame objects
-        to be evaluated
+        List of colors to be plotted.
+    *models : List[pandas.DataFrame]
+        Any number of pandas.DataFrame objects to be evaluated.
+        
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
     """
     num_models = len(models)
     sites = observed.columns
@@ -352,28 +412,35 @@ def diff_maxflow_plotter(observed: pd.DataFrame, names: list, colors: list, *mod
 
 def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list, 
                       compare: dict, compare_key: str, site: str, colors = colors99p99):
-    """
-    Site Differences Scatter Plot
-        creates a scatter plot of Raw-BC versus some measure
-    ----
+    """Creates a scatter plot of Raw-BC versus some measure.
+    
+    Parameters
+    ----------
 
-    predictions: dictionary containing
-        'Prediction Names':Prediction pandas DataFrame.
-        'Prediction Names' will be printed in the legend
-    raw_key: the key for the predictions dictionary
-        that directs to the raw data that each model will
-        be subtracting
-    model_keys: a list of keys pertaining to the correction
-        models that are wanting to be plotted
-    compare: a dictionary containing
-        'Measure name':measure pandas DataFrame.
-        These are what is being plotted against on the
-        horizontal-axis
-    compare_key: the mkey for the measure desired in
-        the compare dictionary. 'compare_key' will be
-        printed on the horizontal axis
-    site: a single site designiation to be examined in the
-        plot. This will be listed as the title of the plot
+    predictions : dict
+        Expects {'Prediction Names' : Prediction pandas.DataFrame}.
+        'Prediction Names' will be printed in the legend.
+    raw_key : str 
+        The key for the predictions dictionary that directs to the 
+        raw data that each model will be subtracting.
+    model_keys : list
+        A list of dictoionary keys pertaining to the correction models 
+        that are wanting to be plotted.
+    compare : dict 
+        Expecting {'Measure name' : measure pandas.DataFrame}.
+        These are what is being plotted against on the horizontal-axis.
+    compare_key : str
+        The dictionary key for the measure desired in the compare dictionary. 
+        'compare_key' will be printed on the horizontal axis.
+    site : str
+        A single site designiation to be examined in the plot. This will 
+        be listed as the title of the plot.
+    colors : List[str], optional
+        Colors as strings to be plotted from.
+        
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
 
     """
     #retreiving DataFrames and establishing data to be plotted
@@ -398,38 +465,45 @@ def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list,
 
     return fig, ax
 
-def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: list, uncor_key: str,
+def stat_corrections_scatter2D(computations: dict, baseline_key: str, cor_keys: list, uncor_key: str,
                                sites = [], multi = True, colors = colors99p99):
-    """
-    Statistical Corrections Plot 2D
-        creates a scatter plot of the flow after corrections
-        are applied and beforehand in relation to observations
-    ----
-    compuations: a dictionary containing
-        "Correction Name": correction pandas DataFrame
-    datum_key: contains the key for the compuations dictionary
+    """Creates a scatter plot of the flow before/after corrections relative to observations.
+    
+    Parameters
+    ----------
+    computations : dict
+        Expecting {"Correction Name": correction pandas.DataFrame}.
+    baseline_key : str
+        Contains the dictionary key for the `computations` dictionary
         that accesses what baseline the corrections should be
-        compared to. This is typically observations
-    cor_keys: a list of the keys accessing the correction
-        DataFrames in computations. These will be printed in
-        the legend.
-    uncor_key: the key that accesses the uncorrected data
-        in computations
-    sites: a list or a singular site to be compared in the plot.
-        If multi is set to False and this is not changed to a
+        compared to. This is typically observations.
+    cor_keys : list
+        Dictionary keys accessing the correction DataFrames in `computations`. 
+        These will be printed in the legend.
+    uncor_key : str
+        The dictionary key that accesses the uncorrected data in `computations`.
+    sites : list
+        Site(s) to be compared in the plot, can have a size of 1.
+        If `multi` is set to False and this is not changed to a
         single site, then the first value in the list will be
-        chosen
-    multi: boolean that determines whether the plot uses data
-        from multiple sites or a single site
-    colors: a list of colors as strings to be plotted from.
-        plotting colors are different for each correction
+        chosen.
+    multi : boolean, optional
+        Determines whether the plot uses data from multiple sites or a 
+        single site, defaults as True.
+    colors : List[str], optional
+        Colors as strings to be plotted from.
+        Plotting colors are different for each correction
         DataFrame, but same across sites for a singular
         correction. An error will be thrown if there are
-        more cor_keys then colors
+        more `cor_keys` then `colors`.
+        
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
 
     """
     #retreiving DataFrames and establishing data to be plotted
-    datum = computations[datum_key]
+    datum = computations[baseline_key]
     X = datum - computations[uncor_key]
 
     #we need to make the values replacable by the sites,
@@ -492,8 +566,8 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
 
 
     #Sets up labels based on whether one or more sites were plotted
-    plt.xlabel(f'{datum_key}-Uncorrected')
-    plt.ylabel(f'{datum_key}-Corrected')
+    plt.xlabel(f'{baseline_key}-Uncorrected')
+    plt.ylabel(f'{baseline_key}-Corrected')
 
     if multi==True:
         plt.title("Statistical Corrections")
@@ -516,39 +590,41 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
 
     return fig, ax
 
-def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_key: str,
+def anomaly_scatter2D(computations: dict, baseline_key: str, vert_key: str, horz_key: str,
                       sites = [], multi = True, colors = colors99p99, show_legend = True):
-    """
-    Anomaly Plot 2D
-        Plots two correction models against each other after
-        each is subtracted from a set of Raw data
-    ----
-    compuations: a dictionary containing
-        "Correction Name": correction pandas DataFrame
-    datum_key: contains the key for the compuations dictionary
+    """Plots two correction models against each other after Raw is subracted from each.
+    
+    Parameters
+    ----------
+    computations : dict
+        Expecting {"Correction Name": correction pandas.DataFrame}.
+    baseline_key : str
+        Dictionary key for the `computations` dictionary
         that accesses what baseline the corrections should be
-        compared to. This is typically observations
-    vert_key: contains the key for the compuations dictionary
-        that accesses the model to be plotted on the vertical
-        axis
-    horz_key: contains the key for the compuations dictionary
-        that accesses the model to be plotted on the horizontal
-        axis
-    sites: a list or a singular site to be compared in the plot.
-        If multi is set to False and this is not changed to a
+        compared to. This is typically observations.
+    vert_key : str
+        Dictionary key for the `computations` dictionary that accesses the 
+        model to be plotted on the vertical axis.
+    horz_key : str
+        Dictionary key for the `computations` dictionary that accesses the 
+        model to be plotted on the horizontal axis.
+    sites : list
+        Site(s) to be compared in the plot, can have a size of 1.
+        If `multi` is set to False and this is not changed to a
         single site, then the first value in the list will be
-        chosen
-    multi: boolean that determines whether the plot uses data
-        from multiple sites or a single site
-    colors: a list of colors as strings to be plotted from.
-        plotting colors are different for each correction
-        DataFrame, but same across sites for a singular
-        correction. An error will be thrown if there are
-        more cor_keys then colors
-
+        chosen.
+    multi : boolean, optional
+        Whether the plot uses data from multiple sites or a single site.
+    colors : list, optional
+        Colors as strings to be plotted from. Plotting colors are different 
+        for each correction DataFrame, but same across sites for a singular
+        correction. An error will be thrown if there are  more `cor_keys` then 
+        colors.
+    show_legend : boolean, optional
+        Whether or not to display the legend, defaults as True.
     """
     #retreiving DataFrames and establishing data to be plotted
-    datum = computations[datum_key]
+    datum = computations[baseline_key]
     X = datum - computations[horz_key]
     Y = datum - computations[vert_key]
 
@@ -575,8 +651,8 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
         Y = Y.loc[:, site]
         scatter_series_axes(X, Y, site, colors[i], 0.05, ax)
 
-    plt.xlabel(f'{datum_key}-{horz_key}')
-    plt.ylabel(f'{datum_key}-{vert_key}')
+    plt.xlabel(f'{baseline_key}-{horz_key}')
+    plt.ylabel(f'{baseline_key}-{vert_key}')
     plt.title("Statistical Correction Anomolies")
     plt.axhline(0)
     plt.axvline(0)
@@ -585,6 +661,31 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
 
 def rmseFracPlot(data_dict: dict, obs_key: str, sim_keys: list,
                 sites = [], multi = True, colors = colors99p99):
+    """Root mean square values calculated by including descending values one-by-one.
+    
+    Parameters
+    ----------
+    data_dict : dict
+        Expecting {"Data Name": data pandas.DataFrame}.
+    obs_key : str
+        Dictionary key for the `computations` dictionary that accesses the 
+        observations to be used as true in calculating root mean squares.
+    sim_keys : list
+        Dictionary keys accessing the simulated DataFrames in `computations`,
+        used in predictions in calculating root mean squares.
+    sites : list
+        Site(s) to be compared in the plot, can have a size of 1.
+        If `multi` is set to False and this is not changed to a
+        single site, then the first value in the list will be
+        chosen.
+    multi : boolean, optional
+        Whether the plot uses data from multiple sites or a single site.
+    colors : list, optional
+        Colors as strings to be plotted from. Plotting colors are different 
+        for each correction DataFrame, but same across sites for a singular
+        correction. An error will be thrown if there are  more `sim_keys` then 
+        colors.    
+    """
     #retrieving data and flooring time stamps
     observations = data_dict[obs_key]
     observations.index = observations.index.floor('d')
@@ -655,26 +756,41 @@ def rmseFracPlot(data_dict: dict, obs_key: str, sim_keys: list,
 #      create_adj_mat
 #      create_nxgraph
 #      organize_nxgraph
-#      color_code_nxgraph_sorted
 #      color_code_nxgraph
 #      draw_dataset
 #*****************************************************************************************
 
 def find_upstream(topo: xr.Dataset, segID: int, return_segs: list = []):
-    """
-    find_upstream
-        finds what segID is directly upstream from
-        the xarray Dataset
-    ----
-    topo: xarray Dataset of topography
-    segID: current segID of interest
-    return_segs: list of what segID's are upstream
+    """Finds what river segment is directly upstream from the xarray.Dataset.
+    
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Contains river network topography. Expecting each river segment's 
+        immeditate downstream river segment is designated by 'Tosegment'/
+    segID : int
+        Current river segment identification number.
+    return_segs : list 
+        River segment identification numbers upstream from `segID`.
+        This defaults as an empty list to be filled by the method.
     """
     upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
     upsegIDs = topo['seg_id'][upsegs].values
     return_segs += list(upsegs)
 
 def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list = []) -> np.ndarray:
+    """Finds all upstream river segments for a given river segment from the xarray.Dataset.
+    
+    Parameters
+    ----------
+    topo : xarray.Dataset
+    segID : int
+    return_segs : list
+    
+    Returns
+    -------
+    numpy.ndarray
+    """
     upsegs = np.argwhere((topo['Tosegment'] == segID).values).flatten()
     upsegIDs = topo['seg_id'][upsegs].values
     return_segs += list(upsegs)
@@ -683,17 +799,19 @@ def find_all_upstream(topo: xr.Dataset, segID: int, return_segs: list = []) -> n
     return np.unique(return_segs).flatten()
 
 def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
-    """
-    create_adj_mat
-        Forms the adjacency matrix for the graph
-        of the topography
-        Note that this is independent of whatever
-        the segments are called, it is a purely a
-        map of the relative object locations
-    ----
-    topo: xarray Dataset containing topographical information
+    """Forms the adjacency matrix for the graph of the topography.
+    
+    Note that this is independent of whatever the segments are called, it 
+    is a purely a map of the relative object locations.
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Describes the topograph of the river network.
 
-    return: ndarray that is the adjacency matrix
+    Returns
+    --------
+    numpy.ndarray 
+        An adjacency matrix describing the river network.
     """
     #creates the empty adjacency matrix
     N = topo.dims['seg']
@@ -710,62 +828,57 @@ def create_adj_mat(topo: xr.Dataset) -> np.ndarray:
     return adj_mat
 
 def create_nxgraph(adj_mat: np.ndarray) -> nx.Graph:
-    """
-    create_nxGraph
-        creates a NetworkX Graph object given an
-        adjacency matrix
-    ----
-    adj_mat: a numpy ndarray containing the desired
-        adjacency matrix
+    """Creates a NetworkX Graph object given an adjacency matrix.
+    
+    Parameters
+    ----------
+    adj_mat : numpy.ndarray
+        Adjacency matrix describing the river network.
 
-    returns: NetworkX Graph of respective nodes
+    Returns
+    -------
+    networkx.graph
+        NetworkX Graph of respective nodes.    
     """
     topog = nx.from_numpy_matrix(adj_mat)
     return topog
 
 def organize_nxgraph(topo: nx.Graph):
-    """
-    organize_nxgraph
-        orders the node positions hierarchical based on
-        the "dot" layout and given topography Dataset
-    ----
-    topo: xarray Dataset containing segment identifications
+    """Orders the node positions into a hierarchical structure. 
+    
+    Based on the "dot" layout and given topography.
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Contains river segment identifications and relationships.
+    
+    Returns
+    -------
+    networkx.positions
     """
     pos = nx.drawing.nx_agraph.graphviz_layout(topo, prog = 'dot')
     return pos
 
-def color_code_nxgraph_sorted(graph: nx.graph, measure: pd.Series,
-                              cmap=mpl.cm.get_cmap('plasma'))-> dict:
-    """
-    color_cod_nxgraph
-        creates a dictionary mapping of nodes
-        to color values
-    ----
-    graph: nx.graph to be color coded
-
-    measure: pd.Series with segment ID's as
-        the index and desired measures as values
-    """
-    #sets up color diversity
-    segs = measure.sort_values().index
-    color_steps = np.arange(0, 1, 1 / len(segs))
-
-    color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_steps, segs)}
-    return color_dict
-
 def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
                        cmap = mpl.cm.get_cmap('coolwarm_r'))-> dict:
-    """
-    color_code_nxgraph
-        creates a dictionary mapping of nodes
-        to color values
-    ----
-    graph: nx.graph to be color coded
-
-    measure: pd.Series with segment ID's as
-        the index and desired measures as values
-
-    cmap: colormap to be used
+    """Creates a dictionary mapping of nodes to color values.
+    
+    Parameters
+    ----------
+    graph : networkx.graph 
+        Graph to be color coded
+    measure : pandas.Series 
+        Contains river segment ID's as the index and desired measures as 
+        values.
+    cmap : matplotlib.colors.LinearSegmentedColormap, optional
+        Colormap to be used for coloring the SimpleRiverNewtork
+        plot. This defaults as 'coolwarm_r'.
+        
+    Returns
+    -------
+    dict
+        Dictionary of {i:color} where i is the index of the river
+        segment.
 
     """
     if np.where(measure < 0)[0].size == 0:
@@ -796,21 +909,22 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
         return color_dict, color_bar
 
 def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm_r')):
-    """
-    draw_dataset
-        draws a networkx graph from a topological
-        xrarray Dataset and color codes it based on
-        a pandas Series
-    ----
-    topo: xr.Dataset containing topologcial information
-
-    color_measure: pd.Series where indicies are concurrent
-        with the number of segs in topo. Typically this contains
-        statistical information about the flows that will be
-        color coded by least to greatest value
-
-    cmap: a mpl colormap to use in conjunction with color_measure.
-        The default is diverging color map, 'coolwarm'
+    """"Plots the river network through networkx.
+    
+    Draws a networkx graph from a topological xrarray.Dataset and color codes 
+    it based on a pandas.Series.
+    
+    Parameters
+    ----------
+    topo : xarray.Dataset 
+        Contains river segment identifications and relationships.
+    color_measure : pandas.Series 
+        Indicies are concurrent with the number of segs in topo. 
+        Typically this contains statistical information about the flows 
+        that will be color coded by least to greatest value.
+    cmap : matplotlib.colors.LinearSegmentedColormap, optional
+        Colormap to be used for coloring the SimpleRiverNewtork
+        plot. This defaults as 'coolwarm_r'.
     """
     topo_adj_mat = create_adj_mat(topo)
     topo_graph = create_nxgraph(topo_adj_mat)
@@ -851,45 +965,63 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
                         figsize_width = 70, figsize_height = 30,
                         plot_colors = ['grey', 'black', 'blue', 'red'],
                         return_reduced_flows = False):
-    """
-    Plot Mean Day of Year Flows
-        creates a series of subplots that plot an average year's flows
-        per gauge site
-    ---
-    flow_dataset: xr.Dataset
-        contatains raw, reference, and bias corrected flows
-    plot_sites: list
-        a list of sites to be plotted
-    reduce_func: function
-        a function to apply to flows grouped by dayofyear,
-        default = np.mean
-    vertical_label: str
-        a string label for the vertical axis representing
-        the reduce_func, defaults as:
-        f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit np.mean
-    title_label: str
-        a string lable for the figure title representing
-        the reduce_func, defaults as:
-        f'Annual Mean Flows' to fit np.mean
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    raw_name: str
-        the string to label the raw flows in the legend
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    ref_name: str
-        the string to label the refernce flows in the legend
-    bc_vars: list
-        a list of strings to access the bias corrected flows in flow_dataset
-    bc_names: list
-        a list of strings to label the reference flows in the legend
-    plot_colors: ['grey', 'black', 'blue', 'red']
-        a list containing colors to be plotted for raw, ref, bc,
-        and bc_alt, respectively
-    return_reduced_flows : boolean
-        if True, returns the reduced flows as calculated for plotting
-    ----
-    Returns: fig, axs
+    """Creates a series of subplots that plot an average year's flows per gauge site.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contatains raw, reference, and bias corrected flows.
+    plot_sites : list
+        Sites to be plotted.
+    reduce_func : function, optional
+        A function to apply to flows grouped by dayofyear, defaults as np.mean.
+    vertical_label : str
+        Label for the vertical axis representing the `reduce_func`, defaults as
+        f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit `reduce_func` as np.mean.
+    title_label : str
+        Lable for the figure title representing the reduce_func, defaults as
+        f'Annual Mean Flows' to fit `reduce_func` as np.mean.
+    raw_var : str, optional
+        Dictionary key to access the raw flows in `flow_dataset`, defaults as
+        'IRFroutedRunoff'.
+    raw_name : str, optional
+        Label for the raw flows in the legend, defaults as 'Mizuroute Raw'.
+    ref_var : str, optional
+        Dictionary key to access the reference flows in `flow_dataset`, defaults
+        as 'upstream_ref_flow'.
+    ref_name : str, optional
+        Label for the reference flows in the legend, defaults as 'upstream_ref_flow'.
+    bc_vars : list
+        Dictionary keys to access the bias corrected flows in `flow_dataset`.
+    bc_names : list
+        Labels for the bias corrected flows in the legend, expected in the same
+        order as `bc_vars`.
+    plot_colors : list, optional
+        Colors to be plotted for `raw_var`, `ref_var`, `bc_vars` respectively. 
+        Defaults as ['grey', 'black', 'blue', 'red'].
+    return_reduced_flows : boolean, optional
+        If True, returns the reduced flows as calculated for plotting, defaults
+        as False. This is typically used for debugging purposes.
+    fontsize_title : int, optional
+        Font size of the plot title, defaults as 80.
+    fontsize_legend : int, optional 
+        Font size of the plot legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Font size for the subplots, defaults as 60.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults 45.
+    fontcolor : str, optional
+        Color of the font, defaults as 'black'
+    figsize_width : int, optional
+        Width of the figure, defaults as 70.
+    figusize_height : int, optional
+        Height of the figure, defaults as 30.
+    
+    Returns
+    -------
+    xarray.Dataset or (matplotlib.figure, matplotlib.axes)
+        If `return_reduced_flows` is False, matplotlib.figure and matplotlib.axes,
+        otherwise the reduced_flows are returned as the xarray.Dataset.
     """
     
     if len(bc_vars) == 0:
@@ -964,26 +1096,41 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list,
                                   cmap = mpl.cm.get_cmap('coolwarm_r'),
                                   blank_plot_color = 'w', fontcolor = 'black',
                                   fontsize_title=60, fontsize_tick = 30, fontsize_label = 45):
-    """
-    Plot Differences in Spearman Rank
-        creates a site-to-site rank correlation difference comparioson
-        plot with a map of the given basin
-    ----
-    flow_dataset: xr.Dataset
-        contains raw as 'raw_flow' and bias corrected as 'bias_corrected_total_flow'
+    """Creates a site-to-site rank correlation difference comparison plot with a map of the basin.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contains raw as 'raw_flow' and bias corrected as 'bias_corrected_total_flow'
         flow values, times of the flow values, and the names of the sites where those
         flow values exist
-    gauge_sites: list
-        a list of gauge sites to be plotted
-    start_year: str
-        string formatted as 'yyyy-mm-dd' to start rank correlation window
-    end_year: str
-        string formatted as 'yyyy-mm-dd' to end rank correlation winodw
-    relative_locations_triu: pd.DataFrame
-        denotes which sites are connected with a '1' and has the lower
-        triangle set to '0'
-    basin_map_png:
-        a png file containing the basin map with site values marked    
+    gauge_sites : list
+        Gauge sites to be plotted.
+    start_year : str
+        String formatted as 'yyyy-mm-dd' to start rank correlation window.
+    end_year : str
+        String formatted as 'yyyy-mm-dd' to end rank correlation window.
+    relative_locations_triu : pandas.DataFrame
+        Denotes which sites are connected with a '1' and has the lower
+        triangle set to '0'.
+    basin_map_png : png file
+        The basin map with site values marked.
+    cmap : matplotlib.colors.LinearSegmentedColormap, optional
+        Colormap to be used for coloring the SimpleRiverNewtork
+        plot. This defaults as 'coolwarm_r'.
+    blank_plot_color : str, optional
+        Color to set the lower extremes in `cmap` should be to keep extreme values from
+        skewing the color map and hiding values. This is defaulted as 'w' for white. It
+        should appear that this color matches the background plot color to make it appear
+        as if no value is plotted here.
+    font_color : str, optional
+        Color of the font, defaulted as 'black'.
+    fontsize_title : int, optional
+        Font size of the title, defaults as 60.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults as 30.
+    fontsize_label : int, optional
+        Font size of the labels, defaults as 45.
     """
     
     mpl.rcParams['figure.figsize'] = (40, 20)
@@ -1054,28 +1201,48 @@ def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list,
     plt.tight_layout
     plt.show() 
     
-def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame, 
-                       ref_flow: pd.DataFrame, bc_flow: pd.DataFrame, 
-                       colors: list, title= 'Flow Residuals', 
-                       fontsize_title = 80, fontsize_legend = 68, 
-                       fontsize_subplot = 60, fontsize_tick = 45, fontcolor = 'black',
-                       pos_cone_guide = False, neg_cone_guide = False):
-    """
-    Correction Scatter
-        Plots differences between the raw and reference flows on the horizontal
-        and differences between the bias corrected and refrerence on the vertical.
-        This compares corrections needed before and after the bias correction method
-        is applied.
-    ----
-    site_dict: dict {subgroup name: list of segments in subgroup}
-        how sites are to be seperated
-    raw_flow: pd.DataFrame
-        accesses the raw flows in the flow_dataset
-    ref_flow: pd.DataFrame
-        accesses the reference flows in the flow_dataset
-    bc_flow: pd.DataFrame
-        accesses the bias corrected flows in the flow_dataset
-    colors
+def correction_scatter(site_dict:dict, raw_flow:pd.DataFrame, 
+                       ref_flow:pd.DataFrame, bc_flow:pd.DataFrame, 
+                       colors:list, title='Flow Residuals', 
+                       fontsize_title=80, fontsize_legend=68, 
+                       fontsize_subplot=60, fontsize_tick=45, fontcolor='black',
+                       pos_cone_guide=False, neg_cone_guide=False):
+    """Difference from reference flows before and after correction.
+
+    Plots differences between the raw and reference flows on the horizontal
+    and differences between the bias corrected and refrerence on the vertical.
+    This compares corrections needed before and after the bias correction method
+    is applied.
+    
+    Parameters
+    ----------
+    site_dict : dict 
+        Expects {subgroup name: list of segments in subgroup} how sites are to be 
+        seperated.
+    raw_flow : pandas.DataFrame
+        Contains flows before correction.
+    ref_flow : pandas.DataFrame
+        Contains the reference flows to compare `raw_flow` and `bc_flow`.
+    bc_flow : pandas.DataFrame
+        Contains flows after correction.
+    colors : list
+        Colors to be plotted for each site in `site_dict`.
+    title : str, optional
+        Title label for the plot, defaults as 'Flow Residuals'.
+    fontsize_title : int, optional
+        Fontsize of the title, defaults as 80.
+    fontsize_legend : int, optional
+        Fontsize of the legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Fontsize of the subplots, defaults as 60.
+    fontsize_tick : int, optional
+        Fontsize of the ticks, defaults as 45.
+    fontcolor : str, optional
+        Color of the font, defaults as 'black'.
+    pos_cone_guide : boolean, optional
+        If True, plots a postive 1:1 line through the origin for reference. 
+    neg_cone_guide : boolean, optional
+        If True, plots a negative 1:1 line through the origin for reference.
     """
     num_plots = len(site_dict.keys())
     n_rows, n_cols = determine_row_col(num_plots)
@@ -1110,17 +1277,17 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame,
             ref_line_ext = ref_line_max
             if np.abs(ref_line_min) > ref_line_ext:
                 ref_line_ext = np.abs(ref_line_min)
-            ax.plot([-ref_line_ext,ref_line_ext], [0,0], color='k', linestyle='--')
+            ax.plot([-ref_line_ext, ref_line_ext], [0,0], color='k', linestyle='--')
             
             if pos_cone_guide and neg_cone_guide:
-                ax.plot([-ref_line_ext,ref_line_ext], [-ref_line_ext,ref_line_max], color='k', linestyle='--')
-                ax.plot([-ref_line_ext,ref_line_ext], [ref_line_ext,-ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext, ref_line_ext], [-ref_line_ext, ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext, ref_line_ext], [ref_line_ext, -ref_line_max], color='k', linestyle='--')
             elif pos_cone_guide:
-                ax.plot([0,ref_line_ext], [0,ref_line_ext], color='k', linestyle='--')
-                ax.plot([0,ref_line_ext], [0,-ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
             elif neg_cone_guide:
-                ax.plot([0,-ref_line_ext], [0,ref_line_ext], color='k', linestyle='--')
-                ax.plot([0,-ref_line_ext], [0,-ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, -ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, -ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
             
         else:
             ax.axis('off')
@@ -1133,35 +1300,48 @@ def correction_scatter(site_dict: dict, raw_flow: pd.DataFrame,
     plt.tight_layout()
     plt.show
 
-def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFrame, 
+def pbias_diff_hist(sites:list, colors:list, raw_flow:pd.DataFrame, ref_flow:pd.DataFrame, 
                       bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='M'), total_bins=None,
                       title_freq='Monthly', fontsize_title=90, fontsize_subplot_title=60, 
                     fontsize_tick=40, fontsize_labels=84):
-    """
-    Percent Bias Difference Histogram
-        creates a number of histogram subplots by each given site that 
-        plot the difference in percent bias before and after bias correction 
-    ----
-    sites: list
-        a list of sites that are the columns of the flow DataFrames
-    colors: list
-        a list of colors to plot the sites with, (do not have to be different),
-        that are used in the same order as the list of sites
-    raw_flow: pd.DataFrame
-        contains the flows before bias correction
-    ref_flow: pd.DataFrame
-        contains the reference flows for comparison
-    bc_flow: pd.DataFrame
-        contains the flows after bias correction
-    grouper: pd.Grouper(freq='M')
-        how flows should be grouped for bia correction
-    total_bins: None
-        number of bins to use in the histogram plots. if none specified,
-        defaults to the square root of the number of pbias difference
-        values
-    title_freq: 'Monthly'
-        an adjective description of the frequency with which the flows are
-        grouped
+    """Histograms of differences in percent bias before/after bias correction.
+    
+    Creates a number of histogram subplots by each given site that 
+    plot the difference in percent bias before and after bias correction.
+    
+    Parameters
+    ----------
+    sites : list
+        Sites that are the columns of the flow DataFrames, `raw_flow`,
+        `ref_flow`, and `bc_flow`.
+    colors : list
+        Colors to plot the sites with, (do not have to be different),
+        that are used in the same order as the list of sites.
+    raw_flow : pandas.DataFrame
+        Contains flows before bias correction.
+    ref_flow : pandas.DataFrame
+        Contains reference flows for comparison as true values.
+    bc_flow : pandas.DataFrame
+        Contains flows after bias correction.
+    grouper : pandas.TimeGrouper, optional
+        How flows should be grouped for bias correction. This defaults as
+        monthly.
+    total_bins : int, optional
+        Number of bins to use in the histogram plots. If none specified,
+        defaults to the floored square root of the number of pbias difference
+        values.
+    title_freq : str, optional
+        An adjective description of the frequency with which the flows are
+        grouped, should align with `grouper`, although there is no check to
+        verify this. This defaults as 'Monthly'.
+    fontsize_title : int, optional
+        Font size of the title. Defaults as 90.
+    fontsize_subplot_title : int, optional
+        Font size of the subplots. Defaults as 60.
+    fontsize_tick : int, optional
+        Font size of the ticks. Defaults as 40.
+    fontsize_labels : int, optional
+        Font size of the labels. Defaults as 84.
     """
     
     if len(sites) != len(colors):
@@ -1218,25 +1398,42 @@ def pbias_diff_hist(sites: list, colors: list, raw_flow: pd.DataFrame, ref_flow:
 def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_site: str,
                           start_year: int, end_year: int, ax=None, fontsize_title=40, 
                           fontsize_labels=60, fontsize_tick= 30, linecolor='k', alpha=0.3):
-    """
-    Plot Residual Overlay
-        plots residuals from each hydrologic year on top of each
-        other with a refence line at q=0
-    ----
-    flows: pd.DataFrame
-        contains all flows to be used in plotting
-    upstream_sites: list
-        contains strings of the site names stored in flows to
-        aggregate
-    downstream_sites: str
-        the name of the downstream site stored in flows that will
-        have the upstream_sites subtracted from it
-    start_year: int
-        the starting year to plot
-    end_year: int
-        the year to conclude on
+    """Plots flow upstream/downstream residuals overlayed across one year span.
+
+    Plots residuals from each hydrologic year on top of each
+    other with a refence line at zero flow. Residuals are calculated as
+    downstream flows - sum(upstream flows).
         
-    Returns: ax containing this plot
+    Parameters
+    ----------
+    flows : pandas.DataFrame
+        All flows to be used in plotting.
+    upstream_sites : list
+        Strings of the site names stored in `flows` to aggregate.
+    downstream_sites : str
+        Name of the downstream site stored in flows that will
+        have the `upstream_sites` subtracted from it.
+    start_year : int
+        The starting year to plot.
+    end_year : int
+        The year to conclude on.
+    ax : matplotlib.axes, optional
+        Axes to plot on. If none is specified, a new one is created.
+    fontsize_title : int, optional
+        Font size of the title.
+    fontsize_labels : int, optional
+        Font size of the labels.
+    fontsize_tick : int, optional
+        Font size of the ticks.
+    linecolor : str, optional
+        Color of the lines plotted. Defaults as 'k' for black.
+    alpha : float, optional
+        Transparency of the lines plotted. Defaults as 0.3 to help
+        see how residuals line up across many years.
+        
+    Returns
+    -------
+    matplotlib.axes
     """
     
     mpl.rcParams['figure.figsize']=(20,20)
@@ -1278,21 +1475,29 @@ def plot_residual_overlay(flows: pd.DataFrame, upstream_sites: list, downstream_
 
 def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.DataFrame, colors = list,
                             fontsize_title=60, fontsize_labels=40, fontsize_tick= 30):
-    """
-    Normalized Change in Annual Flow Volume
-        plots a series of subplots containing bar charts that depict
-        the differnece in normalized annual flow volume due to bias correction
-    ----
-    sites: list
-        contatins the string names of all the sites to be plotted, matching sites
-        contained in the DataFrames
-    before_bc: pd.DataFrame
-        contains flows, (not aggregated) before bias correction is applied
-    after_bc: pd.DataFrame
-        contains flows, (not aggregated) after bias correction is applied
-    colors: list
-        contains the colors to be used for each site's subplot in the same order
-        as sites, (does not have to be unique)    
+    """Normalized change in annual flow volume.
+    
+    Plots a series of subplots containing bar charts that depict
+    the differnece in normalized annual flow volume due to bias correction.
+    
+    Parameters
+    ----------
+    sites : list
+        String names of all the sites to be plotted, matching sites contained in 
+        the DataFrames `before_bc` and `after_bc`. 
+    before_bc : pandas.DataFrame
+        Contains flows, (not aggregated), before bias correction is applied.
+    after_bc : pandas.DataFrame
+        Contains flows, (not aggregated), after bias correction is applied.
+    colors : list
+        Ccolors to be used for each site's subplot in the same order
+        as sites, (does not have to be unique).
+    fontsize_title : int, optional
+        Font size of the title. Defaults as 60.
+    fontsize_labels : int, optional
+        Font size of the labels. Defaults as 40.
+    fontsize_tick : int, optional
+        Font size of the ticks. Defaults as 30.
     """
     
     mpl.rcParams['figure.figsize']=(30,20)    
@@ -1301,7 +1506,7 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     after_bc_annual = after_bc.groupby(WY_grouper).sum()
     before_bc_annual = before_bc.groupby(WY_grouper).sum()
 
-    after_bc_annual, before_bc_annual = dst.normalize_flow_pair(data=after_bc_annual, norming_data=before_bc_annual)
+    after_bc_annual, before_bc_annual = dst.normalize_pair(data=after_bc_annual, norming_data=before_bc_annual)
 
     diff_annual = after_bc_annual - before_bc_annual
     
@@ -1342,28 +1547,44 @@ def pbias_compare_hist(sites: list, raw_flow: pd.DataFrame, ref_flow: pd.DataFra
                       bc_flow: pd.DataFrame, grouper=pd.Grouper(freq='Y'), total_bins=None,
                       title_freq='Yearly', fontsize_title=90, fontsize_subplot_title=60,
                     fontsize_tick=40,fontsize_labels=84, x_extreme=150):
-    """
-    Percent Bias Comparison Histogram
-        creates a number of histogram subplots by each given sites that
-        plot percent bias both before and after bias correction
-    ----
-    sites: list
-        a list of sites that are the columns of the flow DataFrames
-    raw_flow: pd.DataFrame
-        contains the flows before bias correction
-    ref_flow: pd.DataFrame
-        contains the reference flows for comparison
-    bc_flow: pd.DataFrame
-        contains the flows after bias correction
-    grouper: pd.Grouper(freq='M')
-        how flows should be grouped for bia correction
-    total_bins: None
-        number of bins to use in the histogram plots. if none specified,
-        defaults to the square root of the number of pbias difference
-        values
-    title_freq: 'Monthly'
-        an adjective description of the frequency with which the flows are
-        grouped
+    """Histograms comparing percent bias before/after bias correction.
+    
+    Creates a number of histogram subplots by each given sites that
+    plot percent bias both before and after bias correction.
+    
+    Parameters
+    ----------
+    sites : list
+        Sites corresponding to the columns of the flow DataFrames, `raw_flow`, 
+        `ref_flow`, and `bc_flow`, to be plotted.
+    raw_flow : pandas.DataFrame
+        Flows before bias correction.
+    ref_flow : pandas.DataFrame
+        Reference flows for comparison as true values.
+    bc_flow : pandas.DataFrame
+        Flows after bias correction.
+    grouper : pandas.TimeGrouper
+        How flows should be grouped for bias correction, defaults as yearly.
+    total_bins : int, optional
+        Number of bins to use in the histogram plots. if none specified,
+        defaults to the floored square root of the number of pbias difference
+        values.
+    title_freq : str, optional
+        An adjective description of the frequency with which the flows are
+        grouped corresponding to `grouper`. Defaults as 'Yearly'.
+    fontsize_title : int, optional
+        Font size of the title, defaulting as 90.
+    fontsize_subplot_title : int, optional
+        Font size of the subplot title, defaulting as 60.
+    fontsize_ticler : int, optional
+        Font size of the ticks, defaulting as 40.
+    fontsize_labels : int, optional
+        Font size of the labels, defaulting as 84.
+    x_extreme : float, optional
+        Greatest magnitude on the horizontal axis to specify the range, 
+        defaulting as 150, which results in a range of (-150, 150). This is
+        useful if desiring to zoom in closer to the origin and exclued
+        outlying percent biases.
     """
     
     mpl.rcParams['figure.figsize']=(60,40)
@@ -1422,21 +1643,38 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
                 raw_var='raw_flow', ref_var='reference_flow', bc_var='bias_corrected_total_flow',
                 raw_name='Mizuroute Raw', ref_name='NRNI Reference', bc_name='BMORPH BC',
                 fontsize_title=40, fontsize_labels=30, fontsize_tick= 20):
-    """
-    Compare Probability Distribution Functions
-        plots the PDF's of the raw, reference, and bias corrected flows
-        for each gauge site
-    ----
-    flow_dataset: xr.Dataset
-        contatains raw, reference, and bias corrected flows
-    gauges_sites: list
-        a list of gauge sites to be plotted
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    bc_var: str
-        the string to access the bias corrected flows in flow_dataset
+    """Compare probability distribution functions.
+    
+    Plots the PDF's of the raw, reference, and bias corrected flows for each gauge site.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contatains raw, reference, and bias corrected flows.
+    gauges_sites : list
+        Gauge sites to be plotted as used in the `flow_dataset`.
+    raw_var : str, optional
+        The string to access the raw flows in `flow_dataset` for flows before
+        bias correction. Defaults as 'raw_flow'.
+    ref_var : str, optional
+        The string to access the reference flows in `flow_dataset` for true flows.
+        Defaults as 'reference_flow'.
+    bc_var : str, optional
+        The string to access the bias corrected flows in flow_dataset for flows
+        after bias correction. Defaults as 'bias_corrected_total_flow'.
+    raw_name : str, optional
+        Label for the raw flows before bias correction. Defaults as 'Mizuroute Raw'.
+    ref_name : str, optional
+        Label for the reference flows. Defaults as 'NRNI Reference'.
+    bc_name : str, optional
+        Label for the bias corrected flows after bias correction. Defaults as
+        'BMORPH BC'.
+    fontsize_title : int, optional
+        Fontsize of the title. Defaults as 40.
+    fontsize_labels : int, optional
+        Fontsize of the lables. Defaults as 30.
+    fontsize_tick : int, optional
+        Fontsize of the ticks. Defaults as 20.
     """
     
     n_rows, n_cols = determine_row_col(len(gauge_sites))
@@ -1466,7 +1704,7 @@ def compare_PDF(flow_dataset:xr.Dataset, gauge_sites = list,
     
     plt.subplots_adjust(wspace=0.3, hspace= 0.45, left = 0.05, right = 0.8, top = 0.95)
 
-def compare_CDF(flow_dataset:xr.Dataset, plot_sites: list,
+def compare_CDF(flow_dataset: xr.Dataset, plot_sites: list,
                       raw_var: str, raw_name: str,
                       ref_var: str, ref_name: str,
                       bc_vars: list, bc_names: list,
@@ -1476,45 +1714,71 @@ def compare_CDF(flow_dataset:xr.Dataset, plot_sites: list,
                       figsize = (20,20), sharex = False, sharey = True,
                       fontsize_title = 40, fontsize_labels = 30, fontsize_tick = 20,
                       markersize = 1, alpha = 0.3):
-    """
-    Compare Probability Distribution Functions Logit
-        plots the CDF's of the raw, reference, and bias corrected flows
-    ----
-    flow_dataset: xr.Dataset
-        contatains raw, reference, and bias corrected flows
-    gauges_sites: list
-        a list of gauge sites to be plotted
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    raw_name: str
-        the string to label the raw flows in the legend
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    ref_name: str
-        the string to label the reference flows in the legend
-    bc_var: str
-        the string to access the bias corrected flows in flow_dataset
-    bc_name: str
-        the string to label the bias corrected flows in the legend
-    bc_var_alt: None
-        the string to access a second set of bias corrected flows in
-        flow_dataset (optional)
-    bc_var_name: None
-        the string to label the second set of bias corrected flows in
-        the legend (required if bc_var_alt is not None)
-    logit_scale: True
-        whether to plot the vertical scale on a logit axis (True) or not (False)
-    logarithm_base: '10'
-        '10' to use a log10 horizontal scale
-        'e' to use a natural log horizontal scale
-    units: r'Q [$m^3/s$]'
-        the horizontal axis's label for units
-    plot_colors: ['grey', 'black', 'blue', 'red']
-        a list containing the colors to be plotted for raw, ref, bc,
-        and bc_alt, respectively
-    markers: ['o', 'x', '*', '*']
-        a list containing the markers to be plotted for raw, ref, bc,
-        and bc_alt, respectively
+    """Compare probability distribution functions on a logit scale.
+    
+    Plots the CDF's of the raw, reference, and bias corrected flows.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contatains raw, reference, and bias corrected flows.
+    gauges_sites : list
+        Gauge sites to be plotted contained in `flow_dataset`.
+    raw_var : str
+        Accesses the raw flows in `flow_dataset` for flows before bias correction.
+    raw_name : str
+        Label for the raw flows in the legend, corresponding to `raw_var`.
+    ref_var : str
+        Accesses the reference flows in `flow_dataset` for true flows.
+    ref_name : str
+        Label for the reference flows in the legend, corresponding to `ref_var`.
+    bc_vars : list
+        Accesses the bias corrected flows in `flow_dataset`, where each element
+        accesses its own bias corrected flows. Can be a size of 1.
+    bc_names : list
+        Label for the bias corrected flows in the legend for each entry in `bc_var`,
+        assumed to be in the same order. Can be a size of 1.    
+    logit_scale : boolean, optional
+        Whether to plot the vertical scale on a logit axis (True) or not (False).
+        Defaults as True.
+    logarithm_base : str, optional
+        The logarthimic base to use for the horizontal scale. Only the following
+        are currently supported:
+            '10' to use a log10 horizontal scale (default)
+            'e' to use a natural log horizontal scale
+    units : str, optional
+        The horizontal axis's label for units, defaults as r'Q [$m^3/s$]'.
+    plot_colors : list, optional
+        Colors to be plotted for the flows corresponding to `raw_var`, 
+        `ref_var`, and `bc_var`, defaulting as ['grey', 'black', 'blue', 'red'],
+        assuming there are two entries in `bc_var`.
+    markers : list, optional
+        Markers to be plotted for the flows corresponding to `raw_var`, 
+        `ref_var`, and `bc_var`, defaulting as ['o', 'x', '*', '*'],
+        assuming there are two entries in `bc_var`.
+    figsize : tuple, optional
+        Figure size following matplotlib notation, defaults as (20, 20).
+    sharex : boolean or str, optional
+        Whether horizontal axis should be shared amongst subplots, 
+        defaulting as False.
+    sharey : boolean or str, optional
+        Whether vertical axis should be shared amongst subplots,
+        defaulting as True.
+    fontsize_title : int, optional
+        Font size of the title, defaults as 40.
+    fontsize_labels : int, optional
+        Font size of the labels, defaults as 30.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults as 20.
+    markersize : float, optional
+        Size of the markers plotted, defaults as 1.
+    alpha : float, optional
+        Transparancy of the markers plotted, defaults as 0.3 to help
+        see where markers clump together.
+    
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
     """
     
     if len(bc_vars) == 0:
@@ -1598,17 +1862,32 @@ def spearman_diff_boxplots_annual(raw_flows: pd.DataFrame, bc_flows: pd.DataFram
                                   fontsize_title=40, fontsize_tick=30, fontsize_labels=40, 
                                   subtitle = None, median_plot_color = 'red'):
     
-    """
-    Spearman Rank Difference Boxplots Annual
-        creates box plots for each stide pairing determing the difference in spearman
-        rank for each year between the raw and bias corrected data
-    ----
-    raw_flows: pd.DataFrame
-        contains the raw flows with sites in the columns and time in the index
-    bc_flows: pd.DataFrame
-        conains the bias corrected flows with sites in the columns and time in the index
-    site_pairings: list of list of string site pairs
-        e.g. [['downstream_name','upstream_name'],...]
+    """Annual difference in spearman rank as boxplots.
+    
+    Creates box plots for each stide pairing determing the difference in spearman
+    rank for each year between the raw and bias corrected data.
+    
+    Parameters
+    ----------
+    raw_flows : pandas.DataFrame
+        Raw flows before bias correction with sites in the columns and time in the index.
+    bc_flows : pandas.DataFrame
+        Bias corrected flows with sites in the columns and time in the index.
+    site_pairings : List[List[str]]
+        List of list of string site pairs e.g. [['downstream_name','upstream_name'],...].
+        This is used to organize which sites should be paired together for computing the
+        spearman rank difference.
+    fontsize_title : int, optional
+        Font size of the title, defaults as 40.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults as 30.
+    fontsize_labels : int, optional
+        Font size of the labels, defaults as 40.
+    subtitle : str, optional
+        Subtitle to include after "Annual Chnage in Speraman Rank: ". If no subtitle
+        is is specified, none is included and only the title is plotted.
+    median_plot_color : str
+        Color to plot the boxplot's median as, defaults as 'red'.
     """
     
     if np.where(raw_flows.index != bc_flows.index)[0].size != 0:
@@ -1673,30 +1952,60 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
                                  fontsize_legend = 30,
                                  showfliers = False, sharex = True, sharey = 'row', TINY_VAL = 1e-6, 
                                  figsize = (30,20), show_y_grid = True):
-    """
-    Kullback Liebler Divergence Annual Comparison
-        plots the KL divergence for each year per site as
-        KL(P_{ref} || P_{raw}) and KL( P_{ref} || P_{bc})
-    ----
-    flow_dataset: xr.Dataset
-        contains raw, reference, and bias corrected flows
-    sites: list
-        contains all the sites to be plotted, (note that if the number of sites to be plotted
-        is square or rectangular, the last site will not be plotted to save room for the legend)    
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    raw_name: str
-        the string to label the raw flows in the legend and horizontal labels
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    ref_name: str
-        the string to label the reference flows in the legend and horizontal labels
-    bc_vars: list
-        a list of strings to access the bias corrected flows in flow_dataset
-    bc_names: list
-        a list of string to label the bias corrected flows in the legend and horizontal labels
-    plot_colors: list
-        a list containing colors to be plotted for raw and the bias corrected flows, respectively
+    """Kullback-Liebler Divergence compared before and after bias correction as boxplots.
+    
+    Plots the KL divergence for each year per site as KL(P_{ref} || P_{raw}) and 
+    KL( P_{ref} || P_{bc}).
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contains raw (uncorrected), reference (true), and bias corrected flows.
+    sites : list
+        Contains all the sites to be plotted as included in `flow_dataset`, (note that if 
+        the number of sites to be plotted is square or rectangular, the last site will not 
+        be plotted to save room for the legend).    
+    raw_var : str
+        Accesses the raw flows in `flow_dataset`.
+    raw_name : str
+        Label for the raw flows in the legend and horizontal labels corresponding to `raw_var`.
+    ref_var : str
+        Accesses the reference flows in `flow_dataset`.
+    ref_name : str
+        Label the reference flows in the legend and horizontal labels corresponding to `ref_var`.
+    bc_vars : list
+        String(s) to access the bias corrected flows in `flow_dataset`.
+    bc_names : list
+        Label(s) for the bias corrected flows in the legend and horizontal labels, corresponding
+        to each element in `bc_vars`.
+    plot_colors : list
+        Colors to be plotted for the raw and the bias corrected flows, respectively.
+    fontsize_title : int, optional
+        Font size of the title, defaults as 40.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults as 30.
+    fontsize_labels : int, optional
+        Font size of the labels, defaults as 40.
+    fontsize_legend : int, optional
+        Font size of the legend text, defaults as 30.
+    showfliers : boolean, optional
+        Whether to include fliers in the boxplots, defaults as False.
+    sharex : boolean or str, optional
+        Whether the horizontal axis is shared, defaults as True.
+    sharey : boolean or str, optional
+        Whether the vertical axis is shared, defaults as 'row' to share the vertical axis
+        in the same row.
+    TINY_VAL : float, optional
+        Used to ensure there are no zero values in the data because zero values cause unsual
+        behavior in calculating the KL Divergence. Defaults as 1E-6.
+    figsize : tuple, optional
+        Figure size following maptlotlib connventions, defaults as (30,20).
+    show_y_grid : boolean, optional
+        Whether to plot y grid lines, defaults as True.
+        
+    Returns
+    -------
+    maptlotlib.figure, matplotlib.axes
     """
     
     raw_flows = flow_dataset[raw_var].to_pandas()
@@ -1793,26 +2102,48 @@ def spearman_diff_boxplots_annual_compare(flow_dataset: xr.Dataset, site_pairing
                                   raw_var: str, bc_vars: list, bc_names: list,
                                   plot_colors: list, showfliers =  True,
                                   fontsize_title=40, fontsize_tick=25, fontsize_labels=30, 
-                                  subtitle = None, figsize = (20,20), sharey = 'row'):
+                                  figsize = (20,20), sharey = 'row'):
     
-    """
-    Spearman Rank Difference Boxplots Annual
-        creates box plots for each stide pairing determing the difference in spearman
-        rank for each year between the raw and bias corrected data
-    ----
-    flow_dataset: xr.Dataset
-        contains raw and bias corrected flows
-    site_pairings: list of list of string site pairs
-        e.g. [['downstream_name','upstream_name'], ...]
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    bc_vars: list
-        a list of strings to access the bias corrected flows in flow_dataset
-    bc_names: list
-        a list of strings to name the bias corrected flows from flow_dataset
-    plot_colors: list
-        a list of colors that are in the same order as the bc_vars and bc_names
-        to be used in plotting        
+    """Annual difference in spearman rank as boxplots.
+
+    Creates box plots for each site pairing determining the difference in spearman
+    rank for each year between the raw and the bias corrected data.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contains raw (uncorrected), reference (true), and bias corrected flows.
+    site_pairings : List[List[str]]
+        List of list of string site pairs e.g. [['downstream_name','upstream_name'],...].
+        This is used to organize which sites should be paired together for computing the
+        spearman rank difference.
+    raw_var : str
+        Accesses the raw (uncorrected) flows in `flow_dataset`.
+    bc_vars : list
+        Strings to access the bias corrected flows in `flow_dataset`.
+    bc_names : list
+        Labels for the bias corrected flows from `flow_dataset`, corresponding to
+        each element in `bc_vars` in the same order.
+    plot_colors : list
+        Colors that are in the same order as the `bc_vars` and `bc_names`
+        to be used in plotting.
+    showfliers : boolean, optional
+        Whether to show fliers on the boxplots, defaults as True.
+    fontsize_title : int, optional
+        Font size of the title, defaults as 40.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults as 25.
+    fontsize_lables : int, optional
+        Font size of the labels, defaults as 30.
+    figsize : tuple
+        Figure size following matplotlib connventions, defaults as (20, 20).
+    sharey : boolean or str, optional
+        Whether or how the vertical axis are to be shared, defaults as 'row' to
+        have vertical axis in the same row shared.
+    
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
     """
     
     if len(bc_vars) == 0:
@@ -1906,46 +2237,60 @@ def compare_CDF_all(flow_dataset:xr.Dataset, plot_sites: list,
                       figsize = (20,20),
                       fontsize_title = 40, fontsize_labels = 40, fontsize_tick = 40,
                       markersize = 1, alpha = 0.3):
-    """
-    Compare Probability Distribution Functions All
-        plots the CDF's of the raw, reference, and bias corrected flows with data 
-        from all sites in plot_sites combined for a summary statistic
-    ----
-    flow_dataset: xr.Dataset
-        contatains raw, reference, and bias corrected flows
-    gauges_sites: list
-        a list of gauge sites to be plotted
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    raw_name: str
-        the string to label the raw flows in the legend
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    ref_name: str
-        the string to label the reference flows in the legend
-    bc_var: str
-        the string to access the bias corrected flows in flow_dataset
-    bc_name: str
-        the string to label the bias corrected flows in the legend
-    bc_var_alt: None
-        the string to access a second set of bias corrected flows in
-        flow_dataset (optional)
-    bc_var_name: None
-        the string to label the second set of bias corrected flows in
-        the legend (required if bc_var_alt is not None)
-    logit_scale: True
-        whether to plot the vertical scale on a logit axis (True) or not (False)
-    logarithm_base: '10'
-        '10' to use a log10 horizontal scale
-        'e' to use a natural log horizontal scale
-    units: r'Q [$m^3/s$]'
-        the horizontal axis's label for units
-    plot_colors: ['grey', 'black', 'blue', 'red']
-        a list containing the colors to be plotted for raw, ref, bc,
-        and bc_alt, respectively
-    markers: ['o', 'x', '*', '*']
-        a list containing the markers to be plotted for raw, ref, bc,
-        and bc_alt, respectively
+    """Compare probability distribution functions as a summary statistic.
+    
+    Plots the CDF's of the raw, reference, and bias corrected flows with data 
+    from all sites in plot_sites combined for a summary statistic.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contains raw (uncorrected), reference (true), and bias corrected flows.
+    plot_sites : list
+        Gauge sites to be plotted.
+    raw_var : str
+        Accesses the raw (uncorrected) flows in `flow_dataset`.
+    raw_name : str
+       Label for the raw flows in the legend, corresponding to `raw_var`.
+    ref_var : str
+        Accesses the reference (true) flows in `flow_dataset`.
+    ref_name : str
+        Label for the reference flows in the legend, corresponding to `ref_var`.
+    bc_vars : list
+        Accesses the bias corrected flows in `flow_dataset`. Can be a size of 1.
+    bc_names : list
+        Label for the bias corrected flows in the legend, corresponding to `bc_var`.
+        Can be a size of 1.    
+    plot_colors : list, optional
+        Colors to be plotted for the flows corresponding to `raw_var`, 
+        `ref_var`, and `bc_var`, defaulting as ['grey', 'black', 'blue', 'red'],
+        assuming there are two entries in `bc_var`.
+    logit_scale : True, optional
+        Whether to plot the vertical scale on a logit axis (True) or not (False). 
+        Defaults as True.
+    logarithm_base : str, optional
+        The logarthimic base to use for the horizontal scale. Only the following
+        are currently supported:
+            '10' to use a log10 horizontal scale (default)
+            'e' to use a natural log horizontal scale
+    units : str, optional
+        The horizontal axis's label for units, defaults as r'Q [$m^3/s$]'.
+    figsize : tuple, optional
+        Figure size following matplotlib connventions, defaults as (20, 20).
+    fontsize_title : int, optional
+        Font size of the title, defaults as 40.
+    fontsize_labels : int, optional
+        Font size of the labels, defaults as 40.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults as 40.
+    markersize : float, optional
+        Size of the markers plotted, defaults as 1. Linewidth is half of this value.
+    alpha : float, optional
+        Transparancy of the lines and markers, defaults as 0.3.
+    
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
     """
     
     if len(bc_vars) == 0:
@@ -2026,48 +2371,67 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
                              units = r'Mean Annual Flow [$m^3/s$]',
                              figsize = (20,20), sharex = False, sharey = True, 
                              pp_kws = dict(postype='cunnane'), fontsize_labels = 30, fontsize_tick = 20,
-                             fontsize_legend = 24, markersize = 1, alpha = 0.3, legend_bbox_to_anchor = (1.4, 1)
-                      ):
-    """
-    Cumulative Probability Distributions
-        plots the CPD's of the raw, reference, and bias corrected flows on a probability axis
-    ----
-    flow_dataset: xr.Dataset
-        contatains raw, reference, and bias corrected flows
-    gauges_sites: list
-        a list of gauge sites to be plotted
+                             fontsize_legend = 24, alpha = 0.3, legend_bbox_to_anchor = (1.4, 1)):
+    """Cumulative Probability Distributions of mean annual flows on a probability axis.
+    
+    Plots the CPD's of the raw, reference, and bias corrected flows on a probability axis using the cunnane 
+    plotting positions.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        Contatains raw, reference, and bias corrected flows.
+    plot_sites : list
+        Gauge sites to be plotted.
     grouper_func
-        function to group a pandas.DataFrame index by to calculate the 
-        mean of the grouped values
-    raw_var: str
-        the string to access the raw flows in flow_dataset
-    raw_name: str
-        the string to label the raw flows in the legend
-    ref_var: str
-        the string to access the reference flows in flow_dataset
-    ref_name: str
-        the string to label the reference flows in the legend
-    bc_var: str
-        the string to access the bias corrected flows in flow_dataset
-    bc_name: str
-        the string to label the bias corrected flows in the legend
-    bc_var_alt: None
-        the string to access a second set of bias corrected flows in
-        flow_dataset (optional)
-    bc_var_name: None
-        the string to label the second set of bias corrected flows in
-        the legend (required if bc_var_alt is not None)
-    plot_colors: ['grey', 'black', 'blue', 'red']
-        a list containing the colors to be plotted for raw, ref, bc,
-        and bc_alt, respectively
-    subset_month: None
-        the integer date of a month to subset out for plotting,
-        (ex: if you want to subset out January, enter 1)
-    units:  r'Mean Annual Flow [$m^3/s$]'
-        the horizontal axis's label for units
-    pp_kws: dict(postype='cunnane')
-        plotting position computation as specified by
+        Function to group a pandas.DataFrame index by to calculate the 
+        mean of the grouped values.
+    raw_var : str
+        Accesses the raw (uncorrected) flows in `flow_dataset`.
+    raw_name : str
+        Label for the raw flows in the legend, corresponding to `raw_var`.
+    ref_var : str
+        Accesses the reference (true) flows in `flow_dataset`.
+    ref_name : str
+        Label for the reference flows in the legend, corresponding to `ref_var`.
+    bc_vars : list
+        Accesses the bias corrected flows in `flow_dataset`. Can be a size of 1.
+    bc_names: list
+        String(s) to label the bias corrected flows in the legend, in the same order
+        as and corresponding to `bc_vars`. Can be a size of 1.    
+    plot_colors : list, optional
+        Colors to be plotted for the flows corresponding to `raw_var`, 
+        `ref_var`, and `bc_var`, defaulting as ['grey', 'black', 'blue', 'red'],
+        assuming there are two entries in `bc_var`.
+    subset_month : int, optional
+        Integer date of a month to subset out for plotting, (ex: if you want to subset 
+        out January, enter 1). If none is specified, then all months are used.
+    units : str, optional
+        Horizontal axis's label for units, defaults as r'Mean Annual Flow [$m^3/s$]'.
+    pp_kws : dict, optional
+        Plotting position computation defaulted as dict(postype='cunnane'), as specified by
         https://matplotlib.org/mpl-probscale/tutorial/closer_look_at_plot_pos.html
+    figsize : tuple, optional
+        Figure size following matplotlib connventions, defaults as (20, 20).
+    sharex : boolean or str, optional
+        Whether or how the horizontal axis is shared among subplots, defaults as False.
+    sharey : boolean or str, optional
+        Whether or how the vertical axis is shared among subplots, defaults as True.
+    fontsize_labels : int, optional
+        Font size of the labels, defaults as 30.
+    fontsize_tick : int, optional
+        Font size of the ticks, defaults as 20.
+    fontsize_legend : int, optional
+        Font size of the legend text, defaults 24.
+    alpha : float, optional
+        Transparency of the markers, defaults as 0.3.
+    legend_bbox_to_anchor : tuple
+        Where the bbox is anchored, defaults as (1.4, 1). If changing other size parameters,
+        this may need to be adjusted to properly place the legend.
+            
+    Returns
+    -------
+    matplotlib.figure, matplotlib.axes
     """
     
     if len(bc_vars) == 0:

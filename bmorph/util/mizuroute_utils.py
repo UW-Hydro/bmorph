@@ -75,8 +75,23 @@ def run_mizuroute(mizuroute_exe, mizuroute_config):
 
 def find_up(ds, seg):
     """
-    finds the segment directly upstream of seg given seg is not
-    a headwater segment, (in which case np.nan is returned)
+    Finds the segment directly upstream of seg given seg is not
+    a headwater segment, (in which case np.nan is returned).
+    
+    Parameters
+    ---------
+    ds: xr.Dataset
+        Dataset containing river segments as 'seg', headwater
+        segments by 'is_headwaters', and what is downstream of 
+        each seg in 'down_seg'.
+    seg: int
+        River segment designation to search from.
+        
+    Returns
+    -------
+    up_seg: int
+        Upstream segment designation found, or np.nan if seg 
+        is a headwater segement.
     """
     if ds.sel(seg=seg)['is_headwaters']:
         return np.nan
@@ -87,8 +102,26 @@ def find_up(ds, seg):
 
 def walk_down(ds, start_seg):
     """
-    finds the nearest downstream gauge site and returns the distance
-    traveled to reach it from start_seg
+    Finds the nearest downstream gauge site and returns the distance
+    traveled to reach it from start_seg.
+    
+    Parameters
+    ---------
+    ds: xr.Dataset
+        Dataset containing river segments, downstream segs, the length
+        of the river segments, and which segs are gauge sites as 
+        'seg', 'down_seg', 'lenght', and 'is_gauge', respectively.
+    start_seg: int
+        River segment designation to start walking from to a
+        downstream gauge site.
+    
+    Returns
+    -------
+    tot_length: float
+        Total length traveled during walk, (e.g. cumulative river
+        distance from start_seg to the downstream gauge site).
+    cur_seg: int
+        River segment designation of the gauge site reached.
     """
     tot_length = 0.0
     cur_seg = start_seg
@@ -105,8 +138,26 @@ def walk_down(ds, start_seg):
 
 def walk_up(ds, start_seg):
     """
-    finds the nearest upstream gauge site and returns the distance
-    traveled to reach it from start_seg
+    Finds the nearest upstream gauge site and returns the distance
+    traveled to reach it from start_seg.
+    
+    Parameters
+    ---------
+    ds: xr.Dataset
+        Dataset containing river segments, upstream segs, the length
+        of the river segments, and which segs are gauge sites as 
+        'seg', 'up_seg', 'lenght', and 'is_gauge', respectively.
+    start_seg: int
+        River segment designation to start walking from to an
+        upstream gauge site.
+    
+    Returns
+    -------
+    tot_length: float
+        Total length traveled during walk, (e.g. cumulative river
+        distance from start_seg to the downstream gauge site).
+    cur_seg: int
+        River segment designation of the gauge site reached.
     """
     tot_length = 0.0
     cur_seg = start_seg
@@ -127,18 +178,25 @@ def walk_up(ds, start_seg):
 
 def find_max_r2(ds, curr_seg_flow):
     """
-    find_max_r2
-        searches through ds to find which seg has the greatest
-        r2 value with respect to curr_seg_flow
-    ----
+    Searches through ds to find which seg has the greatest
+    r2 value with respect to curr_seg_flow. If no seg is found, 
+    max_r2 = 0 and max_r2_ref_seg = -1.
+    
+    Parameters
+    ----------
     ds: xr.Dataset
-        contains the variable 'reference_flow' to compare
-        curr_seg_flow against and the coordinate 'seg'
-    curr_seg_flow: 
-        a numpy array containing flow values that r2 is to
-        be maximized with respect to
-    Return: max_r2, max_r2_ref_seg
-        if no seg is found, max_r2 = 0 and max_r2_ref_seg = -1
+        Contains the variable 'reference_flow' to compare
+        curr_seg_flow against and the coordinate 'seg'.
+    curr_seg_flow: np.array
+        A numpy array containing flow values that r2 is to
+        be maximized with respect to.
+        
+    Returns
+    -------
+    max_r2: float
+        Magnitude of the maximum R squared value found.
+    max_r2_ref_seg: int
+        River segement designation corresponding to the max_r2.
     """
     max_r2 = 0.0
     max_r2_ref_seg = -1
@@ -152,19 +210,27 @@ def find_max_r2(ds, curr_seg_flow):
 
 
 def find_min_kldiv(ds, curr_seg_flow):
-     """
-    find_min_kldiv
-        searches through ds to find which seg has the smallest
-        KL Divergence value with respect to curr_seg_flow
-    ----
+    """
+    Searches through ds to find which seg has the smallest
+    Kullback-Leibler Divergence value with respect to curr_seg_flow. 
+    If no seg is found, min_kldiv = -1 and min_kldiv_ref_seg = -1.
+    https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence
+    
+    Parameters
+    ----------
     ds: xr.Dataset
         contains the variable 'reference_flow' to compare
-        curr_seg_flow against and the coordinate 'seg'
-    curr_seg_flow: 
+        curr_seg_flow against and the coordinate 'seg'.
+    curr_seg_flow: np.array
         a numpy array containing flow values that KL Divergence
-        is to be maximized with respect to
-    Return: min_kldiv, min_kldiv_ref_seg
-        if no seg is found, min_kldiv = -1 and min_kldiv_ref_seg = -1
+        is to be maximized with respect to.
+        
+    Returns
+    -------
+    min_kldiv: float
+        Magnitude of the minimum KL Divergence found.
+    min_kldiv_ref_seg: int
+        River segment designation corresponding to min_kldiv.
     """
     TINY_VAL = 1e-6
     min_kldiv = np.inf
@@ -195,7 +261,20 @@ def find_min_kldiv(ds, curr_seg_flow):
 
 def kling_gupta_efficiency(sim, obs):
     """
-    calculates the Kling Gupta Efficiency between two flow arrays
+    Calculates the Kling-Gupta Efficiency (KGE) between two flow arrays.
+    https://agrimetsoft.com/calculators/Kling-Gupta%20efficiency
+    
+    Parameters
+    ---------
+    sim: array-like
+        Simulated flow array.
+    obs: array-like
+        Observed flow array.
+    
+    Returns
+    -------
+    kge: float
+        Kling-Gupta Efficiency calculated between the two arrays.
     """
     obs = np.asarray(obs)
     sim = np.asarray(sim)
@@ -213,18 +292,25 @@ def kling_gupta_efficiency(sim, obs):
 
 def find_max_kge(ds, curr_seg_flow):
     """
-    find_max_kge
-        searches through ds to find which seg has the larges
-        Kling Gupta Efficiency value with respect to curr_seg_flow
-    ----
+    Searches through ds to find which seg has the larges
+    Kling-Gupta Efficiency (KGE) value with respect to curr_seg_flow.
+    If no seg is found, max_kge = -np.inf and max_kge_ref_seg = -1.
+    
+    Parameters
+    ----------
     ds: xr.Dataset
-        contains the variable 'reference_flow' to compare
-        curr_seg_flow against and the coordinate 'seg'
-    curr_seg_flow: 
-        a numpy array containing flow values that KGE
-        is to be maximized with respect to
-    Return: max_kge, max_kge_ref_seg
-        if no seg is found, max_kge = -np.inf and max_kge_ref_seg = -1
+        Contains the variable 'reference_flow' to compare
+        curr_seg_flow against and the coordinate 'seg'.
+    curr_seg_flow: int
+        A numpy array containing flow values that KGE
+        is to be maximized with respect to.
+        
+    Returns
+    -------
+    max_kge: float
+        Maximum KGE value found.
+    max_kge_ref_seg
+        River segment designation corresponding to max_kge.
     """
     max_kge = -np.inf
     max_kge_ref_seg = -1
@@ -239,14 +325,18 @@ def find_max_kge(ds, curr_seg_flow):
 
 def trim_time(dataset_list: list):
     """
-    Trims all times of the xarray.Datasets in the list to the shortest timeseries.
-    ----
-    dataset_list: list
-        contains a list of xarray.Datasets
-    ----
-    Return: list
-        contains a list in the same order as dataset_list except with all items
-        in the list having the same start and end time
+    Trims all times of the xr.Datasets in the list to the shortest timeseries.
+    
+    Parameters
+    ----------
+    dataset_list: List[xr.Dataset]
+        Contains a list of xr.Datasets
+        
+    Returns
+    -------
+    list
+        Contains a list in the same order as dataset_list except with all items
+        in the list having the same start and end time.
     """
     t_starts = list()
     t_finishes = list()
@@ -271,8 +361,23 @@ def trim_time(dataset_list: list):
 
 def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
     """
-    adds contributing_area, average elevation, length, and down_seg to
-    routed from topology
+    Adds contributing_area, average elevation, length, and down_seg to
+    routed from topology.
+    
+    Parameters
+    ---------
+    routed: xr.Dataset
+        Contains streamflow timeseries mapped to river segments denoted
+        as 'seg'.
+    topology: xr.Dataset
+        Contains topological data of the watershed that routed's streamflow
+        timeseries describe. River segment designations, lengths, and 
+        immeditate downstream segments are expected as 'seg', 'Length',
+        and 'Tosegment'.
+    Returns
+    -------
+    routed: xr.Dataset
+        The input dataset routed updated with the topological data.
     """
     routed = routed.sel(seg=topology['seg'])
     #routed['contributing_area'] = topology['Contrib_Area']
@@ -287,26 +392,30 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
                     gauge_sites=None, route_var = 'IRFroutedRunoff',
                     fill_method='kldiv'):
     """
-    map_ref_sites
-        assigns segs within routed boolean 'is_gauge' idnetifiers and
-        what each seg's upstream and downstream reference seg designations
-        are
-    ----
+    Assigns segs within routed boolean 'is_gauge' "identifiers" and
+    what each seg's upstream and downstream reference seg designations are.
+    
+    Parameters
+    ----------
     routed: xr.Dataset
+        Contains the input flow timeseries data.
     gauge_reference: xr.Dataset
-    gauge_sites = None
-        if None, gauge_sites will be taken as all those listed in
-        gauge_reference
-    route_var = 'IRFroutedRunoff'
-        variable name of flows used for fill_method purposes within routed
+        Contains reference flow timeseries data for the same watershed 
+        as the routed dataset.
+    gauge_sites: list, optional
+        If None, gauge_sites will be taken as all those listed in
+        gauge_reference.
+    route_var: str
+        Variable name of flows used for fill_method purposes within routed.
+        This is defaulted as 'IRFroutedRunoff'.
     fill_method: str
         While finding some upstream/downstream reference segs may be simple,
         (segs with 'is_gauge' = True are their own reference segs, others
         may be easy to find looking directly up or downstream), some river
         networks may have multiple options to select gauge sites and may fail
-        to have upstream/downstream reference segs designated. fill_method
+        to have upstream/downstream reference segs designated. 'fill_method'
         specifies how segs should be assigned upstream/downstream reference
-        segs for bias correction if they are missed walking upstream or downstream
+        segs for bias correction if they are missed walking upstream or downstream.
         
         Currently supported methods:
             'leave_null'
@@ -323,7 +432,11 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
             'kge'
                 reference segs are selected based on which reference site that
                 seg's flows has the greatest KGE value with
-    Return: routed
+    Returns
+    -------
+    routed: xr.Dataset
+        Routed timeseries with reference gauge site river segments assigned to
+        each river segement in the original routed. 
     """
     if isinstance(gauge_sites, type(None)):
         gauge_sites = gauge_reference['site'].values
@@ -496,7 +609,19 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
 
 def map_headwater_sites(routed: xr.Dataset):
     """
-    boolean identifies whether a seg is a headwater with 'is_headwater'
+    Boolean identifies whether a river segement is a headwater with 'is_headwater'.
+    
+    Parameters
+    ----------
+    routed: xr.Dataset
+        Contains watershed river segments designated as the dimension 'seg'.
+        River segments are connected by referencing immediate downstream segments
+        as 'down_seg' for each 'seg'.
+        
+    Returns
+    -------
+    routed: xr.Dataset
+        The original routed dataset updated with which sites are headwaters.
     """
     if not 'down_seg' in list(routed.var()):
         raise Exception("Please denote down segs with 'down_seg'")
@@ -511,12 +636,22 @@ def map_headwater_sites(routed: xr.Dataset):
 def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
                                gauge_sites=None, fill_method='kldiv'):
     """
-    calcultes the cumulative distirbtuion function blend factor based on distance
+    Calculates the cumulative distribution function blend factor based on distance
     to a seg's nearest up gauge site with respect to the total distance between
-    the two closest guage sites to the seg
-    ----
+    the two closest guage sites to the seg.
+    
+    Parameters
+    ----------
+    routed: xr.Dataset
+        Contains flow timeseries data.
+    gauge_reference: xr.Dataset
+        Contains reference flow timeseries data for the same watershed 
+        as the routed dataset.
+    gauge_sites: list, optional
+        If None, gauge_sites will be taken as all those listed in
+        gauge_reference.        
     fill_method: str
-        see map_ref_sites for full description of how fill_method works
+        See map_ref_sites for full description of how fill_method works.
         
         Because each fill_method selects reference segs differently, calculate_blend_vars
         needs to know how they were selected to create blend factors. Note that 'leave_null'
@@ -528,7 +663,14 @@ def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
             'kldiv'
                 cdf_blend_factor = kldiv_upstream / (kldiv_upstream + kldiv_downstream)
             'r2'
-                cdf_blend_factor = r2_upstream / (r2_upstream + r2_downstream)                
+                cdf_blend_factor = r2_upstream / (r2_upstream + r2_downstream)
+                
+    Returns
+    -------
+    routed: xr.Dataset
+        The original routed dataset updated with 'cdf_blend_factors' used to combine
+        upstream and downstream relative bias corrections. Each fill_method will also
+        add or use upstream and downstream statistical measures calculated in map_ref_sites.
     """
     if not 'is_gauge' in list(routed.var()):
         # needed for walk_up and walk_down
@@ -576,28 +718,56 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
                          gauge_sites = None, route_var = 'IRFroutedRunoff',
                          fill_method='kldiv'):
     """
-    calculates a number of variables used in blendmorph and map_var_to_seg
-    ----
+    Calculates a number of variables used in blendmorph and map_var_to_seg.
+    
+    Parameters
+    ----------
     routed: xr.Dataset
-        the dataset that will be modified and returned ready for map_var_to_seg
+        The dataset that will be modified and returned ready for map_var_to_seg.
     topology: xr.Dataset
-        contains the network topology with a "seg" dimension that identifies reaches,
-        matching the routed dataset
+        Contains the network topology with a "seg" dimension that identifies reaches,
+        matching the routed dataset.
     reference: xr.Dataset
-        contains reaches used for reference with dimension "site" and coordinate "seg"
-    gauge_sites: None
-        contains the gauge site names from the reference dataset to be used that are
-        automatically pulled from reference if None are given
+        Contains reaches used for reference with dimension "site" and coordinate "seg".
+    gauge_sites: list, optional
+        Contains the gauge site names from the reference dataset to be used that are
+        automatically pulled from reference if None are given.
     route_var: str
+        Variable name of flows used for fill_method purposes within routed.
+        This is defaulted as 'IRFroutedRunoff'.
     fill_method: str
-        see map_ref_sites for more information
+        While finding some upstream/downstream reference segs may be simple,
+        (segs with 'is_gauge' = True are their own reference segs, others
+        may be easy to find looking directly up or downstream), some river
+        networks may have multiple options to select gauge sites and may fail
+        to have upstream/downstream reference segs designated. 'fill_method'
+        specifies how segs should be assigned upstream/downstream reference
+        segs for bias correction if they are missed walking upstream or downstream.
+        
+        Currently supported methods:
+            'leave_null'
+                nothing is done to fill missing reference segs, np.nan values are
+                replaced with a -1 seg designation and that's it
+            'forward_fill'
+                xarray's ffill method is used to fill in any np.nan values
+            'r2'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest r2 value with
+            'kldiv' (default)
+                reference segs are selected based on which reference site that
+                seg's flows has the smallest KL Divergence value with
+            'kge'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest KGE value with
     min_kge: float
-        if not None, all upstream/downstream reference seg selections will be filtered
+        If not None, all upstream/downstream reference seg selections will be filtered
         according to the min_kge criteria, where seg selections that have a kge with
         the current seg that is less that min_kge will be set to -1 and determined
-        unsuitable for bias correction
-    ----
-    Return: routed (xr.Dataset)
+        unsuitable for bias correction. This is defaulted as -0.41.
+        
+    Returns
+    -------
+    routed: xr.Dataset
         with the following added:
         'is_headwaters'
         'is_gauge'
@@ -635,8 +805,10 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
 def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
                     gauge_segs = None):
     """
-    splits the variable into its up and down components to be used in blendmorph
-    ----
+    Splits the variable into its up and down components to be used in blendmorph.
+    
+    Parameters
+    ----------
     routed: xr.Dataset
         the dataset that will be modified and returned having been prepared by calculate_blend_vars
         with the dimension 'seg'
@@ -645,11 +817,13 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
         the same as routed, (must also contain the dimension 'seg')
     var_label: str
         suffix of the up and down parts of the variable
-    gauge_segs: None
-        list of the gauge segs that identify the reaches that are gauge sites, pulled from routed
-        if None
+    gauge_segs: list, optional
+        List of the gauge segs that identify the reaches that are gauge sites, pulled from routed
+        if None.
     ----
-    Return: routed (xr.Dataset)
+    Returns
+    -------
+    routed: xr.Dataset
         with the following added:
         f'down_{var_label}'
         f'up_{var_label}'
@@ -673,7 +847,26 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
 
 
 def map_met_hru_to_seg(met_hru, topo):
-
+    """
+    Maps meterological data from hru to seg.
+    
+    Parameters
+    ----------
+    met_hru: xr.Dataset
+        A dataset of meteorological data to be mapped
+        onto the stream segments to facilitate conditioning.
+        All variables in this dataset will automatically be mapped
+        onto the stream segments and returned.
+    topo: xr.Dataset
+        Topology dataset for running mizuRoute.
+        We expect this to have ``seg`` and ``hru`` dimensions.
+        
+    Returns
+    -------
+    met_seg: xr.Dataset
+        A dataset of meterological data mapped onto the stream
+        segments to facilitate conditioning.
+    """
     hru_2_seg = topo['seg_hru_id'].values
     met_vars = set(met_hru.variables.keys()) - set(met_hru.coords)
     # Prep met data structures
@@ -712,27 +905,49 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
 
     Parameters
     ----------
-    topo:
+    topo: xr.Dataset
         Topology dataset for running mizuRoute.
-        We expect this to have ``seg`` and ``hru`` dimensions
-    routed:
+        We expect this to have ``seg`` and ``hru`` dimensions.
+    routed: xr.Dataset
         The initially routed dataset from mizuRoute
-    reference:
+    reference: xr.Dataset
         A dataset containing reference flows for bias correction.
         We expect this to have ``site`` and ``time`` dimensions.
-    met_hru:
-        (Optional) A dataset of meteorological data to be mapped
+    met_hru: xr.Dataset, optional
+        A dataset of meteorological data to be mapped
         onto the stream segments to facilitate conditioning.
         All variables in this dataset will automatically be mapped
-        onto the stream segments and returned
-    route_var:
+        onto the stream segments and returned.
+    route_var: str
         Name of the variable of the routed runoff in the ``routed``
-        dataset. Defaults to ``IRFroutedRunoff``
-    fill_method:
-        see map_ref_sites for more information
-    min_kge:
-        see calculate_blend_vars for more information
-        defaults None unless fill_method = 'kge'
+        dataset. Defaults to ``IRFroutedRunoff``.
+    fill_method: str
+        While finding some upstream/downstream reference segs may be simple,
+        (segs with 'is_gauge' = True are their own reference segs, others
+        may be easy to find looking directly up or downstream), some river
+        networks may have multiple options to select gauge sites and may fail
+        to have upstream/downstream reference segs designated. 'fill_method'
+        specifies how segs should be assigned upstream/downstream reference
+        segs for bias correction if they are missed walking upstream or downstream.
+        
+        Currently supported methods:
+            'leave_null'
+                nothing is done to fill missing reference segs, np.nan values are
+                replaced with a -1 seg designation and that's it
+            'forward_fill'
+                xarray's ffill method is used to fill in any np.nan values
+            'r2'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest r2 value with
+            'kldiv' (default)
+                reference segs are selected based on which reference site that
+                seg's flows has the smallest KL Divergence value with
+            'kge'
+                reference segs are selected based on which reference site that
+                seg's flows has the greatest KGE value with
+    min_kge: float, optional
+        See calculate_blend_vars for more information
+        defaults None unless fill_method = 'kge'.
 
     Returns
     -------
