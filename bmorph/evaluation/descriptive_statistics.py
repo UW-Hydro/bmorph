@@ -98,10 +98,10 @@ def pbias_by_index(observe:pd.DataFrame, predict:pd.DataFrame):
     return pbdf
 
 
-def normalize_flow(data:pd.DataFrame) -> pd.DataFrame:
+def normalize(data:pd.DataFrame) -> pd.DataFrame:
     """Normalizes data.
     
-    Normalizes only the flow values of a given DataFrame. A normalized
+    Normalizes only the values of a given DataFrame. A normalized
     value is computed as: (value - column_min)/(column_max -column_min).
     
     Parameters
@@ -124,8 +124,8 @@ def normalize_flow(data:pd.DataFrame) -> pd.DataFrame:
 
     return normal_df
 
-def normalize_flow_pair(data:pd.DataFrame, norming_data:pd.DataFrame):
-    """Normalize flow by other data.
+def normalize_pair(data:pd.DataFrame, norming_data:pd.DataFrame):
+    """Normalize by other data.
     
     Normalizes two DataFrames by one of them, (norming_data), and 
     returns both normalized by the same DataFrame.
@@ -133,9 +133,9 @@ def normalize_flow_pair(data:pd.DataFrame, norming_data:pd.DataFrame):
     Parameters
     ----------
     data : pandas.DataFrame
-        Contains flows to be normalized by the norming_data.
+        Contains values to be normalized by the norming_data.
     norming_data : pandas.DataFrame
-        Contains flows to be normalized and to normalize data by.
+        Contains values to be normalized and to normalize data by.
     
     Returns
     -------
@@ -163,11 +163,11 @@ def normalize_flow_pair(data:pd.DataFrame, norming_data:pd.DataFrame):
     return data_normed, norming_normed
 
 
-def mean_standardize_flow(data:pd.DataFrame) -> pd.DataFrame:
+def mean_standardize(data:pd.DataFrame) -> pd.DataFrame:
     """Standardizes data by the mean.
     
-    Standardize only the flow values of a given DataFrame about 
-    their mean flow value.
+    Standardize only the values of a given DataFrame about 
+    their mean value.
     
     Parameters
     ----------
@@ -191,11 +191,11 @@ def mean_standardize_flow(data:pd.DataFrame) -> pd.DataFrame:
     return mean_standard_df
 
 
-def median_standardize_flow(data:pd.DataFrame) -> pd.DataFrame:
+def median_standardize(data:pd.DataFrame) -> pd.DataFrame:
     """Standardizes data by the median.
     
-    Standardize only the flow values of a given DataFrame about 
-    their median flow value.
+    Standardize only the values of a given DataFrame about 
+    their median value.
     
     Parameters
     ----------

@@ -1,8 +1,12 @@
-| [UW-Hydro/bmorph](https://github.com/UW-Hydro/bmorph) | [![Build status](https://travis-ci.org/UW-Hydro/bmorph.svg?branch=master)](https://travis-ci.org/UW-Hydro/bmorph) |
-|----|----|
-
 # bmorph
 Bias correction for streamflow time series
+
+| bmorph Links & Badges              |                                                                             |
+|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| bmorph Documentation      | [![Documentation Status](http://readthedocs.org/projects/metsim/badge/?version=develop)](http://metsim.readthedocs.io/en/develop/?badge=develop) |
+| Travis-CI Build           | [![Build Status](https://travis-ci.org/UW-Hydro/bmorph.svg?branch=master)](https://travis-ci.org/UW-Hydro/bmorph) |
+| License                | [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/UW-Hydro/MetSim/master/LICENSE) |
+| Current Release DOI    | No current release |
 
 ## Installation
 

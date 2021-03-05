@@ -20,14 +20,14 @@ from statsmodels.distributions.empirical_distribution import ECDF
 # Plotting Helper Functions:
 #      custom_legend
 #      calc_water_year
-#      find_index_hyear
+#      find_index_water_year
 #      determin_row_col
 #      log10_1p
 #      scatter_series_axes
 #*****************************************************************************************
 
 def custom_legend(names:List, colors=colors99p99):
-    """Creates a list of patches to be passed in as `handels` for the plt.legends function.
+    """Creates a list of patches to be passed in as `handles` for the plt.legends function.
     
     Parameters
     ----------
@@ -39,7 +39,7 @@ def custom_legend(names:List, colors=colors99p99):
     Returns
     -------
     handles
-        Hanldes parameter for matplotlib.legend.
+        Handle parameter for matplotlib.legend.
     """
     legend_elements = list()
     for i,name in enumerate(names):
@@ -47,22 +47,22 @@ def custom_legend(names:List, colors=colors99p99):
     return legend_elements
 
 def calc_water_year(df: pd.DataFrame):
-    """Calculates hydrologic year.
+    """Calculates the water year.
     
     Parameters
     ----------
     df : pandas.DataFrame 
-        Flow timeseries with a DataTime index.
+        Flow timeseries with a DataTimeIndex.
 
     Returns
     -------
     pandas.DataFrame.index
-        A pandas.DataFrame index grouped by hydrologic year.
+        A pandas.DataFrame index grouped by water year.
 
     """
     return df.index.year + (df.index.month >= 10).astype(int)
 
-def find_index_hyear(data: pd.DataFrame) -> np.int:
+def find_index_water_year(data: pd.DataFrame) -> np.int:
     """ Finds the index of the first hydrologic year.
     
     Parameters
@@ -75,12 +75,12 @@ def find_index_hyear(data: pd.DataFrame) -> np.int:
     int
         Index of the first hydrologic year.
     """
-    hyear = pd.Timestamp(0)
+    water_year = pd.Timestamp(0)
     i = 0
-    while hyear == pd.Timestamp(0):
+    while water_year == pd.Timestamp(0):
         date = data.index[i]
         if date.month == 10 and date.day == 1:
-            hyear = date
+            water_year = date
         else:
             i = i + 1
     return i
@@ -205,27 +205,27 @@ def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         Dataframe contain the percent bias computed.
     """
     #finds the start of the first hydraulic year
-    i = find_index_hyear(observed)
-    hyear_start = observed.index[i]
+    i = find_index_water_year(observed)
+    water_year_start = observed.index[i]
     #counts the number of hydraylic years
-    hyears = 0
+    water_years = 0
     while i < len(observed):
         date = observed.index[i]
         if date.month == 9 and date.day == 30:
-            hyears = hyears + 1
+            water_years = water_years + 1
         i = i + 1
 
     pbias_site_df = pd.DataFrame(columns = observed.columns, 
-                                 index = pd.Series(range(0, hyears)))
+                                 index = pd.Series(range(0, water_years)))
     pbias_current_year = pd.DataFrame(columns = observed.columns)
 
-    for i in range(0, hyears):
+    for i in range(0, water_years):
         #establish end of hydraulic year
-        hyear_end = hyear_start + pd.Timedelta(364.25, unit = 'd')
+        water_year_end = water_year_start + pd.Timedelta(364.25, unit = 'd')
 
         #need to truncate datetimes since time indicies do not align
-        O = observed.loc[hyear_start : hyear_end]
-        P = predicted.loc[hyear_start : hyear_end]
+        O = observed.loc[water_year_start : water_year_end]
+        P = predicted.loc[water_year_start : water_year_end]
         O.index = O.index.floor('d')
         P.index = P.index.floor('d')
 
@@ -235,7 +235,7 @@ def pbias_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         pbias_site_df.iloc[i] = pbias_current_year.iloc[0].T
 
         #set up next hydraulic year
-        hyear_start = hyear_start + pd.Timedelta(365.25, unit = 'd')
+        water_year_start = water_year_start + pd.Timedelta(365.25, unit = 'd')
 
     return pbias_site_df
 
@@ -255,28 +255,28 @@ def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         DataFrame containing the difference in maximum flows.
     """
     #finds the start of the first hydraulic year
-    i = find_index_hyear(observed)
-    hyear_start = observed.index[i]
+    i = find_index_water_year(observed)
+    water_year_start = observed.index[i]
 
     #counts the number of hydraylic years
-    hyears = 0
+    water_years = 0
     while i < len(observed):
         date = observed.index[i]
         if date.month == 9 and date.day == 30:
-            hyears = hyears + 1
+            water_years = water_years + 1
         i = i + 1
 
     diff_maxflow_sites_df = pd.DataFrame(columns = observed.columns, 
-                                         index = pd.Series(range(0,hyears)))
+                                         index = pd.Series(range(0,water_years)))
     diff_maxflow_current_year = pd.DataFrame(columns = observed.columns)
 
-    for i in range(0,hyears):
+    for i in range(0,water_years):
         #establish end of hydraulic year
-        hyear_end = hyear_start + pd.Timedelta(364.25, unit = 'd')
+        water_year_end = water_year_start + pd.Timedelta(364.25, unit = 'd')
 
         #need to truncate datetimes since time indicies do not align
-        O = observed.loc[hyear_start : hyear_end]
-        P = predicted.loc[hyear_start : hyear_end]
+        O = observed.loc[water_year_start : water_year_end]
+        P = predicted.loc[water_year_start : water_year_end]
         O.index = O.index.floor('d')
         P.index = P.index.floor('d')
 
@@ -286,7 +286,7 @@ def diff_maxflow_sites(observed: pd.DataFrame, predicted: pd.DataFrame):
         diff_maxflow_sites_df.iloc[i] = diff_maxflow_current_year.iloc[0].T
 
         #set up next hydraulic year
-        hyear_start = hyear_start + pd.Timedelta(365.25, unit = 'd')
+        water_year_start = water_year_start + pd.Timedelta(365.25, unit = 'd')
 
 
     return diff_maxflow_sites_df
@@ -465,16 +465,16 @@ def site_diff_scatter(predictions: dict, raw_key: str, model_keys: list,
 
     return fig, ax
 
-def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: list, uncor_key: str,
+def stat_corrections_scatter2D(computations: dict, baseline_key: str, cor_keys: list, uncor_key: str,
                                sites = [], multi = True, colors = colors99p99):
     """Creates a scatter plot of the flow before/after corrections relative to observations.
     
     Parameters
     ----------
-    compuations : dict
+    computations : dict
         Expecting {"Correction Name": correction pandas.DataFrame}.
-    datum_key : str
-        Contains the dictionary key for the `compuations` dictionary
+    baseline_key : str
+        Contains the dictionary key for the `computations` dictionary
         that accesses what baseline the corrections should be
         compared to. This is typically observations.
     cor_keys : list
@@ -503,7 +503,7 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
 
     """
     #retreiving DataFrames and establishing data to be plotted
-    datum = computations[datum_key]
+    datum = computations[baseline_key]
     X = datum - computations[uncor_key]
 
     #we need to make the values replacable by the sites,
@@ -566,8 +566,8 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
 
 
     #Sets up labels based on whether one or more sites were plotted
-    plt.xlabel(f'{datum_key}-Uncorrected')
-    plt.ylabel(f'{datum_key}-Corrected')
+    plt.xlabel(f'{baseline_key}-Uncorrected')
+    plt.ylabel(f'{baseline_key}-Corrected')
 
     if multi==True:
         plt.title("Statistical Corrections")
@@ -590,23 +590,23 @@ def stat_corrections_scatter2D(computations: dict, datum_key: str, cor_keys: lis
 
     return fig, ax
 
-def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_key: str,
+def anomaly_scatter2D(computations: dict, baseline_key: str, vert_key: str, horz_key: str,
                       sites = [], multi = True, colors = colors99p99, show_legend = True):
     """Plots two correction models against each other after Raw is subracted from each.
     
     Parameters
     ----------
-    compuations : dict
+    computations : dict
         Expecting {"Correction Name": correction pandas.DataFrame}.
-    datum_key : str
-        Dictionary key for the `compuations` dictionary
+    baseline_key : str
+        Dictionary key for the `computations` dictionary
         that accesses what baseline the corrections should be
         compared to. This is typically observations.
     vert_key : str
-        Dictionary key for the `compuations` dictionary that accesses the 
+        Dictionary key for the `computations` dictionary that accesses the 
         model to be plotted on the vertical axis.
     horz_key : str
-        Dictionary key for the `compuations` dictionary that accesses the 
+        Dictionary key for the `computations` dictionary that accesses the 
         model to be plotted on the horizontal axis.
     sites : list
         Site(s) to be compared in the plot, can have a size of 1.
@@ -624,7 +624,7 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
         Whether or not to display the legend, defaults as True.
     """
     #retreiving DataFrames and establishing data to be plotted
-    datum = computations[datum_key]
+    datum = computations[baseline_key]
     X = datum - computations[horz_key]
     Y = datum - computations[vert_key]
 
@@ -651,8 +651,8 @@ def anomaly_scatter2D(computations: dict, datum_key: str, vert_key: str, horz_ke
         Y = Y.loc[:, site]
         scatter_series_axes(X, Y, site, colors[i], 0.05, ax)
 
-    plt.xlabel(f'{datum_key}-{horz_key}')
-    plt.ylabel(f'{datum_key}-{vert_key}')
+    plt.xlabel(f'{baseline_key}-{horz_key}')
+    plt.ylabel(f'{baseline_key}-{vert_key}')
     plt.title("Statistical Correction Anomolies")
     plt.axhline(0)
     plt.axvline(0)
@@ -668,7 +668,7 @@ def rmseFracPlot(data_dict: dict, obs_key: str, sim_keys: list,
     data_dict : dict
         Expecting {"Data Name": data pandas.DataFrame}.
     obs_key : str
-        Dictionary key for the `compuations` dictionary that accesses the 
+        Dictionary key for the `computations` dictionary that accesses the 
         observations to be used as true in calculating root mean squares.
     sim_keys : list
         Dictionary keys accessing the simulated DataFrames in `computations`,
@@ -1506,7 +1506,7 @@ def norm_change_annual_flow(sites: list, before_bc: pd.DataFrame, after_bc: pd.D
     after_bc_annual = after_bc.groupby(WY_grouper).sum()
     before_bc_annual = before_bc.groupby(WY_grouper).sum()
 
-    after_bc_annual, before_bc_annual = dst.normalize_flow_pair(data=after_bc_annual, norming_data=before_bc_annual)
+    after_bc_annual, before_bc_annual = dst.normalize_pair(data=after_bc_annual, norming_data=before_bc_annual)
 
     diff_annual = after_bc_annual - before_bc_annual
     
