@@ -24,10 +24,6 @@ python -m ipykernel install --user --name bmorph
 ### Notebook
 This will be explored in a later release of `bmorph`
 
-**In Progress:**
-Example data and notebooks can be found in `docs/` where
-the Yakima River Basin, located in the Pacific Northwest 
-Columbia River Basin, is used as an example basin.
 
 ### Command line
 `./scripts/bmorph_tip304` contains an implementation of the method for the

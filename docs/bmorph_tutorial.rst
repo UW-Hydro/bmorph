@@ -1,5 +1,5 @@
-``bmorph`` Example Workflow
-===========================
+Tutorial: Getting your first bias corrections with bmorph
+=========================================================
 
 This page describes how to setup data for and bias correct it through ``bmorph``. 
 If you want to save time in copying over the code discussed in this file
@@ -8,7 +8,8 @@ you can copy the Jupyterlab Notebook ``run_bmorph_template.ipynb``.
 Import Packages and Load Data
 -----------------------------
 We will be using numpy, xarray, and pandas in this example notebook.
-Note numpy can imported directly intsead of using magic if desired.
+Note: numpy can imported directly intsead of using magic, ``%pylab inline`` if desired. More on Built-in magic commands can be found here_.
+.. _here: https://ipython.readthedocs.io/en/stable/interactive/magics.html
  
 .. code:: ipython3    
     
@@ -24,7 +25,7 @@ We will mainly deal with ``bmorph.workflows``, our primary organizing script, bu
     from bmorph.util import mizuroute_utils as mizutil
     
 Setting up a client for parallelism can help speed up the process
-of bias correction immensely, espeically if you are working with large or numerous
+of bias correction immensely, espeically if you are working with large numbers of
 watersheds. Calibrating which meterological variable you want to condition to can take
 some time, so parralelism is recommended in especially the initial uses of ``bmorph``.
 
@@ -65,7 +66,7 @@ If some data is not accessible in a single function call, be sure to collapse
 it into a single file first before loading them. File designation calls assume
 this code is in a folder seperate from the data, but that this code's containing
 folder is at the same heirarchy as the folders containing the data. A description
-of how your project directory is expected to be set up can be foudn in ``data.rst``.
+of how your project directory is expected to be set up can be found in ``data.rst``.
     
 .. code:: ipython3 
     
@@ -75,8 +76,8 @@ Sometimes meterological data may only be available for a larger region
 or watershed than anlayzing, so the following data will be described under such
 an assumption.
     
-Here we load in some example meterological data: minimum temperature (tmin), seasonal precipitation (prec),
-and maximum temperature (tmax). You can use similar or completely different data, just note naming should be universally updated and unused names should be deleted or commented out completely.
+Here we load in some example meterological data: daily minimum temperature (tmin), seasonal precipitation (prec),
+and daily maximum temperature (tmax). You can use similar or completely different data, just note naming should be universally updated and unused names should be deleted or commented out completely.
 
 .. code:: ipython3 
 
@@ -84,16 +85,18 @@ and maximum temperature (tmax). You can use similar or completely different data
     watershed_met['seasonal_precip'] = xr.open_dataset('../input/prec.nc')['prec'].load().rolling(time=30, min_periods=1).sum()
     watershed_met['tmax'] = xr.open_dataset('../input/tmax.nc')['tmax'].load()
     
-Hydrualic residence units (hru's) are the typical coordinate for meteorlogical data. Later, mizuroute_utils
+Hydrualic response units (hru's) are the typical coordinate for meteorologic data. Later, mizuroute_utils
 will take care of mapping these hru's to seg's.
     
 .. code:: ipython3 
     
     watershed_met['hru'] = (watershed_met['hru'] - 1.7e7).astype(np.int32)
     
-And last not be certainly not least, we need the flows themselves! ``bmorph`` is a post-processing method,
-meaning a streamflow routing through mizuroute should occur before running all of this. As a result, loading
+And last not be certainly not least, we need the flows themselves! ``bmorph`` is designed to bias 
+correct simulated streamflow as modeled by mizuroute_. As a result, loading
 up the raw flows involves combining a number of flow netcdf files, hence the ``open_mfdataset``.
+
+.. _mizuroute: https://mizuroute.readthedocs.io/en/latest/
 
 .. code:: ipython3 
 
@@ -108,8 +111,12 @@ need the topology of the larger watershed as well.
 
     watershed_topo = xr.open_dataset('../topologies/watershed_topology_file_name.nc').load()
     watershed_topo = watershed_topo.where(watershed_topo['hru'] < 1.79e7, drop=True)
+
+
+Here we clean up a few naming conventions to get everything on the same page in accordance with ``data.rst``.
     
-    # Here we clean up a few naming conventions to get everything on the same page.
+.. code:: ipython3
+
     if 'hru_id2' in basin_topo:
         basin_topo['hru'] = basin_topo['hru_id2']
     if 'seg_id' in basin_topo:
@@ -158,7 +165,7 @@ IBC_U, IBC_C, SCBC_U, and SCBC_C, as described in ``bias_correction.rst``.
 
 The ``train_window`` is what we will use to train the bias correction
 model. This is the time range that is representative of the
-basin's expected behavior that ``bmorph`` should strive to mirror.
+basin's expected behavior that ``bmorph`` should mirror.
 
 The ``bmorph_window`` is when ``bmorph`` should be applied to the series for
 bias correction.
@@ -174,17 +181,17 @@ smooth the bias corrected flows. This is recommended to be set as equivalent to 
     reference_window = train_window
     
 ``interval`` is the length of``bmorph``'s application intervals, 
-typically a factor of years to preserver hydrologic 
+typically a factor of years to preserve hydrologic 
 relationships. Note that for ``pandas.DateOffset``, 'year' and 'years' 
 are different and an 's' should always be included here for ``bmorph``
 to run properly, even for a single year.
 
 ``overlap`` describes how many days the bias correction cumulative distribtuion function
 windows should overlap in total with each other. ``overlap`` is evenly distributed before
-and after this window.
+and after this window. This is used to reduce discontinuities between application periods.
 
 ``condition_var`` names the variable to use in conditioning, such as maximum
-temperature (tmax), seasonal precipitation (seasonal_precip), or 
+temperature (tmax), seasonal precipitation (seasonal_precip), or daily
 minimum temperature (tmin). At this time, only one conditioning
 meterological variable can be used per ``bmorph`` execution. In this example,
 ``tmax`` and ``seasonal_precip`` have been commented out to select ``tmin`` as
@@ -273,7 +280,7 @@ been extracted above for your convenience.
 Here you specify where ``mizuroute`` is installed on your system
 and set up some variables to store total flows.
 
-``region`` will be used to write and load files according to the
+``output_prefix`` will be used to write and load files according to the
 basin's name, make certain to update this with the actual name of
 the basin you are analyzing so you can track where different files
 are writen.
@@ -284,14 +291,14 @@ are writen.
     
     unconditioned_totals = {}
     conditioned_totals = {}
-    region = # basin name
+    output_prefix = # basin name
     
 Now we use ``run_parallel_scbc`` to do the rest! This may take a while ...
 
 .. code:: ipython3
 
-    unconditioned_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, region, mizuroute_exe, univariate_config)
-    conditioned_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, region, mizuroute_exe, conditonal_config)
+    unconditioned_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, output_prefix, mizuroute_exe, univariate_config)
+    conditioned_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, output_prefix, mizuroute_exe, conditonal_config)
     
     # Here we select out our rerouted gauge site modeled flows.
     for site, seg in site_to_seg.items():
@@ -312,5 +319,5 @@ out those lines below.
     basin_analysis['ibc_c'] = bmorph.workflows.bmorph_to_dataarray(ibc_c_flows, 'ibc_c')
     basin_analysis['raw'] = bmorph.workflows.bmorph_to_dataarray(raw_flows, 'raw')
     basin_analysis['ref'] = bmorph.workflows.bmorph_to_dataarray(ref_flows, 'ref')
-    basin_analysis.to_netcdf(f'../output/{region.lower()}_data_processed.nc')
+    basin_analysis.to_netcdf(f'../output/{output_prefix.lower()}_data_processed.nc')
 
