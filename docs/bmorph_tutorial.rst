@@ -66,7 +66,7 @@ If some data is not accessible in a single function call, be sure to collapse
 it into a single file first before loading them. File designation calls assume
 this code is in a folder seperate from the data, but that this code's containing
 folder is at the same heirarchy as the folders containing the data. A description
-of how your project directory is expected to be set up can be found in ``data.rst``.
+of how your project directory is expected to be set up can be found in `data.rst <data.rst>`_.
     
 .. code:: ipython3 
     
