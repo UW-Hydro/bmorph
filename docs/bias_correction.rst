@@ -24,8 +24,8 @@ Spatially Consistent Bias Correction: Conditioned (SCBC_C)
 bmorph Parameters
 -----------------
 
-edcdfm vs mdcdedcdfm (Conditioning)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Conditioning: edcdfm vs mdcdedcdfm
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 bmorph Workflows

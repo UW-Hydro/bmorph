@@ -1,8 +1,11 @@
 Input Specifications **(IN PROGRESS)**
 ======================================
 
-Directory Setup
----------------
+Directory Setup Recommended
+---------------------------
+
+Developing a custom directory setup is currently in progress, but for now we recommend the
+following directories and names to properly execute ``bmorph``.
 
     input
     mizuroute_configs
@@ -13,18 +16,22 @@ Directory Setup
 Common Naming Conventions
 -------------------------
 
-`seg` is an individual river segment containing a single reach
-`hru` is a hydrologic response unit that feeds into a single seg,
+**seg** is an individual river segment containing a single reach
+**hru** is a hydrologic response unit that feeds into a single seg,
     but each seg could have multiple hru's feeding into it
-`seg_id` is the identification number for a `seg`
-`site` is the gauge site name for river segments with gauge data, not all segments have them
-
+**seg_id** is the identification number for a `seg`
+**site** is the gauge site name for river segments with gauge data, not all segments have them
 
 
 Mizuroute
 ---------
 
-configuration
+``bmorph`` is designed to bias correct simulated streamflow as modeled by mizuroute_. Following
+is how to configure files for ``mizuroute`` in accoradance with the software.
+
+.. _mizuroute: https://mizuroute.readthedocs.io/en/latest/
+
+Configuration
 ^^^^^^^^^^^^^
 
 should look like this ....
@@ -70,13 +77,28 @@ Utilities
 mizuroute_to_blendmorph
 ^^^^^^^^^^^^^^^^^^^^^^^
 
+``mizuroute_to_blendmorph`` handles formatting the output of ``mizuroute`` for ``bmorph``. While configuring
+streamflows can be performed without this function, this helps to speed up the whole workflow with a number of 
+customizable options. As detailed in `bmorph_tutorial.rst <bmorph_tutorial.rst>`_, ``mizuroute_to_blendmorph`` 
+is the primary function for handling streamflow formatting.
 
+Spatial Consistency: Reference Site Selection & CDF Blend Factor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-reference site selection & cdf blend factor
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Spatial consistency is conserved by combining streamflows that are ``bmorph`` bias corrected with respect to
+upstream and downstream reprentative sites. Ideally, if a seg has a gauge site directly upstream and downstream
+of it, then a reference for that seg can be interpolated as a combination of those two gauge sites. Now because
+there are not gauge sites everywhere, (which would render this method unncessary), the gauge sites used as the 
+upstream/downstream need to be selected, this is where ``fill_method`` comes into play in ``mizuroute_to_blendmorph``. 
+Segs that are gauge sites are simply assigned themselves as their upstream/downstream segments. Looking downstream can
+typically yeild a gauge site as rivers do not typically branch out in the direction of flow. Looking upstream for a 
+gauge site gets more complicated as a one:many relationship occurs. Hence, needing to "fill" in gauge sites that are
+not simply found. There are a few different means of doing this: leaving the sites empty (``leave_null``), using xarray's
+forward_fill_, or selecting based on different statistical measures of simularity (``r2``, ``kldiv``, ``kge``). 
 
+DETAIL HOW BLEND FACTOR IS COMPUTED
 
-
+.. _forward_fill: http://xarray.pydata.org/en/stable/generated/xarray.DataArray.ffill.html
 
 Output Specifications
 =====================
