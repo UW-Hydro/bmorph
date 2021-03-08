@@ -101,13 +101,13 @@ forward_fill_, or selecting based on different statistical measures of simularit
 Blend factor describes how upstream and downstream flows should be combined, or "blended" together.
 Let
 
-    UM, DM = Upstream Measure, Downstream Measure (length, r2, Kullback-Leibler Divergence, or Kling-Gupta Efficiency)
-    BF = Blend Factor
-    UF, DF, TF = Upstream Corrected Flow, Downstream Corrected Flow, Total Corrected Flow
+    UM, DM = Upstream Measure, Downstream Measure (length, r2, Kullback-Leibler Divergence, or Kling-Gupta Efficiency)    
+    BF = Blend Factor    
+    UF, DF, TF = Upstream Corrected Flow, Downstream Corrected Flow, Total Corrected Flow    
 
 .. math:: 
 
-    BF = \frac{UM}{UM+DM}
+    BF = \\frac{UM}{UM+DM}
     TF = (BF*UF) + ((1-BF)*DF)
     
 
