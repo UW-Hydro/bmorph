@@ -96,7 +96,20 @@ gauge site gets more complicated as a one:many relationship occurs. Hence, needi
 not simply found. There are a few different means of doing this: leaving the sites empty (``leave_null``), using xarray's
 forward_fill_, or selecting based on different statistical measures of simularity (``r2``, ``kldiv``, ``kge``). 
 
-DETAIL HOW BLEND FACTOR IS COMPUTED
+.. image:: Figures/Blending_Diagram.png
+
+Blend factor describes how upstream and downstream flows should be combined, or "blended" together.
+Let
+
+    UM, DM = Upstream Measure, Downstream Measure (length, r2, Kullback-Leibler Divergence, or Kling-Gupta Efficiency)
+    BF = Blend Factor
+    UF, DF, TF = Upstream Corrected Flow, Downstream Corrected Flow, Total Corrected Flow
+
+.. math:: 
+
+    BF = \frac{UM}{UM+DM}
+    TF = (BF*UF) + ((1-BF)*DF)
+    
 
 .. _forward_fill: http://xarray.pydata.org/en/stable/generated/xarray.DataArray.ffill.html
 
@@ -106,6 +119,7 @@ Output Specifications
 Rerouting Local Corrected Flows
 -------------------------------
 
+``bmorph`` applies corrections to total flows, so rerouting ``bmorph`` outputs through ``mizuroute`` to retrieve local flows.
 
 Citations
 =========
