@@ -24,8 +24,10 @@ python -m ipykernel install --user --name bmorph
 
 ## Usage
 
+
 ### Notebook
 This will be explored in a later release of `bmorph`
+
 
 ### Command line
 `./scripts/bmorph_tip304` contains an implementation of the method for the

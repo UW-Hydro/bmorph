@@ -245,9 +245,15 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             bw=3, xbins=200, ybins=10, atol=0, rtol=1e-7, method='hist'):
     """Bias correction is performed by blending bmorphed flows on yearly intervals.
     
-    Applies the bmorph bias correction and blends the multipliers
-    computed by bmorph to produce a statistically bias corrected
-    streamflow data set on an annual interval.
+    Blendmorph is used to perform spatially consistent bias correction, this function 
+    does so on an annual interval. This is done by performing bmorph bias correction 
+    for each site's timeseries according to upstream and downstream gauge sites 
+    (or proxies) where true flows are known. The upstream and downstream corrected 
+    timeseries are then multiplied by fractional weights, `blend_factor`, that sum 
+    to 1 between them so the corrected flows can be combined, or "blended," into one,
+    representative corrected flow series for the site. It is thereby important to specify 
+    upstream and downstream values so bias corrections are performed with values that 
+    most closely represent each site being corrected.
     
     Parameters
     ----------
@@ -417,9 +423,15 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, method='hist'):
     """Bias correction is performed by blending bmorphed flows on user defined intervals.
     
-    Applies the bmorph bias correction and blends the multipliers
-    computed by bmorph to produce a statistically bias corrected
-    streamflow data set on an user-defined interval.
+    Blendmorph is used to perform spatially consistent bias correction, this function 
+    does so on a user-defined interval. This is done by performing bmorph bias correction 
+    for each site's timeseries according to upstream and downstream gauge sites 
+    (or proxies) where true flows are known. The upstream and downstream corrected 
+    timeseries are then multiplied by fractional weights, `blend_factor`, that sum 
+    to 1 between them so the corrected flows can be combined, or "blended," into one,
+    representative corrected flow series for the site. It is thereby important to specify 
+    upstream and downstream values so bias corrections are performed with values that 
+    most closely represent each site being corrected.
     
     Parameters
     ---------
@@ -669,3 +681,10 @@ def run_parallel_scbc(ds, client, region, mizuroute_exe, bmorph_config):
     region_totals = region_totals.sel(time=slice(*bmorph_config['bmorph_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals
+
+def bmorph_to_dataarray(dict_flows, name):
+    da = xr.DataArray(np.vstack(dict_flows.values()), dims=('site', 'time'))
+    da['site'] = list(dict_flows.keys())
+    da['time'] = list(dict_flows.values())[0].index
+    da.name = name
+    return da.transpose()
