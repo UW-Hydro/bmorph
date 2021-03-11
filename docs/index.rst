@@ -28,4 +28,7 @@ Sitemap
 .. toctree::
     :maxdepth: 3
 
+    bias_correction
+    data
+    evaluation
     api
