@@ -16,11 +16,11 @@ following directories and names to properly execute ``bmorph``.
 Common Naming Conventions
 -------------------------
 
-**seg** is an individual river segment containing a single reach
-**hru** is a hydrologic response unit that feeds into a single seg,
+    **seg** is an individual river segment containing a single reach
+    **hru** is a hydrologic response unit that feeds into a single seg, 
     but each seg could have multiple hru's feeding into it
-**seg_id** is the identification number for a `seg`
-**site** is the gauge site name for river segments with gauge data, not all segments have them
+    **seg_id** is the identification number for a `seg`
+    **site** is the gauge site name for river segments with gauge data, not all segments have them
 
 
 Mizuroute
@@ -34,7 +34,7 @@ is how to configure files for ``mizuroute`` in accoradance with the software.
 Configuration
 ^^^^^^^^^^^^^
 
-should look like this ....
+Configuring files for ``mizuroute`` through ``bmorph`` should follow the following template:
 
 .. code:: ipython3
 
@@ -97,6 +97,7 @@ not simply found. There are a few different means of doing this: leaving the sit
 forward_fill_, or selecting based on different statistical measures of simularity (``r2``, ``kldiv``, ``kge``). 
 
 .. image:: Figures/Blending_Diagram.png
+    :alt: In blending, attributes from one gauge site are mixed with another gauge site depending on how close the intermediate seg is to each gauge site, (depicted left by 5 circles translating from pink to purple to blue across the segs). As a result, intermediate CDFs can be produced by transitioning from one gauge site CDF to another, (depicted right by pink CDF curves transforming into purple then blue CDFs curves).
 
 Blend factor describes how upstream and downstream flows should be combined, or "blended" together.
 Let
@@ -107,7 +108,7 @@ Let
 
 .. math:: 
 
-    BF = \\frac{UM}{UM+DM}
+    BF = \frac{UM}{UM+DM}
     TF = (BF*UF) + ((1-BF)*DF)
     
 
