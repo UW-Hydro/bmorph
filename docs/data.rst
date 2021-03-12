@@ -1,5 +1,5 @@
-Input Specifications **(IN PROGRESS)**
-======================================
+Data Specifications
+===================
 
 Directory Setup Recommended
 ---------------------------
@@ -121,9 +121,4 @@ Rerouting Local Corrected Flows
 -------------------------------
 
 ``bmorph`` applies corrections to total flows, so rerouting ``bmorph`` outputs through ``mizuroute`` to retrieve local flows.
-
-Citations
-=========
-
-.. [Ref] Mizukami, M. Clark, M. P., Sampson, K., Nijssen, B., Mao, Y., McMillan, H., Viger, R. J., Markstrom, S. L., Hay, L. E., Woods, R., Arnold, J. R., & Brekke, L. D. (2016). mizuRoute version 1: a river network routing tool for a continental domain water resources applications. *Geoscientific Model Development, 9*, 2223-2238. www.geosci-model-dev.net/9/2223/2016/doi:10.5194/gmd-9-2223-2016
 
