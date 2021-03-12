@@ -75,6 +75,9 @@ multiDimensional ConDitional EquiDistant CDF matching function, (mDCDEDCDFm), in
 
     \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
                             - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
+                            
+Citations
+---------
 
 Abatzoglou, J. T., Cayan, D. R., Hegewisch, K. C., Maurer, E. P., & Pierce, D. W. (2015). Improved Bias Correction Techniques for Hydrological Simulations of Climate Change. *Journal of Hydrometeorology, 16*(6), 2421-2442. http://dx.doi.org/10.1175/JHM-D-14-0236.1_
 
