@@ -21,7 +21,7 @@ from statsmodels.distributions.empirical_distribution import ECDF
 #      custom_legend
 #      calc_water_year
 #      find_index_water_year
-#      determin_row_col
+#      determine_row_col
 #      log10_1p
 #      scatter_series_axes
 #*****************************************************************************************

@@ -40,12 +40,36 @@ Kling-Gupta Efficiency (KGE)
 Plotting
 --------
 
+The ``Evaluation`` package of ``bmorph`` comes with a number of helpful plotting tools to analyze bias correction performance. Whether you want to compare corrected to uncorrected values, contrast different bias correction parameters, or simply compile your results into a tidy plot across multiple sites, there are plenty of plotting functions to choose from.
+
+Scatter Plots
+^^^^^^^^^^^^^
+
+
+
+Time Series
+"""""""""""
+
+
+
+Probabilty Distribtuions
+""""""""""""""""""""""""
+
+
+
+Box & Whisker Plots
+^^^^^^^^^^^^^^^^^^^
+
 
 
 Simple River Network
 --------------------
 
+The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing <NetworkX's <https://networkx.org/>`_ nodal network structure, SRN's represent each river segment, or <seg <data.rst/Common Naming Conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in ``bmorph`` bias correction the watershed to more easily understand spatial patterns in bias correction of the network. 
 
+SRN SegNode's contain identifying information that allow the network to be partitioned according to Pfaffstetter Codes (Verdin & Verdin 1999, Arge et. al. 2006). Pfaffstetter enconding not only allows the networks to be partitioned, but also to be "rolled up", effectively reducing the granularity of the network to simplify large watersheds. Data can also be subsectted and split into new SRN's for simple manipulation.
+
+SRN does not aim to supplant geographically accurate drawings of watershed networks. Instead it aims to provide a quicker, intermediate tool that allows for easy identification of spatial patterns within the network without having to configure spatial data. 
 
 Citations
 ---------
