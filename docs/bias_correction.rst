@@ -79,6 +79,6 @@ multiDimensional ConDitional EquiDistant CDF matching function, (mDCDEDCDFm), in
 Citations
 ---------
 
-Abatzoglou, J. T., Cayan, D. R., Hegewisch, K. C., Maurer, E. P., & Pierce, D. W. (2015). Improved Bias Correction Techniques for Hydrological Simulations of Climate Change. *Journal of Hydrometeorology, 16*(6), 2421-2442. http://dx.doi.org/10.1175/JHM-D-14-0236.1_
+Pierce, D. W., Cayan, D. R., Mauerer, E. P., Abatzoglou J. T., & Hegewisch, K. C. (2015). Improved Bias Correction Techniques for Hydrological Simulations of Climate Change. *Journal of Hydrometeorology, 16*(6), 2421-2442. http://dx.doi.org/10.1175/JHM-D-14-0236.1_
 
-Burges, S. J., Lettenmaier, D. P., Liang, X., & Wood., E. F. (1994). A simple hydrologically based model of land surface water and engergy fluxes for general circulation models. *Journal of Geophysical Research: Atmosphers 99*(D7), 14415-14428. http://dx.doi.org/10.1029/94JD00483_
+Liang, X., Lettenmaier, D. P., Wood, E. F., & Burges, S. J. (1994). A simple hydrologically based model of land surface water and engergy fluxes for general circulation models. *Journal of Geophysical Research: Atmosphers 99*(D7), 14415-14428. http://dx.doi.org/10.1029/94JD00483_
