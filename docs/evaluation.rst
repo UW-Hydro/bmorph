@@ -81,6 +81,8 @@ SRN SegNode's contain identifying information that allow the network to be parti
 
 SRN does not aim to supplant geographically accurate drawings of watershed networks. Instead it aims to provide a quicker, intermediate tool that allows for easy identification of spatial patterns within the network without having to configure spatial data. 
 
+[CRB SRN is located here: /pool0/home/steinjao/data/plot_analysis/statAnalysis/SimpleRiverNetwork/srn_io_testing.ipynb]
+
 Citations
 ---------
 
