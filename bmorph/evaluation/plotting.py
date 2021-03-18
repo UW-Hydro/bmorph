@@ -9,6 +9,7 @@ import scipy
 import networkx as nx
 import graphviz as gv
 import pygraphviz as pgv
+import probscale
 from networkx.drawing.nx_agraph import graphviz_layout
 
 from bmorph.evaluation.constants import colors99p99
@@ -965,7 +966,7 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
                         figsize_width = 70, figsize_height = 30,
                         plot_colors = ['grey', 'black', 'blue', 'red'],
                         return_reduced_flows = False):
-    """Creates a series of subplots that plot an average year's flows per gauge site.
+    """Creates a series of subplots plotting statistical day of year flows per gauge site.
     
     Parameters
     ----------
@@ -1089,6 +1090,7 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
         return reduced_flows
     
     return fig, ax
+
     
 def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list, 
                                   start_year: str, end_year: str, 
@@ -1795,7 +1797,7 @@ def compare_CDF(flow_dataset: xr.Dataset, plot_sites: list,
     else:
         raise Exception("Please enter logarithm_base as '10' or 'e'")
     
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(plot_sites))
+    n_rows, n_cols = determine_row_col(len(plot_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
     axes = axes.flatten()
@@ -2441,7 +2443,7 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
     if len(plot_colors) < len(bc_vars):
         raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
     
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(plot_sites))
+    n_rows, n_cols = determine_row_col(len(plot_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
     axes = axes.flatten()      
