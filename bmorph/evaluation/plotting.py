@@ -989,7 +989,7 @@ def plot_reduced_flows(flow_dataset: xr.Dataset, plot_sites: list,
         Lable for the figure title representing the reduce_func, defaults as
         f'Annual Mean Flows' to fit `reduce_func` as np.mean.
     raw_var : str, optional
-        The string access the raw flows in `flow_dataset`, defaults as
+        The string to access the raw flows in `flow_dataset`, defaults as
         'IRFroutedRunoff'.
     raw_name : str, optional
         Label for the raw flows in the legend, defaults as 'Mizuroute Raw'.
@@ -1331,6 +1331,144 @@ def correction_scatter(site_dict:dict, raw_flow:pd.DataFrame,
     fig.text(-0.02, 0.5, r'$Q_{ref} - Q_{bc} \quad (m^3/s)$', va='center', rotation = 'vertical', 
              fontsize=fontsize_title, color=fontcolor);    
     
+    plt.tight_layout()
+    plt.show
+    
+def compare_correction_scatter(flow_dataset: xr.Dataset, plot_sites:list,
+                       raw_var= "raw", raw_name = "Mizuroute Raw",
+                       ref_var="ref", ref_name = "Reference",
+                       bc_vars = list(), bc_names = list(),
+                       plot_colors = ['blue', 'purple','orange','red'], 
+                       title='Absolute Error in Flow'r'$(m^3/s)$', 
+                       fontsize_title=80, fontsize_legend=68, alpha = 0.05,
+                       fontsize_subplot=60, fontsize_tick=45, fontcolor='black',
+                       pos_cone_guide=False, neg_cone_guide=False, symmetry=True):
+    """Difference from reference flows before and after correction.
+
+    Plots differences between the raw and reference flows on the horizontal
+    and differences between the bias corrected and refrerence on the vertical.
+    This compares corrections needed before and after the bias correction method
+    is applied.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        contains raw, reference, and bias corrected flows.
+    plot_sites : list
+        Sites to be plotted, expected as the `seg` coordinate in `flow_dataset`.
+    raw_var : str, optional
+        The string to access the raw flows in `flow_dataset`, defaults as `raw`.
+    raw_name : str, optional
+        Label for the raw flows in the legend, defaults as 'Mizuroute Raw'.
+    ref_var : str, optional
+        The string to access the reference flows in `ref`, defaults
+        as 'upstream_ref_flow'.
+    ref_name : str, optional
+        Label for the reference flows in the legend, defaults as 'Reference'.
+    bc_vars : list
+        The strings to access the bias corrected flows in `flow_dataset`.
+    bc_names : list
+        Labels for the bias corrected flows in the legend, expected in the same
+        order as `bc_vars`.
+    plot_colors : list, optional
+        Colors to be plotted for each site in `plot sites`.
+        Defaults as ['blue', 'purple', 'orange, 'red'].
+    fontsize_title : int, optional
+        Fontsize of the title, defaults as 80.
+    fontsize_legend : int, optional
+        Fontsize of the legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Fontsize of the subplots, defaults as 60.
+    fontsize_tick : int, optional
+        Fontsize of the ticks, defaults as 45.
+    fontcolor : str, optional
+        Color of the font, defaults as 'black'.
+    pos_cone_guide : boolean, optional
+        If True, plots a postive 1:1 line through the origin for reference. 
+    neg_cone_guide : boolean, optional
+        If True, plots a negative 1:1 line through the origin for reference.
+    symmetry : boolean, optional
+        If True, the plot axis are symmetrical about the origin (default). 
+        If False, plotting limits will minimize empty space while not losing any data.
+    """
+    if len(bc_vars) == 0:
+        raise Exception("Please enter a non-zero number strings in bc_vars to be used")
+    if len(bc_vars) != len(bc_names):
+        raise Exception("Please have the same number of entries in bc_names as bc_names")
+    if len(plot_colors) < len(bc_vars):
+        raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
+    
+    num_plots = len(plot_sites)
+    n_rows, n_cols = determine_row_col(num_plots)
+    
+    mpl.rcParams['figure.figsize']=(60,40)
+                                       
+    fig,axs = plt.subplots(nrows=n_rows, ncols=n_cols)
+    plt.suptitle(title, fontsize= fontsize_title, color=fontcolor, y=1.05)
+                                       
+    ax_list = axs.ravel().tolist()
+    
+    plot_flows = flow_dataset.sel(seg=plot_sites).copy()
+    plot_flows["before_bc"] = plot_flows[ref_var]-plot_flows[raw_var]
+    
+    for bc_var in bc_vars:
+        plot_flows[f"after_{bc_var}"] = plot_flows[ref_var]-plot_flows[bc_var]
+    
+    #we need to figure out which plots have the most spread to make certain we hide the fewest
+    
+    spread = list()
+    for bc_var in bc_vars:
+        spread.append(plot_flows[f"after_{bc_var}"].values.max()-plot_flows[f"after_{bc_var}"].values.min())
+    
+    sorted_spread = np.flip(np.sort(spread.copy()))
+    spread_ranks = [spread.index(val) for val in sorted_spread]
+    
+    
+    for i, site in enumerate(plot_sites):
+        before_bc = plot_flows["before_bc"].sel(seg=site).values
+        for j in spread_ranks:
+            after_bc = plot_flows[f"after_{bc_vars[j]}"].sel(seg=site).values
+            scatter_series_axes(before_bc, after_bc, label=bc_names[j],
+                                         alpha=alpha, color=plot_colors[j], ax=ax_list[i])
+        ax_list[i].set_title(site, fontsize=fontsize_subplot)
+        plt.setp(ax_list[i].spines.values(), color=fontcolor)
+        ax_list[i].tick_params(axis='both', colors=fontcolor, labelsize=fontsize_tick)
+        
+    # add horizontal axis at 0 line and hide plots that are not in use 
+    for i, ax in enumerate(axs.ravel()):
+        if i == len(axs.ravel())-1:
+            ax.axis('off')
+            ax.legend(handles=custom_legend(names = bc_names, colors=plot_colors), fontsize = fontsize_legend, loc='center')
+        if i < num_plots:
+            bottom, top = ax.get_ylim()
+            left, right = ax.get_xlim()
+            ref_line_max = np.max([bottom, top, left, right])
+            ref_line_min = np.min([bottom, top, left, right])
+            ref_line_ext = ref_line_max
+            if np.abs(ref_line_min) > ref_line_ext:
+                ref_line_ext = np.abs(ref_line_min)
+            ax.plot([-ref_line_ext, ref_line_ext], [0,0], color='k', linestyle='--')
+            
+            if pos_cone_guide and neg_cone_guide:
+                ax.plot([-ref_line_ext, ref_line_ext], [-ref_line_ext, ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext, ref_line_ext], [ref_line_ext, -ref_line_max], color='k', linestyle='--')
+            elif pos_cone_guide:
+                ax.plot([0, ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
+            elif neg_cone_guide:
+                ax.plot([0, -ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, -ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
+            if not symmetry:
+                ax.set_xlim(left=left,right=right)
+                ax.set_ylim(top=top,bottom=bottom)
+            
+        else:
+            ax.axis('off')
+    
+    fig.text(0.5, -0.04, r'$Q_{ref} - Q_{raw} \quad (m^3/s)$', ha='center', va = 'bottom', 
+             fontsize=fontsize_title, color=fontcolor);
+    fig.text(-0.02, 0.5, r'$Q_{ref} - Q_{bc} \quad (m^3/s)$', va='center', rotation = 'vertical', 
+             fontsize=fontsize_title, color=fontcolor);    
     plt.tight_layout()
     plt.show
 
@@ -1981,7 +2119,7 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
                                  raw_var: str, raw_name: str,
                                  ref_var: str, ref_name: str,
                                  bc_vars: list, bc_names: list,
-                                 plot_colors: list,
+                                 plot_colors: list, title = "Annual KL Diveregence Before/After Bias Correction",
                                  fontsize_title = 40, fontsize_tick = 30, fontsize_labels = 40, 
                                  fontsize_legend = 30,
                                  showfliers = False, sharex = True, sharey = 'row', TINY_VAL = 1e-6, 
@@ -2014,6 +2152,8 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
         to each element in `bc_vars`.
     plot_colors : list
         Colors to be plotted for the raw and the bias corrected flows, respectively.
+    title : str, optional
+        Title to be plotted, defaults as "Annual KL Diveregence Before/After Bias Correction".
     fontsize_title : int, optional
         Font size of the title, defaults as 40.
     fontsize_tick : int, optional
@@ -2060,7 +2200,7 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
     for bc_var in bc_vars:
         kldiv_refbc_annuals.append(pd.DataFrame(index = WY_array, columns = sites))
     
-    plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize = fontsize_title, y = 1.05)
+    plt.suptitle(title, fontsize = fontsize_title, y = 1.05)
 
     for WY in WY_array:
         raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
@@ -2125,8 +2265,8 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
     fig.text(0.5, -0.04, r'$KL(P_{' + f'{ref_name}' + r'} || P_{scenario})$', 
              va = 'bottom', ha = 'center', fontsize = fontsize_labels);
     
-    plt.legend(handles=custom_legend(names=plot_labels, colors = plot_colors), 
-               fontsize = fontsize_legend, loc = 'lower right')
+    axs_list[-1].legend(handles=custom_legend(names=plot_labels, colors = plot_colors), 
+                        fontsize = fontsize_legend, loc = 'center')
 
     plt.tight_layout()
     
