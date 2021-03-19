@@ -1052,7 +1052,7 @@ class SimpleRiverNetwork:
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
                      with_labels=False, with_cbar=False, with_background=True, cbar_labelsize=10,
-                     edge_color='k', alpha=1, cbar_title = '', cbar_label_pad=40):
+                     edge_color='k', alpha=1, cbar_title = '', cbar_label_pad=40, ax = None):
         """Plots the river network through networkx.
         
         Plots the visual component of the SimpleRiverNetwork where spatial connections
@@ -1118,6 +1118,8 @@ class SimpleRiverNetwork:
             This is defaulted as '' to exclude a title.
         cbar_label_pad : float, optional
             Padding for the colorbar labels, defaulted as 40.
+        ax : Matplotlib Axes object, optional
+            Draw the network in the specified Matplotlib axes.
         """
 
         if type(color_measure) != type(None):
@@ -1166,11 +1168,13 @@ class SimpleRiverNetwork:
         network_nodecolors = [network_color_dict[f'{node}'] for node in self.network_graph.nodes()]
         if node_color:
             network_nodecolors = node_color
+        if type(ax) is type(None):
+            ax = plt.axes()
 
         nx.draw_networkx(self.network_graph,self.network_positions,with_labels=with_labels,
                          node_size=node_size,font_size=font_size,font_weight=font_weight,node_shape=node_shape,
                          linewidths=linewidths,font_color=font_color,node_color=network_nodecolors,
-                         edge_color=edge_color, alpha=alpha)
+                         edge_color=edge_color, alpha=alpha, ax=ax)
         if with_cbar:
             cbar = plt.colorbar(network_color_cbar)
             cbar.ax.tick_params(labelsize=cbar_labelsize)
