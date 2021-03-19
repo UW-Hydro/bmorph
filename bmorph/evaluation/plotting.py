@@ -938,7 +938,7 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
     
 #*****************************************************************************************
 # BMORPH Summary Statistics:
-#      plot_reduced_doy_flows
+#      plot_reduced_flows
 #      plot_spearman_rank_difference
 #      correction_scatter
 #      pbias_diff_hist
@@ -954,9 +954,10 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
 #      compare_mean_grouped_CPD
 #*****************************************************************************************
 
-def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list, 
-                        reduce_func=np.mean, 
-                        vertical_label=f'Mean Day of Year Flow 'r'$(m^3/s)$',
+def plot_reduced_flows(flow_dataset: xr.Dataset, plot_sites: list, 
+                        reduce_func=np.mean, interval = "day",
+                        statistic_label='Mean',
+                        units_label = r'$(m^3/s)$',
                         title_label=f'Annual Mean Flows',                           
                         raw_var = 'IRFroutedRunoff', raw_name = 'Mizuroute Raw', 
                         ref_var = 'upstream_ref_flow', ref_name = 'upstream_ref_flow', 
@@ -975,25 +976,30 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     plot_sites : list
         Sites to be plotted.
     reduce_func : function, optional
-        A function to apply to flows grouped by dayofyear, defaults as np.mean.
-    vertical_label : str
-        Label for the vertical axis representing the `reduce_func`, defaults as
-        f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit `reduce_func` as np.mean.
+        A function to apply to flows grouped by `interval`, defaults as np.mean.
+    interval : str, optional
+        What time interval annual `reduce_func` should be computed on. Currently supported
+        is `day` for dayofyear (default), `week` for weekofyear, and `month` for monthly.
+    statistic_label : str, optional
+        Label for the statistic representing the `reduce_func`, defaults as
+        'Mean' to fit `reduce_func` as np.mean.
+    units_label : str, optional
+        Label for the units of flow, defaults as r`$(m^3/s)$`.
     title_label : str
         Lable for the figure title representing the reduce_func, defaults as
         f'Annual Mean Flows' to fit `reduce_func` as np.mean.
     raw_var : str, optional
-        Dictionary key to access the raw flows in `flow_dataset`, defaults as
+        The string access the raw flows in `flow_dataset`, defaults as
         'IRFroutedRunoff'.
     raw_name : str, optional
         Label for the raw flows in the legend, defaults as 'Mizuroute Raw'.
     ref_var : str, optional
-        Dictionary key to access the reference flows in `flow_dataset`, defaults
+        The string to access the reference flows in `flow_dataset`, defaults
         as 'upstream_ref_flow'.
     ref_name : str, optional
         Label for the reference flows in the legend, defaults as 'upstream_ref_flow'.
     bc_vars : list
-        Dictionary keys to access the bias corrected flows in `flow_dataset`.
+        The strings to access the bias corrected flows in `flow_dataset`.
     bc_names : list
         Labels for the bias corrected flows in the legend, expected in the same
         order as `bc_vars`.
@@ -1032,24 +1038,51 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     if len(plot_colors) < 2 + len(bc_vars):
         raise Exception(f"Please enter at least {2 + len(bc_vars)} colors in plot_colors")
     
-    raw_flow_doy = flow_dataset[raw_var].groupby(
-        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    reference_flow_doy = flow_dataset[ref_var].groupby(
-        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    bc_flow_doys = list()
-    for bc_var in bc_vars:
-        bc_flow_doys.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func))        
-
-    doy = raw_flow_doy['dayofyear'].values
+    interval = interval.lower()
+    interval_name = "Day of Year"
+    if interval == 'day':
+        interval_name = "Day"
+        raw_flow = flow_dataset[raw_var].groupby(
+            flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+        reference_flow = flow_dataset[ref_var].groupby(
+            flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+        bc_flows = list()
+        for bc_var in bc_vars:
+            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func))        
+        time = raw_flow['dayofyear'].values
+    elif interval == 'week':
+        interval_name = "Week of Year"
+        raw_flow = flow_dataset[raw_var].groupby(
+            flow_dataset['time'].dt.week).reduce(reduce_func)
+        reference_flow = flow_dataset[ref_var].groupby(
+            flow_dataset['time'].dt.week).reduce(reduce_func)
+        bc_flows = list()
+        for bc_var in bc_vars:
+            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.week).reduce(reduce_func))        
+        time = raw_flow['weekofyear'].values
+    elif interval == 'month':
+        interval_name = "Month"
+        raw_flow = flow_dataset[raw_var].groupby(
+            flow_dataset['time'].dt.month).reduce(reduce_func)
+        reference_flow = flow_dataset[ref_var].groupby(
+            flow_dataset['time'].dt.month).reduce(reduce_func)
+        bc_flows = list()
+        for bc_var in bc_vars:
+            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.month).reduce(reduce_func))        
+        time = raw_flow['month'].values
+    else:
+        raise Exception("Please use 'day', 'week', or 'month' for interval.")
+    
+    
     outlet_names = flow_dataset['seg'].values
    
-    raw_flow_doy_df = pd.DataFrame(data = raw_flow_doy.values, 
-                                   index=doy, columns = outlet_names)
-    reference_flow_doy_df = pd.DataFrame(data = reference_flow_doy.values, 
-                                         index=doy, columns = outlet_names)
-    bc_flow_doy_dfs = list()
-    for bc_flow_doy in bc_flow_doys:
-        bc_flow_doy_dfs.append(pd.DataFrame(data = bc_flow_doy.values, index = doy, columns = outlet_names))
+    raw_flow_df = pd.DataFrame(data = raw_flow.values, 
+                                   index=time, columns = outlet_names)
+    reference_flow_df = pd.DataFrame(data = reference_flow.values, 
+                                         index=time, columns = outlet_names)
+    bc_flow_dfs = list()
+    for bc_flow in bc_flows:
+        bc_flow_dfs.append(pd.DataFrame(data = bc_flow.values, index = time, columns = outlet_names))
     
     plot_names = [raw_name, ref_name]
     plot_names.extend(bc_names)
@@ -1057,14 +1090,13 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     mpl.rcParams['figure.figsize'] = (figsize_width, figsize_height)
     n_rows, n_cols = determine_row_col(len(plot_sites))
     fig, axs = plt.subplots(n_rows, n_cols)
-    fig.suptitle(title_label, fontsize = fontsize_title, color = fontcolor, y = 1.05)
                                           
     for site, ax in zip(plot_sites, axs.ravel()):
-        ax.plot(raw_flow_doy_df[site], color = plot_colors[0], alpha = 0.8, lw = 4)
-        ax.plot(reference_flow_doy_df[site], color = plot_colors[1], alpha = 0.8, lw = 4)
+        ax.plot(raw_flow_df[site], color = plot_colors[0], alpha = 0.8, lw = 4)
+        ax.plot(reference_flow_df[site], color = plot_colors[1], alpha = 0.8, lw = 4)
         
-        for i, bc_flow_doy_df in enumerate(bc_flow_doy_dfs):
-            ax.plot(bc_flow_doy_df[site], color = plot_colors[2+i], lw = 4, alpha = 0.8)
+        for i, bc_flow_df in enumerate(bc_flow_dfs):
+            ax.plot(bc_flow_df[site], color = plot_colors[2+i], lw = 4, alpha = 0.8)
         
         ax.set_title(site, fontsize = fontsize_subplot, color = fontcolor)
         plt.setp(ax.spines.values(), color = fontcolor)
@@ -1074,19 +1106,19 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
         for ax_index in np.arange(len(plot_sites), n_rows * n_cols):
             axs.ravel().tolist()[ax_index].axis('off')
 
-    fig.text(0.5, -0.02, 'Day of Year', fontsize = fontsize_title, ha = 'center')
-    fig.text(-0.02, 0.5, vertical_label, fontsize = fontsize_title, 
+    fig.text(0.4, -0.02, interval_name, fontsize = fontsize_title, ha = 'center')
+    fig.text(-0.02, 0.5, f"{statistic_label} {interval_name} Flow {units_label}", fontsize = fontsize_title, 
              va = 'center', rotation = 'vertical')
-    plt.subplots_adjust(wspace = 0.2, hspace = 0.5, left = 0.05, right = 0.8, top = 0.95)
+    plt.subplots_adjust(wspace = 0.1, hspace = 0.3, left = 0.05, right = 0.8, top = 0.95)
 
     fig.legend(plot_names, fontsize = fontsize_legend, loc = 'center right');
     
     if return_reduced_flows:
-        reduced_flows = xr.Dataset(coords={'site': plot_sites, 'time': doy})
-        reduced_flows[raw_var] = xr.DataArray(data = raw_flow_doy_df.values, dims = ('time', 'site') ).transpose()
-        reduced_flows[ref_var] = xr.DataArray(data = reference_flow_doy_df.values, dims = ('time', 'site') ).transpose()
-        for bc_var, bc_flow_doy_df in zip(bc_vars, bc_flow_doy_dfs):
-            reduced_flows[bc_var] = xr.DataArray(data = bc_flow_doy_df.values, dims = ('time', 'site') ).transpose()
+        reduced_flows = xr.Dataset(coords={'site': plot_sites, 'time': time})
+        reduced_flows[raw_var] = xr.DataArray(data = raw_flow_df.values, dims = ('time', 'site') ).transpose()
+        reduced_flows[ref_var] = xr.DataArray(data = reference_flow_df.values, dims = ('time', 'site') ).transpose()
+        for bc_var, bc_flow_df in zip(bc_vars, bc_flow_dfs):
+            reduced_flows[bc_var] = xr.DataArray(data = bc_flow_df.values, dims = ('time', 'site') ).transpose()
         return reduced_flows
     
     return fig, ax

@@ -55,12 +55,16 @@ The ``Evaluation`` package of ``bmorph`` comes with a number of helpful plotting
 Scatter Plots
 ^^^^^^^^^^^^^
 
-- use correction_scatter
+.. image:: Figures/Before_After_Absolute_Error_Scatter.pmg
+    :alt: Three scatter plots labeled KIOW, YUMW, and BUM are shown, comparing differences in flow between reference data and the raw data on the horizontal axis while differences between the reference data and bias correctd data are plotted on the vertical axis. 1 to 1 and -1 to 1 lines are plotted for reference.
+    
+Scatter Plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from ``compare_correction_scatter`` to compare how absolute error changes with each of the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in abosulte error for each flow time.
 
 Time Series
 """""""""""
 
-- use plot_reduced_doy_flows
+.. image:: Figures/Reduced_Flows_Weekly.png
+
 
 Probabilty Distribtuions
 """"""""""""""""""""""""
