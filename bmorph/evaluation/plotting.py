@@ -2537,95 +2537,123 @@ def compare_CDF_all(flow_dataset:xr.Dataset, plot_sites: list,
     
     return fig, axes
 
-def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_func,
+def compare_mean_grouped_CPD(flow_dataset: xr.Dataset, plot_sites: list, grouper_func,
                              raw_var: str, raw_name: str,
                              ref_var: str, ref_name: str,
                              bc_vars: list, bc_names: list,
                              plot_colors: list, subset_month = None,
                              units = r'Mean Annual Flow [$m^3/s$]',
-                             figsize = (20,20), sharex = False, sharey = True, 
-                             pp_kws = dict(postype='cunnane'), fontsize_labels = 30, fontsize_tick = 20,
-                             fontsize_legend = 24, alpha = 0.3, legend_bbox_to_anchor = (1.4, 1)):
-    """Cumulative Probability Distributions of mean annual flows on a probability axis.
-    
-    Plots the CPD's of the raw, reference, and bias corrected flows on a probability axis using the cunnane 
-    plotting positions.
-    
-    Parameters
-    ----------
+                             figsize = (20,20), sharex = False, sharey = False, 
+                             pp_kws = dict(postype='cunnane'), fontsize_title = 80, 
+                             fontsize_legend = 68, fontsize_subplot = 60,
+                             fontsize_tick = 45, fontsize_labels = 80, 
+                             linestyles = ['-','-','-'], markers = ['.','.','.'],
+                             markersize = 30, alpha = 1, legend_bbox_to_anchor = (1, 1),
+                             fig = None, axes = None, start_ax_index = 0, tot_plots = None
+                      ):
+    """
+    Cumulative Probability Distributions
+        plots the CPD's of the raw, reference, and bias corrected flows on a probability axis
+    ----
     flow_dataset : xarray.Dataset
         Contatains raw, reference, and bias corrected flows.
     plot_sites : list
-        Gauge sites to be plotted.
+        A list of sites to be plotted.
     grouper_func
         Function to group a pandas.DataFrame index by to calculate the 
         mean of the grouped values.
     raw_var : str
-        Accesses the raw (uncorrected) flows in `flow_dataset`.
+        The string to access the raw flows in flow_dataset.
     raw_name : str
-        Label for the raw flows in the legend, corresponding to `raw_var`.
+        Label for the raw flows in the legend.
     ref_var : str
-        Accesses the reference (true) flows in `flow_dataset`.
+        The string to access the reference flows in flow_dataset.
     ref_name : str
-        Label for the reference flows in the legend, corresponding to `ref_var`.
+        Label for the reference flows in the legend.
     bc_vars : list
-        Accesses the bias corrected flows in `flow_dataset`. Can be a size of 1.
-    bc_names: list
-        String(s) to label the bias corrected flows in the legend, in the same order
-        as and corresponding to `bc_vars`. Can be a size of 1.    
-    plot_colors : list, optional
-        Colors to be plotted for the flows corresponding to `raw_var`, 
-        `ref_var`, and `bc_var`, defaulting as ['grey', 'black', 'blue', 'red'],
-        assuming there are two entries in `bc_var`.
-    subset_month : int, optional
-        Integer date of a month to subset out for plotting, (ex: if you want to subset 
-        out January, enter 1). If none is specified, then all months are used.
+        List of strings to access the bias corrected flows in flow_dataset.
+    bc_names : list
+        List of labels for the bias corrected flows in the legend.
+    plot_colors : list
+        Contains the colors to be plotted for `raw_var`, `ref_var`, and
+        `bc_vars`, respectively.
+    subset_month: int, optional
+        The integer date of a month to subset out for plotting,
+        (ex: if you want to subset out January, enter 1). Defaults as None
+        to avoid subsetting and use all the data in the year.
     units : str, optional
-        Horizontal axis's label for units, defaults as r'Mean Annual Flow [$m^3/s$]'.
+        Vertical axis's label for units, defaults as r'Mean Annual Flow [$m^3/s$]'.
     pp_kws : dict, optional
-        Plotting position computation defaulted as dict(postype='cunnane'), as specified by
-        https://matplotlib.org/mpl-probscale/tutorial/closer_look_at_plot_pos.html
-    figsize : tuple, optional
-        Figure size following matplotlib connventions, defaults as (20, 20).
-    sharex : boolean or str, optional
-        Whether or how the horizontal axis is shared among subplots, defaults as False.
-    sharey : boolean or str, optional
-        Whether or how the vertical axis is shared among subplots, defaults as True.
-    fontsize_labels : int, optional
-        Font size of the labels, defaults as 30.
-    fontsize_tick : int, optional
-        Font size of the ticks, defaults as 20.
+        Plotting position computation as specified by
+        https://matplotlib.org/mpl-probscale/tutorial/closer_look_at_plot_pos.html.
+        Defaults as dict(postype='cunnane') for cunnane plotting positions.
+    fontsize_title : int, optional
+        Font size for the plot title, defaults as 80.
     fontsize_legend : int, optional
-        Font size of the legend text, defaults 24.
+        Font size for the plot legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Font size for the plot subplot text, default as 60.
+    fontsize_tick : int, optional
+        Font size for the plot ticks, defaults as 45.
+    fontsize_labels : int, optional
+        Font size for the horizontal and vertical axis labels, defaults as 80.
+    linestyles : list, optional
+        Linestyles for ploting `raw_var`, `ref_var`, and `bc_vars`, respectively. 
+        Defaults as ['-','-','-'], expecting one of each.
+    markers : list, optional
+        Markers for ploting `raw_var`, `ref_var`, and `bc_vars`, respectively.
+        Defaults as ['.','.','.'], expecting one of each.
+    markersize : int, optional
+        Size of the markers for plotting, defaults as 30.
     alpha : float, optional
-        Transparency of the markers, defaults as 0.3.
-    legend_bbox_to_anchor : tuple
-        Where the bbox is anchored, defaults as (1.4, 1). If changing other size parameters,
-        this may need to be adjusted to properly place the legend.
-            
-    Returns
-    -------
-    matplotlib.figure, matplotlib.axes
+        Alpha transparency value for plotting, where 1 is opaque and 0 is transparent.
+    legend_bbox_to_anchor : tuple, optional
+        Box that is used to position the legend to the final axes. Defaults as (1,1).
+        Modify this is the legend does not plot where you desire it to be.
+    fig : matplotlib.figure, optional
+        matplotlib figure object to plot on, defaulting as None and creating a new object
+        unless otherwise specified.
+    axes : matplotlib.axes, optional
+        Array-like of matplotlib axes objet to plot multiple plots on, defaulting as None and creating
+        a new object unless otherwise specified.
+    start_ax_index : int, optional
+        If the plots should not be plotted starting at the first ax in axes, specifiy the index
+        that plotting should begin on. Defaults as None, assuming plotting should begin from 
+        the first ax.
+    tot_plots : int, optional
+        If more plotting is to be done than with the total data to be provided, describe how many
+        total plots there should be. Defalts as None, assuming plotting should begin form the
+        first ax.
     """
     
     if len(bc_vars) == 0:
         raise Exception("Please enter a non-zero number strings in bc_vars to be used")
     if len(bc_vars) != len(bc_names):
         raise Exception("Please have the same number of entries in bc_names as bc_names")
-    if len(plot_colors) < len(bc_vars):
-        raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
+    if len(plot_colors) < 2 + len(bc_vars):
+        raise Exception(f"Please enter at least {2+len(bc_vars)} colors in plot_colors")
+    if len(linestyles) < 2 + len(bc_vars):
+        raise Exception(f"Please enter at least {2+len(bc_vars)} styles in linestyles")
+    if len(markers) < 2 + len(bc_vars):
+        raise Exception(f"Please enter at least {2+len(bc_vars)} markers in markers")
     
-    n_rows, n_cols = determine_row_col(len(plot_sites))
-    
-    fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
-    axes = axes.flatten()      
+    if not tot_plots:
+        tot_plots = len(plot_sites)
+    n_rows, n_cols = determine_row_col(tot_plots)
+    if fig is None or axes is None:
+        fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, 
+                                 sharex = sharex, sharey = sharey)
+    axes = axes.flatten()     
     
     time = flow_dataset['time'].values
-    raw_flow_df = pd.DataFrame(data = flow_dataset[raw_var].values, index=time, columns = plot_sites)
-    ref_flow_df = pd.DataFrame(data = flow_dataset[ref_var].values, index=time, columns = plot_sites)
+    raw_flow_df = pd.DataFrame(data = flow_dataset[raw_var].sel(seg=plot_sites).values, 
+                               index=time, columns = plot_sites)
+    ref_flow_df = pd.DataFrame(data = flow_dataset[ref_var].sel(seg=plot_sites).values, 
+                               index=time, columns = plot_sites)
     bc_flow_dfs = list()
     for bc_var in bc_vars:
-        bc_flow_df = pd.DataFrame(data = flow_dataset[bc_var].values, index = time, columns = plot_sites)
+        bc_flow_df = pd.DataFrame(data = flow_dataset[bc_var].sel(seg=plot_sites).values, 
+                                  index = time, columns = plot_sites)
         bc_flow_dfs.append(bc_flow_df)
         
     if not isinstance(subset_month, type(None)):
@@ -2643,7 +2671,7 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
         bc_flow_annuals.append(bc_flow_annual)
     
     for i, site in enumerate(plot_sites):
-        ax = axes[i]
+        ax = axes[i+start_ax_index]
         
         raw = raw_flow_annual[site].values
         ref = ref_flow_annual[site].values
@@ -2672,21 +2700,21 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
         )
         
         probscale.probplot(raw, ax=ax, pp_kws=pp_kws,
-                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[0], label=raw_name), 
-                           **common_opts)
-        probscale.probplot(ref, ax=ax, pp_kws=pp_kws, 
-                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[1], label=ref_name), 
-                           **common_opts)
+                           scatter_kws=dict(linestyle=linestyles[0], marker=markers[0], markersize = markersize, alpha=alpha, 
+                                            color = plot_colors[0], label=raw_name), **common_opts)
         
+        probscale.probplot(ref, ax=ax, pp_kws=pp_kws, 
+                           scatter_kws=dict(linestyle=linestyles[1], marker=markers[1], markersize = markersize*1.5, alpha=alpha, 
+                                            color = plot_colors[1], label=ref_name), **common_opts)
         for j, cor in enumerate(cors):
             probscale.probplot(cor, ax=ax, pp_kws=pp_kws, 
-                               scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[2+j], label=bc_names[j]), 
-                               **common_opts)
+                               scatter_kws=dict(linestyle=linestyles[2+j], marker=markers[2+j], markersize = markersize, alpha=alpha, 
+                                                color = plot_colors[2+j], label=bc_names[j]), **common_opts)
         
-        ax.set_title(site, fontsize = fontsize_labels, position = (0.2, 0.8))
+        ax.set_title(site, fontsize = fontsize_subplot)
         ax.tick_params(axis = 'both', labelsize = fontsize_tick)
         ax.set_ylim([y_min, y_max])
-        ax.set_xlim(left=0.01, right=99.99)
+        ax.set_xlim(left=1, right=99)
         ax.set_xticks([1, 10, 20, 50, 80, 90, 95, 99])
         plt.setp(ax.get_xticklabels(), Rotation=45)
     
@@ -2696,11 +2724,9 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
     axes[i].legend(handles=custom_legend(names = plot_names, colors=plot_colors), 
                    bbox_to_anchor = legend_bbox_to_anchor, fontsize = fontsize_legend)
     
-    
     fig.text(0.4, 0.04, 'Cumulative Percentile', ha = 'center', fontsize = fontsize_labels)
     fig.text(-0.01, 0.5, units, va = 'center', 
              rotation = 'vertical', fontsize = fontsize_labels)
-    
     
     plt.subplots_adjust(hspace = 0.35, left = 0.05, right = 0.8, top = 0.95)
     

@@ -1,5 +1,5 @@
-Evaluation of Bias Correction **(IN PROGRESS)**
-===============================================
+Evaluation of Bias Correction
+=============================
 
 Fundamental Statistics
 ----------------------
@@ -31,7 +31,7 @@ Percent Bias (PB)
 
     PB = 100% * \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{\Sigma_{i=0}^{n}O_i}
     
-Percent Bias preserves direction like MBE, but aims to describe relative error instead of finite error. PB is often used when analyzing performance across sites with different magnitudes that the method should be accounting for. Because direction is preserved, the issue of positive and negative biases canceling out arises again here.
+Percent Bias preserves direction like MBE, but aims to describe relative error instead of finite error. PB is often used when analyzing performance across sites with different magnitudes that the method should be accounting for. Because direction is preserved, the issue of positive and negative biases canceling out arises again here like in MBE.
     
 Kullback-Leibler Divergence (KL Divergence)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -67,13 +67,14 @@ Time Series
     :alt: Four time series plots labeled KIOW, YUMW, BUM, and KEE compare mean week of year flows between raw, reference, and the four bias correction methods.
     
 Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from ``plot_reduced_flows`` to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
-    
-
 
 Probabilty Distribtuions
 """"""""""""""""""""""""
 
-- use compare_mean_grouped_CPD
+.. image:: Figures/CDF_Annual.png
+    :alt: Three cumaltive percentile plots labeled KIOW, YUMW, and BUM compare probabilites of mean annual flows at each site as described by raw, reference, and the four bias correction methods.
+    
+Probability Distributions being widley used in hydrologic planning are essential for comparing bis correction methods. The above plot is produced from ``compare_mean_grouped_CPD`` to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
 
 Box & Whisker
 ^^^^^^^^^^^^^
@@ -82,13 +83,11 @@ Box & Whisker
     :alt: Three box and whisker plots labeld KIOW, YUMW, and BUM compare Annual KL Divergence between reference and 5 scenarios: Raw, IBC_U, IBC_C, SCBC_U, and SCBC_C.
     
 Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from ``kl_divergence_annual_compare`` to compare KL Divergence with respect to reference flows for raw and the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
-    
-
 
 Simple River Network
 --------------------
 
-The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing <NetworkX's <https://networkx.org/>`_ nodal network structure, SRN's represent each river segment, or <seg <data.rst/Common Naming Conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in ``bmorph`` bias correction the watershed to more easily understand spatial patterns in bias correction of the network. 
+The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing <NetworkX's <https://networkx.org/>`_ nodal network structure, SRNs represent each river segment, or <seg <data.rst/Common Naming Conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in the watershed during ``bmorph`` bias correction to more easily understand spatial patterns of bias correction in the network. 
 
 .. image:: Figures/crb_srn_example.png
     :alt: Nodal network of the Columbia River Basin showing river segement connections and color-coded by Pfaffsetter basin.
@@ -96,8 +95,6 @@ The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic too
 SRN SegNode's contain identifying information that allow the network to be partitioned according to Pfaffstetter Codes (Verdin & Verdin 1999, Arge et. al. 2006). Pfaffstetter enconding not only allows the networks to be partitioned, but also to be "rolled up", effectively reducing the granularity of the network to simplify large watersheds. Data can also be subsected and split into new SRN's for simple manipulation.
 
 SRN does not aim to supplant geographically accurate drawings of watershed networks. Instead it aims to provide a quicker, intermediate tool that allows for easy identification of spatial patterns within the network without having to configure spatial data. 
-
-[CRB SRN is located here: /pool0/home/steinjao/data/plot_analysis/statAnalysis/SimpleRiverNetwork/srn_io_testing.ipynb]
 
 Citations
 ---------
