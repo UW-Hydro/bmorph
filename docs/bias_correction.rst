@@ -60,7 +60,7 @@ EDCDFm
 Before describing how conditioning is integrated into ``bmorph`` bias correction, we need to discuss the standard method. 
 ``bmorph`` implements part of PresRat bias correction from Pierce et al. (2015), which is an extension of Equidistant quantile matching (EDCDFm) technique of Li et al. (2010). ``bmorph`` uses the amended EDCDFm to compute multiplicative changes in the quantiles of a Cumulative Distribution Fuction (CDF). Here, only flow values are used to construct the CDFs. 
 
-.. image:: Figures/Mapping_Diagrams_Pierce.PNG
+.. image:: Figures/Mapping_Diagrams_Pierce.jpg
     :alt: Figure 1 from Pierce et al. (2015). Describes differences in bias correction techniques between Quantile Mapping, EDCDFm, CDF-t, and all methods combined with PresRat.
 
 Above, Pierce et al (2010) depicts how Quantile Mapping, EDCDFm, and CDF-t are performed and compare in bias correction methods to PresRat.
