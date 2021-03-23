@@ -79,7 +79,7 @@ Probability Distributions being widley used in hydrologic planning are essential
 Box & Whisker
 ^^^^^^^^^^^^^
 
-.. image:: Figures/KL_Div_Comparison.pmg
+.. image:: Figures/KL_Div_Comparison.png
     :alt: Three box and whisker plots labeld KIOW, YUMW, and BUM compare Annual KL Divergence between reference and 5 scenarios: Raw, IBC_U, IBC_C, SCBC_U, and SCBC_C.
     
 Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from ``kl_divergence_annual_compare`` to compare KL Divergence with respect to reference flows for raw and the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
