@@ -5,6 +5,7 @@ from typing import List
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy
+import probscale
 
 import networkx as nx
 import graphviz as gv
