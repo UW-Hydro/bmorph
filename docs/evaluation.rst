@@ -5,7 +5,7 @@ Fundamental Statistics
 ----------------------
 
 Below are the statistics used in ``bmorph`` to evaluate bias correction performance.
-Let P be predicted values, such as the corrected flows, and O be the observed values, such as reference flows.
+Let **P** be predicted values, such as the corrected flows, and **O** be the observed values, such as reference flows.
 
 Mean Bias Error (MBE)
 ^^^^^^^^^^^^^^^^^^^^^
@@ -14,7 +14,7 @@ Mean Bias Error (MBE)
     
     MBE = \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{n}
     
-Mean Bias Error is useful for preserving directionality of bias, yet may hide bias if both positive and negative bias exist in a dataset. MBE is therefore useful to determine how well biases balance out if you are only interested in the net or cumulative behavior of a system. If looking more a local changes, this method is recommended against without fine discritization to minimize biases canceling each other out.
+Mean Bias Error is useful for preserving directionality of bias, yet may hide bias if both positive and negative bias exist in a dataset. MBE is therefore useful to determine how well biases balance out if you are only interested in the net or cumulative behavior of a system. This method is recommended against if looking to describe local changes without fine discritization to minimize biases canceling each other out.
     
 
 Root Mean Square Error (RMSE)
@@ -31,7 +31,7 @@ Percent Bias (PB)
 
     PB = 100% * \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{\Sigma_{i=0}^{n}O_i}
     
-Percent Bias preserves direction like MBE, but aims to describe relative error instead of finite error. PB is often used when analyzing performance across sites with different magnitudes that the method should be accounting for. Because direction is preserved, the issue of positive and negative biases canceling out arises again here like in MBE.
+Percent Bias preserves direction like MBE, but aims to describe relative error instead of finite error. PB is often used when analyzing performance across sites with different magnitudes that are only a matter of scale. Because direction is preserved, the issue of positive and negative biases canceling out arises again here like in MBE.
     
 Kullback-Leibler Divergence (KL Divergence)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -61,15 +61,15 @@ Scatter
 Scatter plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from ``compare_correction_scatter`` to compare how absolute error changes with each of the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in abosulte error for each flow time.
 
 Time Series
-"""""""""""
+^^^^^^^^^^^
 
 .. image:: Figures/Reduced_Flows_Weekly.png
     :alt: Four time series plots labeled KIOW, YUMW, BUM, and KEE compare mean week of year flows between raw, reference, and the four bias correction methods.
     
-Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from ``plot_reduced_flows`` to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
+Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from ``plot_reduced_flows`` to compare a statistical representation of the flows at each site, (mean in this case), for raw, reference, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
 
 Probabilty Distribtuions
-""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. image:: Figures/CDF_Annual.png
     :alt: Three cumaltive percentile plots labeled KIOW, YUMW, and BUM compare probabilites of mean annual flows at each site as described by raw, reference, and the four bias correction methods.
