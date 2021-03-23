@@ -1,11 +1,10 @@
-Data Specifications
-===================
+Input Specifications
+====================
 
-Directory Setup Recommended
----------------------------
+Directory Setup
+---------------
 
-Developing a custom directory setup is currently in progress, but for now we recommend the
-following directories and names to properly execute ``bmorph``.
+The following directories and names are  required to properly execute ``bmorph``:
 
     input
     mizuroute_configs
@@ -70,6 +69,7 @@ Configuring files for ``mizuroute`` through ``bmorph`` should follow the followi
     <varname_downSegId>     Tosegment !
     <varname_hruSegId>      seg_id !
     
+Note that ``mizuroute_utils.write_mizuroute_config`` provides a template that can be used to write a valid mizuroute configuration as described above.
     
 Utilities
 ---------
