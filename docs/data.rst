@@ -69,7 +69,7 @@ Configuring files for ``mizuroute`` through ``bmorph`` should follow the followi
     <varname_downSegId>     Tosegment !
     <varname_hruSegId>      seg_id !
     
-Note that ``mizuroute_utils.write_mizuroute_config`` proiveds a template that can be used to write a valid mizuroute configuration as described above.
+Note that ``mizuroute_utils.write_mizuroute_config`` provides a template that can be used to write a valid mizuroute configuration as described above.
     
 Utilities
 ---------
