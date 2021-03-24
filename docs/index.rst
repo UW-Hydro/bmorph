@@ -28,8 +28,11 @@ Sitemap
 .. toctree::
     :maxdepth: 3
 
-    bmorph_tutorial
+    index
     bias_correction
+    bmorph_tutorial
+    overview
     data
     evaluation
+    for_developers
     api

@@ -27,7 +27,7 @@ Local Flows
     :members:
 
 mizuRoute Utilities
-====================
+===================
 
 .. automodule:: bmorph.util.mizuroute_utils
     :members:
@@ -42,4 +42,10 @@ Plotting
 ========
 
 .. automodule:: bmorph.evaluation.plotting
+    :members:
+
+Simple River Network
+====================
+
+.. automodule:: bmorph.evaluation.simple_river_network
     :members:

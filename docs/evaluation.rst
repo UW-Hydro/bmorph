@@ -50,7 +50,7 @@ The Kling-Gupta compares predicted flows to observed flows by combining linear c
 Plotting
 --------
 
-The ``Evaluation`` package of ``bmorph`` comes with a number of helpful plotting tools to analyze bias correction performance. Whether you want to compare corrected to uncorrected values, contrast different bias correction parameters, or simply compile your results into a tidy plot across multiple sites, there are plenty of plotting functions to choose from. You can find plotting functions `here <https://bmorph.readthedocs.io/en/develop/api.html#module-bmorph.evaluation.plotting>`_.
+The ``Evaluation`` package of ``bmorph`` comes with a number of helpful plotting tools to analyze bias correction performance. Whether you want to compare corrected to uncorrected values, contrast different bias correction parameters, or simply compile your results into a tidy plot across multiple sites, there are plenty of plotting functions to choose from. You can find plotting functions `here <api.rst/Plotting>`_.
 
 Scatter
 ^^^^^^^
@@ -58,7 +58,7 @@ Scatter
 .. image:: Figures/Before_After_Absolute_Error_Scatter.png
     :alt: Three scatter plots labeled KIOW, YUMW, and BUM are shown, comparing differences in flow between reference data and the raw data on the horizontal axis while differences between the reference data and bias correctd data are plotted on the vertical axis. 1 to 1 and -1 to 1 lines are plotted for reference.
     
-Scatter plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from ``compare_correction_scatter`` to compare how absolute error changes with each of the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in abosulte error for each flow time.
+Scatter plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from `bmorph.evaluation.plotting.compare_correction_scatter <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_correction_scatter>`_ to compare how absolute error changes with each of the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in abosulte error for each flow time.
 
 Time Series
 """""""""""
@@ -66,7 +66,7 @@ Time Series
 .. image:: Figures/Reduced_Flows_Weekly.png
     :alt: Four time series plots labeled KIOW, YUMW, BUM, and KEE compare mean week of year flows between raw, reference, and the four bias correction methods.
     
-Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from ``plot_reduced_flows`` to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
+Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from `bmorph.evaluation.plotting.plot_reduced_flows <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.plot_reduced_flows>`_ to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
 
 Probabilty Distribtuions
 """"""""""""""""""""""""
@@ -74,7 +74,7 @@ Probabilty Distribtuions
 .. image:: Figures/CDF_Annual.png
     :alt: Three cumaltive percentile plots labeled KIOW, YUMW, and BUM compare probabilites of mean annual flows at each site as described by raw, reference, and the four bias correction methods.
     
-Probability Distributions being widley used in hydrologic planning are essential for comparing bis correction methods. The above plot is produced from ``compare_mean_grouped_CPD`` to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
+Probability Distributions being widley used in hydrologic planning are essential for comparing bis correction methods. The above plot is produced from `bmorph.evaluation.plotting.compare_mean_grouped_CPD <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_mean_grouped_CPD>`_ to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
 
 Box & Whisker
 ^^^^^^^^^^^^^
@@ -82,12 +82,12 @@ Box & Whisker
 .. image:: Figures/KL_Div_Comparison.png
     :alt: Three box and whisker plots labeld KIOW, YUMW, and BUM compare Annual KL Divergence between reference and 5 scenarios: Raw, IBC_U, IBC_C, SCBC_U, and SCBC_C.
     
-Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from ``kl_divergence_annual_compare`` to compare KL Divergence with respect to reference flows for raw and the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
+Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from `bmorph.evaluation.plotting.kl_divergence_annual_compare <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.kl_divergence_annual_compare>` to compare KL Divergence with respect to reference flows for raw and the four `bias correction methods <bias_correction.rst/bmorph Overview>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
 
 Simple River Network
 --------------------
 
-The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing <NetworkX's <https://networkx.org/>`_ nodal network structure, SRNs represent each river segment, or <seg <data.rst/Common Naming Conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in the watershed during ``bmorph`` bias correction to more easily understand spatial patterns of bias correction in the network. 
+The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing `NetworkX's <https://networkx.org/>`_ nodal network structure, SRNs represent each river segment, or <seg `data.rst/Common Naming Conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in the watershed during ``bmorph`` bias correction to more easily understand spatial patterns of bias correction in the network. 
 
 .. image:: Figures/crb_srn_example.png
     :alt: Nodal network of the Columbia River Basin showing river segement connections and color-coded by Pfaffsetter basin.
