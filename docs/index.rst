@@ -3,7 +3,7 @@
 bmorph
 ######
 
-Bias correction for streamflow time series
+``bmorph`` is repository of bias correction methodologies designed to reduce statistical bias in streamflow models for watersheds. As a post-processing method, ``bmorph`` works in tandem with the streamflow model `mizuroute <https://mizuroute.readthedocs.io/en/latest/>`_. ``bmorph`` provides methods for integrating meteorologic sensitivity into the bias correction process and preserves  spatial relationships imposed by the channel network to ensure spatial consistency between gauge sites throughout bias correction. Below ``bmorph``'s bias correction methods are discussed and compared with other statistical post-processing methods. 
 
 Installation
 ============

@@ -6,10 +6,54 @@ This page documents the implementation of
 data in a watershed. An example workflow notebook
 can be found in ``bmorph_tutorial``.
 
-bmorph Overview
----------------
+bmorph Functionality
+--------------------
 
-``bmorph`` is repository of bias correction methodologies designed to reduce statistical bias in streamflow models for watersheds. As a post-processing method, ``bmorph`` works in tandem with the streamflow model `mizuroute <https://mizuroute.readthedocs.io/en/latest/>`_. ``bmorph`` provides methods for integrating meteorologic sensitivity into the bias correction process and preserves  spatial relationships imposed by the channel network to ensure spatial consistency between gauge sites throughout bias correction. Below ``bmorph``'s bias correction methods are discussed and compared with other statistical post-processing methods. 
+Conditioning: EDCDFm vs Conditional Quantile Mapping (CQM)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+EDCDFm
+""""""
+
+Before describing how conditioning is integrated into ``bmorph`` bias correction, we need to discuss the standard method. 
+``bmorph`` implements part of PresRat bias correction from Pierce et al. (2015), which is an extension of Equidistant quantile matching (EDCDFm) technique of Li et al. (2010). ``bmorph`` uses the amended EDCDFm to compute multiplicative changes in the quantiles of a Cumulative Distribution Fuction (CDF). Here, only flow values are used to construct the CDFs. 
+
+[need image here comparing bias correction methods]
+
+
+Conditional Quantile Mapping (CQM)
+""""""""""""""""""""""""""""""""""
+
+Conditional Quantile Mapping, (CQM), incorporates meteorologic data into the ``bmorph`` bias correction process to condition flow time series to other hydrologically relevant information. By creating a series of CDFs based on meteorologic data, (such as minimum daily temperature), ``bmorph`` can select a CDF that will not only correct the time series, but most closely match the metrologic conditions simulated.
+    
+.. image:: Figures/conditioning_diagram_with_arrows.png
+    :alt: Multidimensional CDF functions are shown has heat maps with raw taking up left and refernce taking up center. A cumulative proability plot compares raw model CDF and Reference flow CDF for one meteorologic slice of the heatmaps left of it. Arrows demonstrate mapping the reference data in the heat maps to the raw model data for bias correction.
+
+.. math::
+
+    \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
+                            - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
+                            
+Spatial Consistency: Reference Site Selection & CDF Blend Factor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Spatial consistency is conserved by combining streamflows that are ``bmorph`` bias corrected with respect to upstream and downstream reprentative sites. Ideally, if a seg has a gauge site directly upstream and downstream of it, then a reference for that seg can be interpolated as a combination of those two gauge sites. Now because there are not gauge sites everywhere, (which would render this method unncessary), the gauge sites used as the upstream/downstream need to be selected, this is where ``fill_method`` comes into play in `bmorph.utils.mizuroute_utils.mizuroute_to_blendmorph <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.util.mizuroute_utils.mizuroute_to_blendmorph>`. Segs that are gauge sites are simply assigned themselves as their upstream/downstream segments. Looking downstream can typically yeild a gauge site as rivers do not typically branch out in the direction of flow. Looking upstream for a 
+gauge site gets more complicated as a one:many relationship occurs. Hence, needing to "fill" in gauge sites that are not simply found. There are a few different means of doing this: leaving the sites empty (``leave_null``), using xarray's `forward_fill <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.ffill.html>`_, or selecting based on different statistical measures of simularity (``r2``, ``kldiv``, ``kge``). 
+
+.. image:: Figures/Blending_Diagram.png
+    :alt: In blending, attributes from one gauge site are mixed with another gauge site depending on how close the intermediate seg is to each gauge site, (depicted left by 5 circles translating from pink to purple to blue across the segs). As a result, intermediate CDFs can be produced by transitioning from one gauge site CDF to another, (depicted right by pink CDF curves transforming into purple then blue CDFs curves).
+
+Blend factor describes how upstream and downstream flows should be combined, or "blended" together.
+Let
+
+|    UM, DM = Upstream Measure, Downstream Measure (length, r2, Kullback-Leibler Divergence, or Kling-Gupta Efficiency)    
+|    BF = Blend Factor    
+|    UF, DF, TF = Upstream Corrected Flow, Downstream Corrected Flow, Total Corrected Flow    
+
+.. math:: 
+
+    BF = \frac{UM}{UM+DM}
+    TF = (BF*UF) + ((1-BF)*DF)
 
 Independent Bias Correction: Univariate (IBC_U)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -21,7 +65,7 @@ Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.
 Independent Bias Correction: Conditioned (IBC_C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Similar to `IBC_U <Independent Bias Correction: Univariate (IBC_U)>`_, Conditioned Independent Bias Correction (IBC_C) can only apply corrections at gauge sites where there is refence flow data. IBC_C integrates meteorologic data into the ``bmorph`` bias correction process as described in `mDCDEDCDFm`_. Conditioning allows hydrologic process based knowledge to be included in the bias correction process that can help to root bias corrections in meteorologic trends. 
+Similar to `IBC_U <Independent Bias Correction: Univariate (IBC_U)>`_, Conditioned Independent Bias Correction (IBC_C) can only apply corrections at gauge sites where there is refence flow data. IBC_C integrates meteorologic data into the ``bmorph`` bias correction process as described in `bmorph.core.bmorph.cqm <https://bmorph.readthedocs.io/en/develop/api.html#module-bmorph.core.bmorph.cqm>`_. Conditioning allows hydrologic process based knowledge to be included in the bias correction process that can help to root bias corrections in meteorologic trends. 
 
 Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.workflows.apply_interval_bmorph`_
 
@@ -43,37 +87,6 @@ Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.c
 .. _`bmorph.core.workflows.apply_interval_bmorph`: https://bmorph.readthedocs.io/en/develop/api.html#module-bmorph.core.workflows.apply_interval_bmorph`
 .. _`bmorph.core.workflows.apply_annual_blendmorph`: https://bmorph.readthedocs.io/en/develop/api.html#module-bmorph.core.workflows.apply_annual_blendmorph
 .. _`bmorph.core.workflows.apply_interval_blendmorph`: https://bmorph.readthedocs.io/en/develop/api.html#module-bmorph.core.workflows.apply_interval_blendmorph
-
-
-bmorph Parameters
------------------
-
-Conditioning: edcdfm vs mdcdedcdfm
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-EDCDFm
-""""""
-
-Before describing how conditioning is integrated into ``bmorph`` bias correction, we need to discuss the standard method. 
-``bmorph`` implements part of PresRat bias correction from Pierce et al. (2015), which is an extension of Equidistant quantile matching (EDCDFm) technique of Li et al. (2010). ``bmorph`` uses the amended EDCDFm to compute multiplicative changes in the quantiles of a Cumulative Distribution Fuction (CDF). Here, only flow values are used to construct the CDFs. 
-
-.. image:: Figures/Mapping_Diagrams_Pierce.jpg
-    :alt: Figure 1 from Pierce et al. (2015). Describes differences in bias correction techniques between Quantile Mapping, EDCDFm, CDF-t, and all methods combined with PresRat.
-
-Above, Pierce et al (2010) depicts how Quantile Mapping, EDCDFm, and CDF-t are performed and compare in bias correction methods to PresRat.
-
-mDCDEDCDFm
-""""""""""
-
-multiDimensional ConDitional EquiDistant CDF matching function, (mDCDEDCDFm), incorporates meteorologic data into the ``bmorph`` bias correction process to condition flow time series to other hydrologically relevant information. By creating a series of CDFs based on meteorologic data, (such as minimum daily temperature), ``bmorph`` can select a CDF that will not only correct the time series, but most closely match the metrologic conditions simulated.
-    
-.. image:: Figures/conditioning_diagram_with_arrows.png
-    :alt: Multidimensional CDF functions are shown has heat maps with raw taking up left and refernce taking up center. A cumulative proability plot compares raw model CDF and Reference flow CDF for one meteorologic slice of the heatmaps left of it. Arrows demonstrate mapping the reference data in the heat maps to the raw model data for bias correction.
-
-.. math::
-
-    \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
-                            - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
                             
 Citations
 ---------
