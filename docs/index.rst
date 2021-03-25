@@ -21,7 +21,8 @@ Then, to install ``bmorph`` run,
 
 Getting started
 ===============
-TO DO
+
+A step-by-step tutorial can be found `here <bmorph_tutorial.rst>`
 
 Sitemap
 =======
