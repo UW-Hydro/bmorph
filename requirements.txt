@@ -16,3 +16,4 @@ graphviz
 pygraphviz
 jupyter
 statsmodels
+probscale
