@@ -1,42 +1,7 @@
 Package Overview
 ================
 
-core
-----
-
-workflows
-^^^^^^^^^
-
-
-
-bmorph
-^^^^^^
-
-
-
-local_flows
-^^^^^^^^^^^
-
-
-
-evaluation
-----------
-
-plotting
-^^^^^^^^
-
-
-
-simple_river_network
-^^^^^^^^^^^^^^^^^^^^
-
-
-
-util
-----
-
-mizuroute_utils
-^^^^^^^^^^^^^^^
-
-
+.. image:: Figures/bmorph_package_overview.png
+    :alt: Flowchart describing bmorph package directory structure to key directories util, core, and evaluation. util describes mizuroute_utils as "Configuring output from mizuRoute into input for bmorph. Blending and Conditioning pre-processing occurs here." core describes workflows as "Automated workflows for applying bmorph across multiple sites and time intervals" and bmorph as "Where bias corection compuations take place for individual site and time increments." evaluation describes plotting as "Plotting functions for analyzing and visualizing bias corrections relative to refernce and uncorrected data" and simple_river_network as "Pseudo-physical river network visualization for depciting spatial variables at segs across the watershed."
+    
 
