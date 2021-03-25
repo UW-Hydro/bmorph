@@ -4,10 +4,15 @@ Bias Correction
 This page documents the implementation of
 **bmorph** bias correction for streamflow
 data in a watershed. An example workflow notebook
-can be found in ``bmorph_tutorial``.
+can be found in the `tutorial <bmorph_tutorial.rst>`_.
 
 bmorph Functionality
 --------------------
+
+.. image:: Figures/bmorph_full_workflow.png
+    :alt: Flowchart describing bmorph bias correction process from initial routing to bias correction to secondary routing, outlining the steps that must occur for conditioning and spatial consistency to be utilized in bias correction.
+    
+[need caption]
 
 Conditioning: EDCDFm vs Conditional Quantile Mapping (CQM)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -54,6 +59,9 @@ Let
 
     BF = \frac{UM}{UM+DM}
     TF = (BF*UF) + ((1-BF)*DF)
+    
+Implementation
+--------------
 
 Independent Bias Correction: Univariate (IBC_U)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -72,14 +80,14 @@ Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.
 Spatially Consistent Bias Correction: Univariate (SCBC_U)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Univariate Spatially Consistent Bias Correction (SCBC_U) aims to address IBC's inability to correct flows at non-gauge sites where reference timeseries do not exist. Spatial consistency is conserved by performing bias corrrections at every river segement, or `seg <data.rst/Common Naming Conventions>`_, and then rerouting the corrected flows through `mizuroute <https://mizuroute.readthedocs.io/en/latest/>`_. Reference data for each seg that is not a gauge site is done by creating proxy reference data for each seg from upstream and downstream proxy gauge flows that can be combinded, or blended, together to create what the reference flow data for that seg should look like, as described in `Spatial Conistency: Reference Site Selection & CDF Blend Factor <data.rst/Spatial Consistency: Reference Site Selection & CDF Blend Factor>`_. 
+Univariate Spatially Consistent Bias Correction (SCBC_U) aims to address IBC's inability to correct flows at non-gauge sites where reference timeseries do not exist. Spatial consistency is conserved by performing bias corrrections at every river segement, or `seg <data.rst/Variable Naming Conventions>`_, and then rerouting the corrected flows through `mizuroute <https://mizuroute.readthedocs.io/en/latest/>`_. Reference data for each seg that is not a gauge site is done by creating proxy reference data for each seg from upstream and downstream proxy gauge flows that can be combinded, or blended, together to create what the reference flow data for that seg should look like, as described in `Spatial Conistency: Reference Site Selection & CDF Blend Factor <data.rst/Spatial Consistency: Reference Site Selection & CDF Blend Factor>`_. 
 
 Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.core.workflows.apply_interval_blendmorph`_
 
 Spatially Consistent Bias Correction: Conditioned (SCBC_C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Conditioned Spatially Consistent Bias Correction (SCBC_C) combines the meteorologic conditioning elements of `IBC_C <Independent Bias Correction: Conditioned (IBC_C)>`_ with the spatial consistency of `SCBC_U <Spatially Consistent Bias Correction: Univariate (SCBC_U)>`_. This implementation of SCBC factors in meteorologic variables given into the formulation of refernce flows for each seg to be corrected to. Defined by the hydrologic response units, or `hru's <data.rst/Common Naming Conventions>`_, they impact, meteorologic data is mappable to each seg within the watershed topology. In `IBC_C <Independent Bias Correction: Conditioned (IBC_C)>`_, only the data mapped to gauge sites would be used in bias correction, whereas SCBC_C can utilize meteorologic data across the watershed as it incoporates all defined segs. 
+Conditioned Spatially Consistent Bias Correction (SCBC_C) combines the meteorologic conditioning elements of `IBC_C <Independent Bias Correction: Conditioned (IBC_C)>`_ with the spatial consistency of `SCBC_U <Spatially Consistent Bias Correction: Univariate (SCBC_U)>`_. This implementation of SCBC factors in meteorologic variables given into the formulation of refernce flows for each seg to be corrected to. Defined by the hydrologic response units, or `hru's <data.rst/Variable Naming Conventions>`_, they impact, meteorologic data is mappable to each seg within the watershed topology. In `IBC_C <Independent Bias Correction: Conditioned (IBC_C)>`_, only the data mapped to gauge sites would be used in bias correction, whereas SCBC_C can utilize meteorologic data across the watershed as it incoporates all defined segs. 
 
 Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.core.workflows.apply_interval_blendmorph`_
 
