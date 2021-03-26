@@ -72,11 +72,11 @@ of how your project directory is expected to be set up can be found in `Input Sp
     
     basin_topo = xr.open_dataset('../topologies/basin_topology_file_name.nc').load() 
     
-Sometimes meterological data may only be available for a larger region
+Sometimes meteoorological data may only be available for a larger region
 or watershed than anlayzing, so the following data will be described under such
 an assumption.
     
-Here we load in some example meterological data: daily minimum temperature (tmin), seasonal precipitation (prec),
+Here we load in some example meteorological data: daily minimum temperature (tmin), seasonal precipitation (prec),
 and daily maximum temperature (tmax). You can use similar or completely different data, just note naming should be universally updated and unused names should be deleted or commented out completely.
 
 .. code:: ipython3 
@@ -193,7 +193,7 @@ and after this window. This is used to reduce discontinuities between applicatio
 ``condition_var`` names the variable to use in conditioning, such as maximum
 temperature (tmax), seasonal precipitation (seasonal_precip), or daily
 minimum temperature (tmin). At this time, only one conditioning
-meterological variable can be used per ``bmorph`` execution. In this example,
+meteorological variable can be used per ``bmorph`` execution. In this example,
 ``tmax`` and ``seasonal_precip`` have been commented out to select ``tmin`` as
 the conditioning variable. If you wish to change this, be sure to either change
 which variables are commented out or change the value of ``condition_var`` itself.
