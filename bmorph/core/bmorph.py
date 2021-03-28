@@ -46,11 +46,12 @@ def marginalize_cdf(y_raw, z_raw, vals):
     return z
 
 
-def mdcdedcdfm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
+def cqm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
                raw_y: pd.Series, train_y: pd.Series, truth_y: pd.Series=None,
                method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0) -> pd.Series:
-    """
-    multiDimensional ConDitional EquiDistant CDF matching function
+    """Conditional Quantile Mapping
+    
+    Multidimensional conditional equidistant CDF matching function:
     \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
                             - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
     """
@@ -67,7 +68,7 @@ def mdcdedcdfm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
         x_train, y_train, z_train = hist2D(train_x, train_y, xbins, ybins)
         x_truth, y_truth, z_truth = hist2D(truth_x, truth_y, xbins, ybins)
     else:
-        raise Exception("Current methods for mdcdedcdfm only include 'hist' to use hist2D and 'kde' to use kde2D, please select one.")
+        raise Exception("Current methods for cqm only include 'hist' to use hist2D and 'kde' to use kde2D, please select one.")
 
     nx = np.arange(len(raw_x))
     raw_cdfs = marginalize_cdf(y_raw, z_raw, raw_y)
@@ -192,7 +193,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     nsmooth : int
         Number of elements that will be smoothed when determining CDFs
     raw_y : pandas.Series
-        Raw time series of the second time series variable for mdcdedcdfm
+        Raw time series of the second time series variable for cqm
     truth_y : pandas.Series
         Target second time series
     train_y : pandas.Series
@@ -228,7 +229,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     train_cdf = train_ts[training_window].rolling(
         window=nsmooth, min_periods=1, center=True).mean()
     
-    # Check if using edcdfm or mdcdedcdfm through second variable being added  
+    # Check if using edcdfm or cqm through second variable being added  
     # for the raw and train series because truth can be set as train later
     if (raw_y is None) or (truth_y is None) or (train_y is None):
         # Calculate the bmorph multipliers based on the smoothed time series and
@@ -255,7 +256,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
         train_smoothed_y = train_y[training_window].rolling(
             window=nsmooth, min_periods=1, center=True).mean()
         
-        bmorph_multipliers = mdcdedcdfm(raw_smoothed_ts[raw_bmorph_window], 
+        bmorph_multipliers = cqm(raw_smoothed_ts[raw_bmorph_window], 
                                         train_cdf, truth_cdf,
                                         raw_smoothed_y[raw_bmorph_window],
                                         train_smoothed_y, truth_smoothed_y,

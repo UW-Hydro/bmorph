@@ -66,7 +66,7 @@ If some data is not accessible in a single function call, be sure to collapse
 it into a single file first before loading them. File designation calls assume
 this code is in a folder seperate from the data, but that this code's containing
 folder is at the same heirarchy as the folders containing the data. A description
-of how your project directory is expected to be set up can be found in `data.rst <data.rst>`_.
+of how your project directory is expected to be set up can be found in `Input Specifications <data.rst/Directory Setup>`_.
     
 .. code:: ipython3 
     
@@ -113,7 +113,7 @@ need the topology of the larger watershed as well.
     watershed_topo = watershed_topo.where(watershed_topo['hru'] < 1.79e7, drop=True)
 
 
-Here we clean up a few naming conventions to get everything on the same page in accordance with ``data.rst``.
+Here we clean up a few naming conventions to get everything on the same page in accordance with our standard `variable names <data.rst/Variable Naming Conventions>`_.
     
 .. code:: ipython3
 
@@ -131,7 +131,7 @@ Convert ``mizuroute`` formatting to ``bmorph`` formatting
 ``mizuroute_utils`` is our utility script that will handle converting
 Mizuroute outputs to what we need for ``bmorph``. For more information
 on what ``mizuroute_utils`` does specifically and how to change its 
-parameters, check out ``data.rst``.
+parameters, check out `Configuration <data.rst/Configuration>`_.
 
 Here we pull out coordinate data from the ovearching watershed
 for the specific basin we want to analyze.
@@ -161,7 +161,7 @@ for correction. Returning to these parameters can help fine tune your bias
 corrections to the basin you are analyzing.
 
 In this notebook, all four variations of ``bmorph`` are demonstrated: 
-IBC_U, IBC_C, SCBC_U, and SCBC_C, as described in ``bias_correction.rst``.
+IBC_U, IBC_C, SCBC_U, and SCBC_C, as described in `Implementation <bias_correction.rst/Implementation>`_.
 
 The ``train_window`` is what we will use to train the bias correction
 model. This is the time range that is representative of the
