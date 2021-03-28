@@ -5,10 +5,12 @@ from typing import List
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy
+import probscale
 
 import networkx as nx
 import graphviz as gv
 import pygraphviz as pgv
+import probscale
 from networkx.drawing.nx_agraph import graphviz_layout
 
 from bmorph.evaluation.constants import colors99p99
@@ -21,7 +23,7 @@ from statsmodels.distributions.empirical_distribution import ECDF
 #      custom_legend
 #      calc_water_year
 #      find_index_water_year
-#      determin_row_col
+#      determine_row_col
 #      log10_1p
 #      scatter_series_axes
 #*****************************************************************************************
@@ -937,7 +939,7 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
     
 #*****************************************************************************************
 # BMORPH Summary Statistics:
-#      plot_reduced_doy_flows
+#      plot_reduced_flows
 #      plot_spearman_rank_difference
 #      correction_scatter
 #      pbias_diff_hist
@@ -953,9 +955,10 @@ def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_c
 #      compare_mean_grouped_CPD
 #*****************************************************************************************
 
-def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list, 
-                        reduce_func=np.mean, 
-                        vertical_label=f'Mean Day of Year Flow 'r'$(m^3/s)$',
+def plot_reduced_flows(flow_dataset: xr.Dataset, plot_sites: list, 
+                        reduce_func=np.mean, interval = "day",
+                        statistic_label='Mean',
+                        units_label = r'$(m^3/s)$',
                         title_label=f'Annual Mean Flows',                           
                         raw_var = 'IRFroutedRunoff', raw_name = 'Mizuroute Raw', 
                         ref_var = 'upstream_ref_flow', ref_name = 'upstream_ref_flow', 
@@ -965,7 +968,7 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
                         figsize_width = 70, figsize_height = 30,
                         plot_colors = ['grey', 'black', 'blue', 'red'],
                         return_reduced_flows = False):
-    """Creates a series of subplots that plot an average year's flows per gauge site.
+    """Creates a series of subplots plotting statistical day of year flows per gauge site.
     
     Parameters
     ----------
@@ -974,25 +977,30 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     plot_sites : list
         Sites to be plotted.
     reduce_func : function, optional
-        A function to apply to flows grouped by dayofyear, defaults as np.mean.
-    vertical_label : str
-        Label for the vertical axis representing the `reduce_func`, defaults as
-        f'Mean Day of Year Flow 'r'$(m^3/s)$' to fit `reduce_func` as np.mean.
+        A function to apply to flows grouped by `interval`, defaults as np.mean.
+    interval : str, optional
+        What time interval annual `reduce_func` should be computed on. Currently supported
+        is `day` for dayofyear (default), `week` for weekofyear, and `month` for monthly.
+    statistic_label : str, optional
+        Label for the statistic representing the `reduce_func`, defaults as
+        'Mean' to fit `reduce_func` as np.mean.
+    units_label : str, optional
+        Label for the units of flow, defaults as r`$(m^3/s)$`.
     title_label : str
         Lable for the figure title representing the reduce_func, defaults as
         f'Annual Mean Flows' to fit `reduce_func` as np.mean.
     raw_var : str, optional
-        Dictionary key to access the raw flows in `flow_dataset`, defaults as
+        The string to access the raw flows in `flow_dataset`, defaults as
         'IRFroutedRunoff'.
     raw_name : str, optional
         Label for the raw flows in the legend, defaults as 'Mizuroute Raw'.
     ref_var : str, optional
-        Dictionary key to access the reference flows in `flow_dataset`, defaults
+        The string to access the reference flows in `flow_dataset`, defaults
         as 'upstream_ref_flow'.
     ref_name : str, optional
         Label for the reference flows in the legend, defaults as 'upstream_ref_flow'.
     bc_vars : list
-        Dictionary keys to access the bias corrected flows in `flow_dataset`.
+        The strings to access the bias corrected flows in `flow_dataset`.
     bc_names : list
         Labels for the bias corrected flows in the legend, expected in the same
         order as `bc_vars`.
@@ -1031,24 +1039,51 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     if len(plot_colors) < 2 + len(bc_vars):
         raise Exception(f"Please enter at least {2 + len(bc_vars)} colors in plot_colors")
     
-    raw_flow_doy = flow_dataset[raw_var].groupby(
-        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    reference_flow_doy = flow_dataset[ref_var].groupby(
-        flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
-    bc_flow_doys = list()
-    for bc_var in bc_vars:
-        bc_flow_doys.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func))        
-
-    doy = raw_flow_doy['dayofyear'].values
+    interval = interval.lower()
+    interval_name = "Day of Year"
+    if interval == 'day':
+        interval_name = "Day"
+        raw_flow = flow_dataset[raw_var].groupby(
+            flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+        reference_flow = flow_dataset[ref_var].groupby(
+            flow_dataset['time'].dt.dayofyear).reduce(reduce_func)
+        bc_flows = list()
+        for bc_var in bc_vars:
+            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.dayofyear).reduce(reduce_func))        
+        time = raw_flow['dayofyear'].values
+    elif interval == 'week':
+        interval_name = "Week of Year"
+        raw_flow = flow_dataset[raw_var].groupby(
+            flow_dataset['time'].dt.week).reduce(reduce_func)
+        reference_flow = flow_dataset[ref_var].groupby(
+            flow_dataset['time'].dt.week).reduce(reduce_func)
+        bc_flows = list()
+        for bc_var in bc_vars:
+            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.week).reduce(reduce_func))        
+        time = raw_flow['weekofyear'].values
+    elif interval == 'month':
+        interval_name = "Month"
+        raw_flow = flow_dataset[raw_var].groupby(
+            flow_dataset['time'].dt.month).reduce(reduce_func)
+        reference_flow = flow_dataset[ref_var].groupby(
+            flow_dataset['time'].dt.month).reduce(reduce_func)
+        bc_flows = list()
+        for bc_var in bc_vars:
+            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.month).reduce(reduce_func))        
+        time = raw_flow['month'].values
+    else:
+        raise Exception("Please use 'day', 'week', or 'month' for interval.")
+    
+    
     outlet_names = flow_dataset['seg'].values
    
-    raw_flow_doy_df = pd.DataFrame(data = raw_flow_doy.values, 
-                                   index=doy, columns = outlet_names)
-    reference_flow_doy_df = pd.DataFrame(data = reference_flow_doy.values, 
-                                         index=doy, columns = outlet_names)
-    bc_flow_doy_dfs = list()
-    for bc_flow_doy in bc_flow_doys:
-        bc_flow_doy_dfs.append(pd.DataFrame(data = bc_flow_doy.values, index = doy, columns = outlet_names))
+    raw_flow_df = pd.DataFrame(data = raw_flow.values, 
+                                   index=time, columns = outlet_names)
+    reference_flow_df = pd.DataFrame(data = reference_flow.values, 
+                                         index=time, columns = outlet_names)
+    bc_flow_dfs = list()
+    for bc_flow in bc_flows:
+        bc_flow_dfs.append(pd.DataFrame(data = bc_flow.values, index = time, columns = outlet_names))
     
     plot_names = [raw_name, ref_name]
     plot_names.extend(bc_names)
@@ -1056,14 +1091,13 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
     mpl.rcParams['figure.figsize'] = (figsize_width, figsize_height)
     n_rows, n_cols = determine_row_col(len(plot_sites))
     fig, axs = plt.subplots(n_rows, n_cols)
-    fig.suptitle(title_label, fontsize = fontsize_title, color = fontcolor, y = 1.05)
                                           
     for site, ax in zip(plot_sites, axs.ravel()):
-        ax.plot(raw_flow_doy_df[site], color = plot_colors[0], alpha = 0.8, lw = 4)
-        ax.plot(reference_flow_doy_df[site], color = plot_colors[1], alpha = 0.8, lw = 4)
+        ax.plot(raw_flow_df[site], color = plot_colors[0], alpha = 0.8, lw = 4)
+        ax.plot(reference_flow_df[site], color = plot_colors[1], alpha = 0.8, lw = 4)
         
-        for i, bc_flow_doy_df in enumerate(bc_flow_doy_dfs):
-            ax.plot(bc_flow_doy_df[site], color = plot_colors[2+i], lw = 4, alpha = 0.8)
+        for i, bc_flow_df in enumerate(bc_flow_dfs):
+            ax.plot(bc_flow_df[site], color = plot_colors[2+i], lw = 4, alpha = 0.8)
         
         ax.set_title(site, fontsize = fontsize_subplot, color = fontcolor)
         plt.setp(ax.spines.values(), color = fontcolor)
@@ -1073,22 +1107,23 @@ def plot_reduced_doy_flows(flow_dataset: xr.Dataset, plot_sites: list,
         for ax_index in np.arange(len(plot_sites), n_rows * n_cols):
             axs.ravel().tolist()[ax_index].axis('off')
 
-    fig.text(0.5, -0.02, 'Day of Year', fontsize = fontsize_title, ha = 'center')
-    fig.text(-0.02, 0.5, vertical_label, fontsize = fontsize_title, 
+    fig.text(0.4, -0.02, interval_name, fontsize = fontsize_title, ha = 'center')
+    fig.text(-0.02, 0.5, f"{statistic_label} {interval_name} Flow {units_label}", fontsize = fontsize_title, 
              va = 'center', rotation = 'vertical')
-    plt.subplots_adjust(wspace = 0.2, hspace = 0.5, left = 0.05, right = 0.8, top = 0.95)
+    plt.subplots_adjust(wspace = 0.1, hspace = 0.3, left = 0.05, right = 0.8, top = 0.95)
 
     fig.legend(plot_names, fontsize = fontsize_legend, loc = 'center right');
     
     if return_reduced_flows:
-        reduced_flows = xr.Dataset(coords={'site': plot_sites, 'time': doy})
-        reduced_flows[raw_var] = xr.DataArray(data = raw_flow_doy_df.values, dims = ('time', 'site') ).transpose()
-        reduced_flows[ref_var] = xr.DataArray(data = reference_flow_doy_df.values, dims = ('time', 'site') ).transpose()
-        for bc_var, bc_flow_doy_df in zip(bc_vars, bc_flow_doy_dfs):
-            reduced_flows[bc_var] = xr.DataArray(data = bc_flow_doy_df.values, dims = ('time', 'site') ).transpose()
+        reduced_flows = xr.Dataset(coords={'site': plot_sites, 'time': time})
+        reduced_flows[raw_var] = xr.DataArray(data = raw_flow_df.values, dims = ('time', 'site') ).transpose()
+        reduced_flows[ref_var] = xr.DataArray(data = reference_flow_df.values, dims = ('time', 'site') ).transpose()
+        for bc_var, bc_flow_df in zip(bc_vars, bc_flow_dfs):
+            reduced_flows[bc_var] = xr.DataArray(data = bc_flow_df.values, dims = ('time', 'site') ).transpose()
         return reduced_flows
     
     return fig, ax
+
     
 def plot_spearman_rank_difference(flow_dataset:xr.Dataset, gauge_sites: list, 
                                   start_year: str, end_year: str, 
@@ -1297,6 +1332,144 @@ def correction_scatter(site_dict:dict, raw_flow:pd.DataFrame,
     fig.text(-0.02, 0.5, r'$Q_{ref} - Q_{bc} \quad (m^3/s)$', va='center', rotation = 'vertical', 
              fontsize=fontsize_title, color=fontcolor);    
     
+    plt.tight_layout()
+    plt.show
+    
+def compare_correction_scatter(flow_dataset: xr.Dataset, plot_sites:list,
+                       raw_var= "raw", raw_name = "Mizuroute Raw",
+                       ref_var="ref", ref_name = "Reference",
+                       bc_vars = list(), bc_names = list(),
+                       plot_colors = ['blue', 'purple','orange','red'], 
+                       title='Absolute Error in Flow'r'$(m^3/s)$', 
+                       fontsize_title=80, fontsize_legend=68, alpha = 0.05,
+                       fontsize_subplot=60, fontsize_tick=45, fontcolor='black',
+                       pos_cone_guide=False, neg_cone_guide=False, symmetry=True):
+    """Difference from reference flows before and after correction.
+
+    Plots differences between the raw and reference flows on the horizontal
+    and differences between the bias corrected and refrerence on the vertical.
+    This compares corrections needed before and after the bias correction method
+    is applied.
+    
+    Parameters
+    ----------
+    flow_dataset : xarray.Dataset
+        contains raw, reference, and bias corrected flows.
+    plot_sites : list
+        Sites to be plotted, expected as the `seg` coordinate in `flow_dataset`.
+    raw_var : str, optional
+        The string to access the raw flows in `flow_dataset`, defaults as `raw`.
+    raw_name : str, optional
+        Label for the raw flows in the legend, defaults as 'Mizuroute Raw'.
+    ref_var : str, optional
+        The string to access the reference flows in `ref`, defaults
+        as 'upstream_ref_flow'.
+    ref_name : str, optional
+        Label for the reference flows in the legend, defaults as 'Reference'.
+    bc_vars : list
+        The strings to access the bias corrected flows in `flow_dataset`.
+    bc_names : list
+        Labels for the bias corrected flows in the legend, expected in the same
+        order as `bc_vars`.
+    plot_colors : list, optional
+        Colors to be plotted for each site in `plot sites`.
+        Defaults as ['blue', 'purple', 'orange, 'red'].
+    fontsize_title : int, optional
+        Fontsize of the title, defaults as 80.
+    fontsize_legend : int, optional
+        Fontsize of the legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Fontsize of the subplots, defaults as 60.
+    fontsize_tick : int, optional
+        Fontsize of the ticks, defaults as 45.
+    fontcolor : str, optional
+        Color of the font, defaults as 'black'.
+    pos_cone_guide : boolean, optional
+        If True, plots a postive 1:1 line through the origin for reference. 
+    neg_cone_guide : boolean, optional
+        If True, plots a negative 1:1 line through the origin for reference.
+    symmetry : boolean, optional
+        If True, the plot axis are symmetrical about the origin (default). 
+        If False, plotting limits will minimize empty space while not losing any data.
+    """
+    if len(bc_vars) == 0:
+        raise Exception("Please enter a non-zero number strings in bc_vars to be used")
+    if len(bc_vars) != len(bc_names):
+        raise Exception("Please have the same number of entries in bc_names as bc_names")
+    if len(plot_colors) < len(bc_vars):
+        raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
+    
+    num_plots = len(plot_sites)
+    n_rows, n_cols = determine_row_col(num_plots)
+    
+    mpl.rcParams['figure.figsize']=(60,40)
+                                       
+    fig,axs = plt.subplots(nrows=n_rows, ncols=n_cols)
+    plt.suptitle(title, fontsize= fontsize_title, color=fontcolor, y=1.05)
+                                       
+    ax_list = axs.ravel().tolist()
+    
+    plot_flows = flow_dataset.sel(seg=plot_sites).copy()
+    plot_flows["before_bc"] = plot_flows[ref_var]-plot_flows[raw_var]
+    
+    for bc_var in bc_vars:
+        plot_flows[f"after_{bc_var}"] = plot_flows[ref_var]-plot_flows[bc_var]
+    
+    #we need to figure out which plots have the most spread to make certain we hide the fewest
+    
+    spread = list()
+    for bc_var in bc_vars:
+        spread.append(plot_flows[f"after_{bc_var}"].values.max()-plot_flows[f"after_{bc_var}"].values.min())
+    
+    sorted_spread = np.flip(np.sort(spread.copy()))
+    spread_ranks = [spread.index(val) for val in sorted_spread]
+    
+    
+    for i, site in enumerate(plot_sites):
+        before_bc = plot_flows["before_bc"].sel(seg=site).values
+        for j in spread_ranks:
+            after_bc = plot_flows[f"after_{bc_vars[j]}"].sel(seg=site).values
+            scatter_series_axes(before_bc, after_bc, label=bc_names[j],
+                                         alpha=alpha, color=plot_colors[j], ax=ax_list[i])
+        ax_list[i].set_title(site, fontsize=fontsize_subplot)
+        plt.setp(ax_list[i].spines.values(), color=fontcolor)
+        ax_list[i].tick_params(axis='both', colors=fontcolor, labelsize=fontsize_tick)
+        
+    # add horizontal axis at 0 line and hide plots that are not in use 
+    for i, ax in enumerate(axs.ravel()):
+        if i == len(axs.ravel())-1:
+            ax.axis('off')
+            ax.legend(handles=custom_legend(names = bc_names, colors=plot_colors), fontsize = fontsize_legend, loc='center')
+        if i < num_plots:
+            bottom, top = ax.get_ylim()
+            left, right = ax.get_xlim()
+            ref_line_max = np.max([bottom, top, left, right])
+            ref_line_min = np.min([bottom, top, left, right])
+            ref_line_ext = ref_line_max
+            if np.abs(ref_line_min) > ref_line_ext:
+                ref_line_ext = np.abs(ref_line_min)
+            ax.plot([-ref_line_ext, ref_line_ext], [0,0], color='k', linestyle='--')
+            
+            if pos_cone_guide and neg_cone_guide:
+                ax.plot([-ref_line_ext, ref_line_ext], [-ref_line_ext, ref_line_max], color='k', linestyle='--')
+                ax.plot([-ref_line_ext, ref_line_ext], [ref_line_ext, -ref_line_max], color='k', linestyle='--')
+            elif pos_cone_guide:
+                ax.plot([0, ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
+            elif neg_cone_guide:
+                ax.plot([0, -ref_line_ext], [0, ref_line_ext], color='k', linestyle='--')
+                ax.plot([0, -ref_line_ext], [0, -ref_line_ext], color='k', linestyle='--')
+            if not symmetry:
+                ax.set_xlim(left=left,right=right)
+                ax.set_ylim(top=top,bottom=bottom)
+            
+        else:
+            ax.axis('off')
+    
+    fig.text(0.5, -0.04, r'$Q_{ref} - Q_{raw} \quad (m^3/s)$', ha='center', va = 'bottom', 
+             fontsize=fontsize_title, color=fontcolor);
+    fig.text(-0.02, 0.5, r'$Q_{ref} - Q_{bc} \quad (m^3/s)$', va='center', rotation = 'vertical', 
+             fontsize=fontsize_title, color=fontcolor);    
     plt.tight_layout()
     plt.show
 
@@ -1795,7 +1968,7 @@ def compare_CDF(flow_dataset: xr.Dataset, plot_sites: list,
     else:
         raise Exception("Please enter logarithm_base as '10' or 'e'")
     
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(plot_sites))
+    n_rows, n_cols = determine_row_col(len(plot_sites))
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
     axes = axes.flatten()
@@ -1947,7 +2120,7 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
                                  raw_var: str, raw_name: str,
                                  ref_var: str, ref_name: str,
                                  bc_vars: list, bc_names: list,
-                                 plot_colors: list,
+                                 plot_colors: list, title = "Annual KL Diveregence Before/After Bias Correction",
                                  fontsize_title = 40, fontsize_tick = 30, fontsize_labels = 40, 
                                  fontsize_legend = 30,
                                  showfliers = False, sharex = True, sharey = 'row', TINY_VAL = 1e-6, 
@@ -1980,6 +2153,8 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
         to each element in `bc_vars`.
     plot_colors : list
         Colors to be plotted for the raw and the bias corrected flows, respectively.
+    title : str, optional
+        Title to be plotted, defaults as "Annual KL Diveregence Before/After Bias Correction".
     fontsize_title : int, optional
         Font size of the title, defaults as 40.
     fontsize_tick : int, optional
@@ -2026,7 +2201,7 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
     for bc_var in bc_vars:
         kldiv_refbc_annuals.append(pd.DataFrame(index = WY_array, columns = sites))
     
-    plt.suptitle("Annual KL Diveregence Before/After Bias Correction", fontsize = fontsize_title, y = 1.05)
+    plt.suptitle(title, fontsize = fontsize_title, y = 1.05)
 
     for WY in WY_array:
         raw_flow_WY = raw_flows[f"{WY}-10-01":f"{WY+1}-09-30"]
@@ -2091,8 +2266,8 @@ def kl_divergence_annual_compare(flow_dataset: xr.Dataset, sites: list,
     fig.text(0.5, -0.04, r'$KL(P_{' + f'{ref_name}' + r'} || P_{scenario})$', 
              va = 'bottom', ha = 'center', fontsize = fontsize_labels);
     
-    plt.legend(handles=custom_legend(names=plot_labels, colors = plot_colors), 
-               fontsize = fontsize_legend, loc = 'lower right')
+    axs_list[-1].legend(handles=custom_legend(names=plot_labels, colors = plot_colors), 
+                        fontsize = fontsize_legend, loc = 'center')
 
     plt.tight_layout()
     
@@ -2363,95 +2538,123 @@ def compare_CDF_all(flow_dataset:xr.Dataset, plot_sites: list,
     
     return fig, axes
 
-def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_func,
+def compare_mean_grouped_CPD(flow_dataset: xr.Dataset, plot_sites: list, grouper_func,
                              raw_var: str, raw_name: str,
                              ref_var: str, ref_name: str,
                              bc_vars: list, bc_names: list,
                              plot_colors: list, subset_month = None,
                              units = r'Mean Annual Flow [$m^3/s$]',
-                             figsize = (20,20), sharex = False, sharey = True, 
-                             pp_kws = dict(postype='cunnane'), fontsize_labels = 30, fontsize_tick = 20,
-                             fontsize_legend = 24, alpha = 0.3, legend_bbox_to_anchor = (1.4, 1)):
-    """Cumulative Probability Distributions of mean annual flows on a probability axis.
-    
-    Plots the CPD's of the raw, reference, and bias corrected flows on a probability axis using the cunnane 
-    plotting positions.
-    
-    Parameters
-    ----------
+                             figsize = (20,20), sharex = False, sharey = False, 
+                             pp_kws = dict(postype='cunnane'), fontsize_title = 80, 
+                             fontsize_legend = 68, fontsize_subplot = 60,
+                             fontsize_tick = 45, fontsize_labels = 80, 
+                             linestyles = ['-','-','-'], markers = ['.','.','.'],
+                             markersize = 30, alpha = 1, legend_bbox_to_anchor = (1, 1),
+                             fig = None, axes = None, start_ax_index = 0, tot_plots = None
+                      ):
+    """
+    Cumulative Probability Distributions
+        plots the CPD's of the raw, reference, and bias corrected flows on a probability axis
+    ----
     flow_dataset : xarray.Dataset
         Contatains raw, reference, and bias corrected flows.
     plot_sites : list
-        Gauge sites to be plotted.
+        A list of sites to be plotted.
     grouper_func
         Function to group a pandas.DataFrame index by to calculate the 
         mean of the grouped values.
     raw_var : str
-        Accesses the raw (uncorrected) flows in `flow_dataset`.
+        The string to access the raw flows in flow_dataset.
     raw_name : str
-        Label for the raw flows in the legend, corresponding to `raw_var`.
+        Label for the raw flows in the legend.
     ref_var : str
-        Accesses the reference (true) flows in `flow_dataset`.
+        The string to access the reference flows in flow_dataset.
     ref_name : str
-        Label for the reference flows in the legend, corresponding to `ref_var`.
+        Label for the reference flows in the legend.
     bc_vars : list
-        Accesses the bias corrected flows in `flow_dataset`. Can be a size of 1.
-    bc_names: list
-        String(s) to label the bias corrected flows in the legend, in the same order
-        as and corresponding to `bc_vars`. Can be a size of 1.    
-    plot_colors : list, optional
-        Colors to be plotted for the flows corresponding to `raw_var`, 
-        `ref_var`, and `bc_var`, defaulting as ['grey', 'black', 'blue', 'red'],
-        assuming there are two entries in `bc_var`.
-    subset_month : int, optional
-        Integer date of a month to subset out for plotting, (ex: if you want to subset 
-        out January, enter 1). If none is specified, then all months are used.
+        List of strings to access the bias corrected flows in flow_dataset.
+    bc_names : list
+        List of labels for the bias corrected flows in the legend.
+    plot_colors : list
+        Contains the colors to be plotted for `raw_var`, `ref_var`, and
+        `bc_vars`, respectively.
+    subset_month: int, optional
+        The integer date of a month to subset out for plotting,
+        (ex: if you want to subset out January, enter 1). Defaults as None
+        to avoid subsetting and use all the data in the year.
     units : str, optional
-        Horizontal axis's label for units, defaults as r'Mean Annual Flow [$m^3/s$]'.
+        Vertical axis's label for units, defaults as r'Mean Annual Flow [$m^3/s$]'.
     pp_kws : dict, optional
-        Plotting position computation defaulted as dict(postype='cunnane'), as specified by
-        https://matplotlib.org/mpl-probscale/tutorial/closer_look_at_plot_pos.html
-    figsize : tuple, optional
-        Figure size following matplotlib connventions, defaults as (20, 20).
-    sharex : boolean or str, optional
-        Whether or how the horizontal axis is shared among subplots, defaults as False.
-    sharey : boolean or str, optional
-        Whether or how the vertical axis is shared among subplots, defaults as True.
-    fontsize_labels : int, optional
-        Font size of the labels, defaults as 30.
-    fontsize_tick : int, optional
-        Font size of the ticks, defaults as 20.
+        Plotting position computation as specified by
+        https://matplotlib.org/mpl-probscale/tutorial/closer_look_at_plot_pos.html.
+        Defaults as dict(postype='cunnane') for cunnane plotting positions.
+    fontsize_title : int, optional
+        Font size for the plot title, defaults as 80.
     fontsize_legend : int, optional
-        Font size of the legend text, defaults 24.
+        Font size for the plot legend, defaults as 68.
+    fontsize_subplot : int, optional
+        Font size for the plot subplot text, default as 60.
+    fontsize_tick : int, optional
+        Font size for the plot ticks, defaults as 45.
+    fontsize_labels : int, optional
+        Font size for the horizontal and vertical axis labels, defaults as 80.
+    linestyles : list, optional
+        Linestyles for ploting `raw_var`, `ref_var`, and `bc_vars`, respectively. 
+        Defaults as ['-','-','-'], expecting one of each.
+    markers : list, optional
+        Markers for ploting `raw_var`, `ref_var`, and `bc_vars`, respectively.
+        Defaults as ['.','.','.'], expecting one of each.
+    markersize : int, optional
+        Size of the markers for plotting, defaults as 30.
     alpha : float, optional
-        Transparency of the markers, defaults as 0.3.
-    legend_bbox_to_anchor : tuple
-        Where the bbox is anchored, defaults as (1.4, 1). If changing other size parameters,
-        this may need to be adjusted to properly place the legend.
-            
-    Returns
-    -------
-    matplotlib.figure, matplotlib.axes
+        Alpha transparency value for plotting, where 1 is opaque and 0 is transparent.
+    legend_bbox_to_anchor : tuple, optional
+        Box that is used to position the legend to the final axes. Defaults as (1,1).
+        Modify this is the legend does not plot where you desire it to be.
+    fig : matplotlib.figure, optional
+        matplotlib figure object to plot on, defaulting as None and creating a new object
+        unless otherwise specified.
+    axes : matplotlib.axes, optional
+        Array-like of matplotlib axes objet to plot multiple plots on, defaulting as None and creating
+        a new object unless otherwise specified.
+    start_ax_index : int, optional
+        If the plots should not be plotted starting at the first ax in axes, specifiy the index
+        that plotting should begin on. Defaults as None, assuming plotting should begin from 
+        the first ax.
+    tot_plots : int, optional
+        If more plotting is to be done than with the total data to be provided, describe how many
+        total plots there should be. Defalts as None, assuming plotting should begin form the
+        first ax.
     """
     
     if len(bc_vars) == 0:
         raise Exception("Please enter a non-zero number strings in bc_vars to be used")
     if len(bc_vars) != len(bc_names):
         raise Exception("Please have the same number of entries in bc_names as bc_names")
-    if len(plot_colors) < len(bc_vars):
-        raise Exception(f"Please enter at least {len(bc_vars)} colors in plot_colors")
+    if len(plot_colors) < 2 + len(bc_vars):
+        raise Exception(f"Please enter at least {2+len(bc_vars)} colors in plot_colors")
+    if len(linestyles) < 2 + len(bc_vars):
+        raise Exception(f"Please enter at least {2+len(bc_vars)} styles in linestyles")
+    if len(markers) < 2 + len(bc_vars):
+        raise Exception(f"Please enter at least {2+len(bc_vars)} markers in markers")
     
-    n_rows, n_cols = bmorph.plotting.determine_row_col(len(plot_sites))
-    
-    fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, sharex = sharex, sharey = sharey)
-    axes = axes.flatten()      
+    if not tot_plots:
+        tot_plots = len(plot_sites)
+    n_rows, n_cols = determine_row_col(tot_plots)
+    if fig is None or axes is None:
+        fig, axes = plt.subplots(n_rows, n_cols, figsize = figsize, 
+                                 sharex = sharex, sharey = sharey)
+    axes = axes.flatten()     
     
     time = flow_dataset['time'].values
-    raw_flow_df = pd.DataFrame(data = flow_dataset[raw_var].values, index=time, columns = plot_sites)
-    ref_flow_df = pd.DataFrame(data = flow_dataset[ref_var].values, index=time, columns = plot_sites)
+    raw_flow_df = pd.DataFrame(data = flow_dataset[raw_var].sel(seg=plot_sites).values, 
+                               index=time, columns = plot_sites)
+    ref_flow_df = pd.DataFrame(data = flow_dataset[ref_var].sel(seg=plot_sites).values, 
+                               index=time, columns = plot_sites)
     bc_flow_dfs = list()
     for bc_var in bc_vars:
-        bc_flow_df = pd.DataFrame(data = flow_dataset[bc_var].values, index = time, columns = plot_sites)
+        bc_flow_df = pd.DataFrame(data = flow_dataset[bc_var].sel(seg=plot_sites).values, 
+                                  index = time, columns = plot_sites)
         bc_flow_dfs.append(bc_flow_df)
         
     if not isinstance(subset_month, type(None)):
@@ -2469,7 +2672,7 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
         bc_flow_annuals.append(bc_flow_annual)
     
     for i, site in enumerate(plot_sites):
-        ax = axes[i]
+        ax = axes[i+start_ax_index]
         
         raw = raw_flow_annual[site].values
         ref = ref_flow_annual[site].values
@@ -2498,21 +2701,21 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
         )
         
         probscale.probplot(raw, ax=ax, pp_kws=pp_kws,
-                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[0], label=raw_name), 
-                           **common_opts)
-        probscale.probplot(ref, ax=ax, pp_kws=pp_kws, 
-                           scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[1], label=ref_name), 
-                           **common_opts)
+                           scatter_kws=dict(linestyle=linestyles[0], marker=markers[0], markersize = markersize, alpha=alpha, 
+                                            color = plot_colors[0], label=raw_name), **common_opts)
         
+        probscale.probplot(ref, ax=ax, pp_kws=pp_kws, 
+                           scatter_kws=dict(linestyle=linestyles[1], marker=markers[1], markersize = markersize*1.5, alpha=alpha, 
+                                            color = plot_colors[1], label=ref_name), **common_opts)
         for j, cor in enumerate(cors):
             probscale.probplot(cor, ax=ax, pp_kws=pp_kws, 
-                               scatter_kws=dict(linestyle='none', marker='.', alpha=alpha, color = plot_colors[2+j], label=bc_names[j]), 
-                               **common_opts)
+                               scatter_kws=dict(linestyle=linestyles[2+j], marker=markers[2+j], markersize = markersize, alpha=alpha, 
+                                                color = plot_colors[2+j], label=bc_names[j]), **common_opts)
         
-        ax.set_title(site, fontsize = fontsize_labels, position = (0.2, 0.8))
+        ax.set_title(site, fontsize = fontsize_subplot)
         ax.tick_params(axis = 'both', labelsize = fontsize_tick)
         ax.set_ylim([y_min, y_max])
-        ax.set_xlim(left=0.01, right=99.99)
+        ax.set_xlim(left=1, right=99)
         ax.set_xticks([1, 10, 20, 50, 80, 90, 95, 99])
         plt.setp(ax.get_xticklabels(), Rotation=45)
     
@@ -2522,11 +2725,9 @@ def compare_mean_grouped_CPD(flow_dataset:xr.Dataset, plot_sites: list, grouper_
     axes[i].legend(handles=custom_legend(names = plot_names, colors=plot_colors), 
                    bbox_to_anchor = legend_bbox_to_anchor, fontsize = fontsize_legend)
     
-    
     fig.text(0.4, 0.04, 'Cumulative Percentile', ha = 'center', fontsize = fontsize_labels)
     fig.text(-0.01, 0.5, units, va = 'center', 
              rotation = 'vertical', fontsize = fontsize_labels)
-    
     
     plt.subplots_adjust(hspace = 0.35, left = 0.05, right = 0.8, top = 0.95)
     
