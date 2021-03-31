@@ -1,0 +1,4 @@
+source activate bmorph
+python setup.py develop
+python -m ipykernel install --user --name bmorph
+jupyter labextension install @pyviz/jupyterlab_pyviz

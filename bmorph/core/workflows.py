@@ -10,8 +10,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10,
         rtol=1e-7, atol=0, method='hist'):
-    """Bias correction is performed by bmorph on yearly intervals. 
-    
+    """Bias correction is performed by bmorph on yearly intervals.
+
     Parameters
     ----------
     raw_ts : pandas.Series
@@ -53,19 +53,19 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
     ybins : int, optional
         Bins for the second time series. This should only be used if `method='hist'`.
     rtol : float, optional
-        The desired relatie tolerance of the result for KernelDensity. 
+        The desired relatie tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     atol : float, optional
-        The desired absolute tolerance of the result for KernelDensity. 
+        The desired absolute tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     method : str, optional
         Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
-    
+
     Returns
     -------
     bmorph_corr_ts : pd.Series
-        Returns a time series of length of an interval in the bmoprh window 
+        Returns a time series of length of an interval in the bmoprh window
         with bmorphed values.
     bmorph_mulitpliers : pd.Series
         Returns a time series of equal length to bc_totals used to scale the
@@ -95,8 +95,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         if(raw_cdf_window.stop > raw_ts_window.stop):
             offset = raw_ts_window.stop - raw_cdf_window.stop
             raw_cdf_window = slice(raw_cdf_window.start + offset, raw_ts_window.stop)
-        
-        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window, raw_bmorph_window, obs_ts, train_ts, 
+
+        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window, raw_bmorph_window, obs_ts, train_ts,
                                           training_window, n_smooth_short, raw_y, obs_y, train_y,
                                           bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
                                           method=method)
@@ -121,7 +121,7 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10,
         rtol=1e-6, atol=1e-8, method='hist'):
     """Bias correction is performed by bmorph on user-defined intervals.
-    
+
     Parameters
     ----------
     raw_ts : pandas.Series
@@ -161,19 +161,19 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
     ybins : int, optional
         Bins for the second time series. This should only be used if `method='hist'`.
     rtol : float, optional
-        The desired relatie tolerance of the result for KernelDensity. 
+        The desired relatie tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     atol : float, optional
-        The desired absolute tolerance of the result for KernelDensity. 
+        The desired absolute tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     method : str
         Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
-    
+
     Returns
     -------
     bmorph_corr_ts : pandas.Series
-        Returns a time series of length of an interval in the bmoprh window 
+        Returns a time series of length of an interval in the bmoprh window
         with bmorphed values.
     bmorph_multipliers : pandas.Series
         Returns a time series of equal length to bc_totals used to scale the
@@ -244,17 +244,17 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             truth_upstream_y = None, truth_downstream_y = None,
                             bw=3, xbins=200, ybins=10, atol=0, rtol=1e-7, method='hist'):
     """Bias correction is performed by blending bmorphed flows on yearly intervals.
-    
-    Blendmorph is used to perform spatially consistent bias correction, this function 
-    does so on an annual interval. This is done by performing bmorph bias correction 
-    for each site's timeseries according to upstream and downstream gauge sites 
-    (or proxies) where true flows are known. The upstream and downstream corrected 
-    timeseries are then multiplied by fractional weights, `blend_factor`, that sum 
+
+    Blendmorph is used to perform spatially consistent bias correction, this function
+    does so on an annual interval. This is done by performing bmorph bias correction
+    for each site's timeseries according to upstream and downstream gauge sites
+    (or proxies) where true flows are known. The upstream and downstream corrected
+    timeseries are then multiplied by fractional weights, `blend_factor`, that sum
     to 1 between them so the corrected flows can be combined, or "blended," into one,
-    representative corrected flow series for the site. It is thereby important to specify 
-    upstream and downstream values so bias corrections are performed with values that 
+    representative corrected flow series for the site. It is thereby important to specify
+    upstream and downstream values so bias corrections are performed with values that
     most closely represent each site being corrected.
-    
+
     Parameters
     ----------
     raw_upstream_ts : pandas.Series
@@ -285,7 +285,7 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         1-blend_factor of downstream multipliers and totals.
     n_smooth_long : int, optional
         This functionality is still to be implemented.
-        
+
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
@@ -317,19 +317,19 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     ybins : int, optional
         Bins for the second time series. This should only be used if `method='hist'`.
     rtol : float, optional
-        The desired relatie tolerance of the result for KernelDensity. 
+        The desired relatie tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     atol : float, optional
-        The desired absolute tolerance of the result for KernelDensity. 
+        The desired absolute tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     method : str, optional
         Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
-    
+
     Returns
     -------
     bc_totals: pandas.Series
-        Returns a time series of length of an interval in the bmoprh window 
+        Returns a time series of length of an interval in the bmoprh window
         with bmorphed values.
     bc_multipliers: pandas.Series
         Returns a time series of equal length to bc_totals used to scale the
@@ -422,17 +422,17 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             truth_upstream_y = None, truth_downstream_y = None,
                             bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, method='hist'):
     """Bias correction is performed by blending bmorphed flows on user defined intervals.
-    
-    Blendmorph is used to perform spatially consistent bias correction, this function 
-    does so on a user-defined interval. This is done by performing bmorph bias correction 
-    for each site's timeseries according to upstream and downstream gauge sites 
-    (or proxies) where true flows are known. The upstream and downstream corrected 
-    timeseries are then multiplied by fractional weights, `blend_factor`, that sum 
+
+    Blendmorph is used to perform spatially consistent bias correction, this function
+    does so on a user-defined interval. This is done by performing bmorph bias correction
+    for each site's timeseries according to upstream and downstream gauge sites
+    (or proxies) where true flows are known. The upstream and downstream corrected
+    timeseries are then multiplied by fractional weights, `blend_factor`, that sum
     to 1 between them so the corrected flows can be combined, or "blended," into one,
-    representative corrected flow series for the site. It is thereby important to specify 
-    upstream and downstream values so bias corrections are performed with values that 
+    representative corrected flow series for the site. It is thereby important to specify
+    upstream and downstream values so bias corrections are performed with values that
     most closely represent each site being corrected.
-    
+
     Parameters
     ---------
     raw_upstream_ts : pandas.Series
@@ -465,7 +465,7 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         1-blend_factor of downstream multipliers and totals.
     n_smooth_long : int, optional
         This functionality is still to be implemented.
-        
+
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
@@ -493,19 +493,19 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     ybins : int, optional
         Bins for the second time series. This should only be used if `method='hist'`.
     rtol : float, optional
-        The desired relatie tolerance of the result for KernelDensity. 
+        The desired relatie tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     atol : float, optional
-        The desired absolute tolerance of the result for KernelDensity. 
+        The desired absolute tolerance of the result for KernelDensity.
         This should only be used if `method='kde'`.
     method : str, optional
         Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
-    
+
     Returns
     -------
     bc_totals : pandas.Series
-        Returns a time series of length of an interval in the bmoprh window 
+        Returns a time series of length of an interval in the bmoprh window
         with bmorphed values.
     bc_multipliers : pandas.Series
         Returns a time series of equal length to bc_totals used to scale the
@@ -601,7 +601,7 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
 
 
 def _scbc_c_seg(ds, train_window, bmorph_window, reference_window,
-               bmorph_interval, bmorph_overlap, condition_var):
+               bmorph_interval, bmorph_overlap, condition_var, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
     up_obs_ts =    ds['up_ref_flow'].to_series()
@@ -630,7 +630,7 @@ def _scbc_c_seg(ds, train_window, bmorph_window, reference_window,
 
 
 def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
-               bmorph_interval, bmorph_overlap, condition_var=None):
+               bmorph_interval, bmorph_overlap, condition_var=None, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
     up_obs_ts =    ds['up_ref_flow'].to_series()
@@ -653,7 +653,7 @@ def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
 
 
-def run_parallel_scbc(ds, client, region, mizuroute_exe, bmorph_config):
+def run_parallel_scbc(ds, client, mizuroute_exe, bmorph_config):
     def unpack_and_write_netcdf(results, segs, file_path, out_varname='scbc_flow'):
         flows = [r[0] for r in results]
         mults = [r[1] for r in results]
@@ -674,10 +674,16 @@ def run_parallel_scbc(ds, client, region, mizuroute_exe, bmorph_config):
 
     futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
     results = client.gather(futures)
-    unpack_and_write_netcdf(results, ds['seg'], f'../input/{region.lower()}_local_{scbc_type}_scbc.nc')
-    config_path, mizuroute_config = mizutil.write_mizuroute_config(region, scbc_type, bmorph_config['bmorph_window'])
+    unpack_and_write_netcdf(results, ds['seg'], f'{bmorph_config["data_path"]}/input/{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
+    config_path, mizuroute_config = mizutil.write_mizuroute_config(bmorph_config["output_prefix"],
+            scbc_type, bmorph_config['bmorph_window'],
+            config_dir=bmorph_config['data_path']+'/mizuroute_configs/',
+            topo_dir=bmorph_config['data_path']+'/topologies/',
+            input_dir=bmorph_config['data_path']+'/input/',
+            output_dir=bmorph_config['data_path']+'/output/',
+            )
     mizutil.run_mizuroute(mizuroute_exe, config_path)
-    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{region.lower()}_{scbc_type}_scbc*').load()
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*').load()
     region_totals = region_totals.sel(time=slice(*bmorph_config['bmorph_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals
