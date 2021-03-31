@@ -18,11 +18,18 @@ Then, to install ``bmorph`` run,
    conda activate bmorph
    python setup.py develop
    python -m ipykernel install --user --name bmorph
+   
+Dependencies
+============
+
+The following packages and versions are required to be installed to operate ``bmorph``:
+
+
 
 Getting started
 ===============
 
-A step-by-step tutorial can be found `here <bmorph_tutorial.rst>`
+A step-by-step tutorial can be found `here <bmorph_tutorial.rst>`_.
 
 Sitemap
 =======

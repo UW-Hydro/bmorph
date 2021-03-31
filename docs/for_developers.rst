@@ -10,6 +10,9 @@ Converting notebooks to restructured text
 
     jupyter nbconvert mynotebook.ipynb --to rst
     
+    
+Any images in the notebook will be saved as png files within a newly created ``mynotebook_files`` and automatically referenced within the ``rst`` file.
+    
 For more information, check out `here <https://www.tutorialspoint.com/jupyter/jupyter_converting_notebooks.htm>`_
 
 Helper functions
