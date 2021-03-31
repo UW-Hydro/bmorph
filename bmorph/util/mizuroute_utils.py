@@ -28,10 +28,8 @@ CONTROL_TEMPLATE = Template(
 <units_qsim>           mm/d !
 <dt_qsim>              86400 !
 <is_remap>              F !
-<restart_opt>           F !
 <route_opt>             1 !
-<fname_output>          $out_name !
-<fname_state_out>       state.out.nc !
+<case_name>             $out_name !
 <param_nml>             param.nml.default !
 <doesBasinRoute>        0 !
 <varname_area>          Contrib_Area !
@@ -55,12 +53,12 @@ def write_mizuroute_config(region, scbc_type, time_window,
         'output_dir': os.path.abspath(output_dir)+'/',
         'sim_start': time_window[0].strftime("%Y-%m-%d"),
         'sim_end': time_window[1].strftime("%Y-%m-%d"),
-        'topo_file': f'{region.lower()}_huc12_topology_scaled_area.nc',
-        'flow_file': f'{region.lower()}_local_{scbc_type}_scbc.nc',
-        'out_name': f'{region.lower()}_{scbc_type}_scbc'
+        'topo_file': f'{region}_huc12_topology_scaled_area.nc',
+        'flow_file': f'{region}_local_{scbc_type}_scbc.nc',
+        'out_name': f'{region}_{scbc_type}_scbc'
     }
 
-    config_path = os.path.abspath(f'{config_dir}reroute_{region.lower()}_{scbc_type}.control')
+    config_path = os.path.abspath(f'{config_dir}reroute_{region}_{scbc_type}.control')
     with open(config_path, 'w') as f:
         f.write(CONTROL_TEMPLATE.substitute(mizuroute_config))
     return config_path, mizuroute_config
@@ -68,8 +66,7 @@ def write_mizuroute_config(region, scbc_type, time_window,
 
 def run_mizuroute(mizuroute_exe, mizuroute_config):
     cmd = f'{mizuroute_exe} {mizuroute_config}'
-    p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.wait()
+    p = subprocess.run([cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return p
 
 
@@ -77,20 +74,20 @@ def find_up(ds, seg):
     """
     Finds the segment directly upstream of seg given seg is not
     a headwater segment, (in which case np.nan is returned).
-    
+
     Parameters
     ---------
     ds: xr.Dataset
         Dataset containing river segments as 'seg', headwater
-        segments by 'is_headwaters', and what is downstream of 
+        segments by 'is_headwaters', and what is downstream of
         each seg in 'down_seg'.
     seg: int
         River segment designation to search from.
-        
+
     Returns
     -------
     up_seg: int
-        Upstream segment designation found, or np.nan if seg 
+        Upstream segment designation found, or np.nan if seg
         is a headwater segement.
     """
     if ds.sel(seg=seg)['is_headwaters']:
@@ -104,17 +101,17 @@ def walk_down(ds, start_seg):
     """
     Finds the nearest downstream gauge site and returns the distance
     traveled to reach it from start_seg.
-    
+
     Parameters
     ---------
     ds: xr.Dataset
         Dataset containing river segments, downstream segs, the length
-        of the river segments, and which segs are gauge sites as 
+        of the river segments, and which segs are gauge sites as
         'seg', 'down_seg', 'lenght', and 'is_gauge', respectively.
     start_seg: int
         River segment designation to start walking from to a
         downstream gauge site.
-    
+
     Returns
     -------
     tot_length: float
@@ -140,17 +137,17 @@ def walk_up(ds, start_seg):
     """
     Finds the nearest upstream gauge site and returns the distance
     traveled to reach it from start_seg.
-    
+
     Parameters
     ---------
     ds: xr.Dataset
         Dataset containing river segments, upstream segs, the length
-        of the river segments, and which segs are gauge sites as 
+        of the river segments, and which segs are gauge sites as
         'seg', 'up_seg', 'lenght', and 'is_gauge', respectively.
     start_seg: int
         River segment designation to start walking from to an
         upstream gauge site.
-    
+
     Returns
     -------
     tot_length: float
@@ -179,9 +176,9 @@ def walk_up(ds, start_seg):
 def find_max_r2(ds, curr_seg_flow):
     """
     Searches through ds to find which seg has the greatest
-    r2 value with respect to curr_seg_flow. If no seg is found, 
+    r2 value with respect to curr_seg_flow. If no seg is found,
     max_r2 = 0 and max_r2_ref_seg = -1.
-    
+
     Parameters
     ----------
     ds: xr.Dataset
@@ -190,7 +187,7 @@ def find_max_r2(ds, curr_seg_flow):
     curr_seg_flow: np.array
         A numpy array containing flow values that r2 is to
         be maximized with respect to.
-        
+
     Returns
     -------
     max_r2: float
@@ -212,10 +209,10 @@ def find_max_r2(ds, curr_seg_flow):
 def find_min_kldiv(ds, curr_seg_flow):
     """
     Searches through ds to find which seg has the smallest
-    Kullback-Leibler Divergence value with respect to curr_seg_flow. 
+    Kullback-Leibler Divergence value with respect to curr_seg_flow.
     If no seg is found, min_kldiv = -1 and min_kldiv_ref_seg = -1.
     https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence
-    
+
     Parameters
     ----------
     ds: xr.Dataset
@@ -224,7 +221,7 @@ def find_min_kldiv(ds, curr_seg_flow):
     curr_seg_flow: np.array
         a numpy array containing flow values that KL Divergence
         is to be maximized with respect to.
-        
+
     Returns
     -------
     min_kldiv: float
@@ -263,14 +260,14 @@ def kling_gupta_efficiency(sim, obs):
     """
     Calculates the Kling-Gupta Efficiency (KGE) between two flow arrays.
     https://agrimetsoft.com/calculators/Kling-Gupta%20efficiency
-    
+
     Parameters
     ---------
     sim: array-like
         Simulated flow array.
     obs: array-like
         Observed flow array.
-    
+
     Returns
     -------
     kge: float
@@ -295,7 +292,7 @@ def find_max_kge(ds, curr_seg_flow):
     Searches through ds to find which seg has the larges
     Kling-Gupta Efficiency (KGE) value with respect to curr_seg_flow.
     If no seg is found, max_kge = -np.inf and max_kge_ref_seg = -1.
-    
+
     Parameters
     ----------
     ds: xr.Dataset
@@ -304,7 +301,7 @@ def find_max_kge(ds, curr_seg_flow):
     curr_seg_flow: int
         A numpy array containing flow values that KGE
         is to be maximized with respect to.
-        
+
     Returns
     -------
     max_kge: float
@@ -326,12 +323,12 @@ def find_max_kge(ds, curr_seg_flow):
 def trim_time(dataset_list: list):
     """
     Trims all times of the xr.Datasets in the list to the shortest timeseries.
-    
+
     Parameters
     ----------
     dataset_list: List[xr.Dataset]
         Contains a list of xr.Datasets
-        
+
     Returns
     -------
     list
@@ -363,7 +360,7 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
     """
     Adds contributing_area, average elevation, length, and down_seg to
     routed from topology.
-    
+
     Parameters
     ---------
     routed: xr.Dataset
@@ -371,7 +368,7 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
         as 'seg'.
     topology: xr.Dataset
         Contains topological data of the watershed that routed's streamflow
-        timeseries describe. River segment designations, lengths, and 
+        timeseries describe. River segment designations, lengths, and
         immeditate downstream segments are expected as 'seg', 'Length',
         and 'Tosegment'.
     Returns
@@ -394,13 +391,13 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
     """
     Assigns segs within routed boolean 'is_gauge' "identifiers" and
     what each seg's upstream and downstream reference seg designations are.
-    
+
     Parameters
     ----------
     routed: xr.Dataset
         Contains the input flow timeseries data.
     gauge_reference: xr.Dataset
-        Contains reference flow timeseries data for the same watershed 
+        Contains reference flow timeseries data for the same watershed
         as the routed dataset.
     gauge_sites: list, optional
         If None, gauge_sites will be taken as all those listed in
@@ -416,7 +413,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         to have upstream/downstream reference segs designated. 'fill_method'
         specifies how segs should be assigned upstream/downstream reference
         segs for bias correction if they are missed walking upstream or downstream.
-        
+
         Currently supported methods:
             'leave_null'
                 nothing is done to fill missing reference segs, np.nan values are
@@ -436,7 +433,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
     -------
     routed: xr.Dataset
         Routed timeseries with reference gauge site river segments assigned to
-        each river segement in the original routed. 
+        each river segement in the original routed.
     """
     if isinstance(gauge_sites, type(None)):
         gauge_sites = gauge_reference['site'].values
@@ -610,14 +607,14 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
 def map_headwater_sites(routed: xr.Dataset):
     """
     Boolean identifies whether a river segement is a headwater with 'is_headwater'.
-    
+
     Parameters
     ----------
     routed: xr.Dataset
         Contains watershed river segments designated as the dimension 'seg'.
         River segments are connected by referencing immediate downstream segments
         as 'down_seg' for each 'seg'.
-        
+
     Returns
     -------
     routed: xr.Dataset
@@ -639,32 +636,32 @@ def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
     Calculates the cumulative distribution function blend factor based on distance
     to a seg's nearest up gauge site with respect to the total distance between
     the two closest guage sites to the seg.
-    
+
     Parameters
     ----------
     routed: xr.Dataset
         Contains flow timeseries data.
     gauge_reference: xr.Dataset
-        Contains reference flow timeseries data for the same watershed 
+        Contains reference flow timeseries data for the same watershed
         as the routed dataset.
     gauge_sites: list, optional
         If None, gauge_sites will be taken as all those listed in
-        gauge_reference.        
+        gauge_reference.
     fill_method: str
         See map_ref_sites for full description of how fill_method works.
-        
+
         Because each fill_method selects reference segs differently, calculate_blend_vars
         needs to know how they were selected to create blend factors. Note that 'leave_null'
         is not supported for this method because there is no filling for this method.
         Currently supported:
             'forward_fill'
-                cdf_blend_factor = distance_to_upstream / 
+                cdf_blend_factor = distance_to_upstream /
                         (distance_to_upstream + distance_to_downstream)
             'kldiv'
                 cdf_blend_factor = kldiv_upstream / (kldiv_upstream + kldiv_downstream)
             'r2'
                 cdf_blend_factor = r2_upstream / (r2_upstream + r2_downstream)
-                
+
     Returns
     -------
     routed: xr.Dataset
@@ -719,7 +716,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
                          fill_method='kldiv'):
     """
     Calculates a number of variables used in blendmorph and map_var_to_seg.
-    
+
     Parameters
     ----------
     routed: xr.Dataset
@@ -743,7 +740,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         to have upstream/downstream reference segs designated. 'fill_method'
         specifies how segs should be assigned upstream/downstream reference
         segs for bias correction if they are missed walking upstream or downstream.
-        
+
         Currently supported methods:
             'leave_null'
                 nothing is done to fill missing reference segs, np.nan values are
@@ -764,7 +761,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
         according to the min_kge criteria, where seg selections that have a kge with
         the current seg that is less that min_kge will be set to -1 and determined
         unsuitable for bias correction. This is defaulted as -0.41.
-        
+
     Returns
     -------
     routed: xr.Dataset
@@ -806,7 +803,7 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
                     gauge_segs = None):
     """
     Splits the variable into its up and down components to be used in blendmorph.
-    
+
     Parameters
     ----------
     routed: xr.Dataset
@@ -849,7 +846,7 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
 def map_met_hru_to_seg(met_hru, topo):
     """
     Maps meterological data from hru to seg.
-    
+
     Parameters
     ----------
     met_hru: xr.Dataset
@@ -860,7 +857,7 @@ def map_met_hru_to_seg(met_hru, topo):
     topo: xr.Dataset
         Topology dataset for running mizuRoute.
         We expect this to have ``seg`` and ``hru`` dimensions.
-        
+
     Returns
     -------
     met_seg: xr.Dataset
@@ -929,7 +926,7 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
         to have upstream/downstream reference segs designated. 'fill_method'
         specifies how segs should be assigned upstream/downstream reference
         segs for bias correction if they are missed walking upstream or downstream.
-        
+
         Currently supported methods:
             'leave_null'
                 nothing is done to fill missing reference segs, np.nan values are
@@ -957,7 +954,7 @@ def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.
     '''
     if fill_method == 'kge' and min_kge is None:
         min_kge = -0.41
-    
+
     if met_hru is None:
         met_hru = xr.Dataset(coords={'time': routed['time']})
     # Provide some convenience data for mapping/loops
