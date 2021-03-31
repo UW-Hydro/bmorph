@@ -29,7 +29,7 @@ The following packages and versions are required to be installed to operate ``bm
 Getting started
 ===============
 
-A step-by-step tutorial can be found `here <bmorph_tutorial.rst>`
+A step-by-step tutorial can be found `here <bmorph_tutorial.rst>`_.
 
 Sitemap
 =======
