@@ -29,6 +29,8 @@ Root Mean Square Error perserves magnitudes over directionality, unlike MBE. Thi
 Percent Bias (PB)
 ^^^^^^^^^^^^^^^^^
 
+.. math::
+
     PB = 100% * \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{\Sigma_{i=0}^{n}O_i}
     
 Percent Bias preserves direction like MBE, but aims to describe relative error instead of finite error. PB is often used when analyzing performance across sites with different magnitudes that are only a matter of scale. Because direction is preserved, the issue of positive and negative biases canceling out arises again here like in MBE.
@@ -102,7 +104,7 @@ Time Series
 .. image:: Figures/Reduced_Flows_Weekly.png
     :alt: Four time series plots labeled KIOW, YUMW, BUM, and KEE compare mean week of year flows between raw, reference, and scbc_c bias correction.
     
-Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from `bmorph.evaluation.plotting.plot_reduced_flows <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.plot_reduced_flows>`_ to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to `SCBC_C <bias_correction.rst/Spatially Consistent Bias Correction: Conditioned (SCBC_C)>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
+Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from `bmorph.evaluation.plotting.plot_reduced_flows <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.plot_reduced_flows>`_ to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
 
 Probabilty Distribtuions
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -127,7 +129,7 @@ Probabilty Distribtuions
 .. image:: Figures/CDF_Annual.png
     :alt: Three cumaltive percentile plots labeled KIOW, YUMW, and BUM compare probabilites of mean annual flows at each site as described by raw, reference, and scbc_c bias correction.
     
-Probability Distributions being widley used in hydrologic planning are essential for comparing bis correction methods. The above plot is produced from `bmorph.evaluation.plotting.compare_mean_grouped_CPD <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_mean_grouped_CPD>`_ to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to `SCBC_C <bias_correction.rst/Spatially Consistent Bias Correction: Conditioned (SCBC_C)>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
+Probability Distributions being widley used in hydrologic planning are essential for comparing bis correction methods. The above plot is produced from `bmorph.evaluation.plotting.compare_mean_grouped_CPD <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_mean_grouped_CPD>`_ to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
 
 Box & Whisker
 ^^^^^^^^^^^^^
@@ -147,12 +149,12 @@ Box & Whisker
 .. image:: Figures/KL_Div_Comparison.png
     :alt: Three box and whisker plots labeld KIOW, YUMW, and BUM compare Annual KL Divergence between reference and 2 scenarios: Raw and SCBC_C.
     
-Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from `bmorph.evaluation.plotting.kl_divergence_annual_compare <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.kl_divergence_annual_compare>` to compare KL Divergence with respect to reference flows for raw and `SCBC_C <bias_correction.rst/Spatially Consistent Bias Correction: Conditioned (SCBC_C)>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
+Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from `bmorph.evaluation.plotting.kl_divergence_annual_compare <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.kl_divergence_annual_compare>`_ to compare KL Divergence with respect to reference flows for raw and `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
 
 Simple River Network
 --------------------
 
-The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing `NetworkX's <https://networkx.org/>`_ nodal network structure, SRNs represent each river segment, or `seg <data.rst/Variable Naming Conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in the watershed during ``bmorph`` bias correction to more easily understand spatial patterns of bias correction in the network. 
+The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing `NetworkX's <https://networkx.org/>`_ nodal network structure, SRNs represent each river segment, or `seg <https://bmorph.readthedocs.io/en/develop/data.html#variable-naming-conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in the watershed during ``bmorph`` bias correction to more easily understand spatial patterns of bias correction in the network. 
 
 .. image:: Figures/crb_srn_example.png
     :alt: Nodal network of the Columbia River Basin showing river segement connections and color-coded by Pfaffsetter basin.
@@ -164,9 +166,9 @@ SRN does not aim to supplant geographically accurate drawings of watershed netwo
 Citations
 ---------
 
-Arge, L., Danner, A., Haverkort, H., & Zeh, N. (2006). I/O-Efficient Hierarchial Watershed Decomposition og Grid Terrain Models. In A. Riedl, W. Kainz, G.A. Elmes (Eds.), *Progress in Spatial Data Handling* (pp. 825-844). Springer, Berlin, Heidelberg. https://doi.org/10.1007/3-540-35589-8_51_
+Arge, L., Danner, A., Haverkort, H., & Zeh, N. (2006). I/O-Efficient Hierarchial Watershed Decomposition og Grid Terrain Models. In A. Riedl, W. Kainz, G.A. Elmes (Eds.), *Progress in Spatial Data Handling* (pp. 825-844). Springer, Berlin, Heidelberg. `https://doi.org/10.1007/3-540-35589-8_51 <https://doi.org/10.1007/3-540-35589-8_51>`_
 
-Knoben, W. J. M., Freer, J. E., & Woods, R. A. (2019). Technical note: Inherent benchmark or not? Comparing Nash-Sutcliffe and Kling-Gupta efficiency scores. *Hydrology and Earth System Sciences, 23*, 4323-4331.  https://doi.org/10.5194/hess-23-4323-2019_
+Knoben, W. J. M., Freer, J. E., & Woods, R. A. (2019). Technical note: Inherent benchmark or not? Comparing Nash-Sutcliffe and Kling-Gupta efficiency scores. *Hydrology and Earth System Sciences, 23*, 4323-4331.  `https://doi.org/10.5194/hess-23-4323-2019 <https://doi.org/10.5194/hess-23-4323-2019>`_
 
 Verdin, K.L., & Verdin, J. P. (1999). A topological system for delineation and codification of the Earth's river basins. *Elsevier Journal of Hydrology, 218*, 1-12. 
 

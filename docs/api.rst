@@ -1,7 +1,7 @@
 .. _api:
 
 #############
-API reference
+API Reference
 #############
 
 This page provides an auto-generated summary of the bmorph API. For more details
