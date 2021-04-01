@@ -3,7 +3,7 @@ Tutorial: Getting your first bias corrections with bmorph
 
 This notebook demonstrates how to setup data for and bias correct it
 through **bmorph**, containing the same information as the
-`tutorial <bmorph_tutorial.rst>`__ page.
+`Binder notebook <https://mybinder.org/v2/gh/UW-Hydro/bmorph/develop>`_.
 
 Import Packages and Load Data
 -----------------------------
@@ -17,8 +17,14 @@ found
 .. code:: ipython3
 
     %pylab inline
+    %load_ext autoreload
+    %autoreload 2
+    %reload_ext autoreload
+    import os
+    import sys
     import xarray as xr
     import pandas as pd
+    from tqdm.notebook import tqdm
 
 
 .. parsed-literal::
@@ -35,6 +41,15 @@ pre-process your data for bmorph.
     import bmorph
     from bmorph.util import mizuroute_utils as mizutil
 
+
+.. parsed-literal::
+
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/core/bmorph.py:18: FutureWarning: The pandas.np module is deprecated and will be removed from pandas in a future version. Import numpy directly instead
+      pd.np.seterr(divide='raise')
+    /pool0/data/andrbenn/.conda/bmorph/lib/python3.9/site-packages/pyproj/__init__.py:76: UserWarning: pyproj unable to set database path.
+      _pyproj_global_context_initialize()
+
+
 Setting up a client for parallelism can help speed up the process of
 bias correction immensely, espeically if you are working with large
 numbers of watersheds. Calibrating which meteorological variable you
@@ -45,6 +60,14 @@ in especially the initial uses of ``bmorph``.
 
     from dask.distributed import Client, progress
 
+.. code:: ipython3
+
+    ! wget https://www.hydroshare.org/resource/fd2a347d34f145b4bfa8b6bff39c782b/data/contents/bmorph_testdata.tar.gz
+
+.. code:: ipython3
+
+    ! tar xvf bmorph_testdata.tar.gz
+
 In case you are just copying this over, the client is only set up with
 one thread and one worker to prevent accidentally overburdening any
 machine this is running on. If you actually want to use parallelism,
@@ -53,6 +76,15 @@ make sure to change this!
 .. code:: ipython3
 
     client = Client(threads_per_worker=1, n_workers=1) #Increase for parallel power!!!
+
+
+.. parsed-literal::
+
+    /pool0/data/andrbenn/.conda/bmorph/lib/python3.9/site-packages/distributed/node.py:151: UserWarning: Port 8787 is already in use.
+    Perhaps you already have a cluster running?
+    Hosting the HTTP server on port 34063 instead
+      warnings.warn(
+
 
 Next you provide the gauge site names and their respective river segment
 identification numbers, or ``site``\ ’s and ``seg``\ ’s. This will be
@@ -91,7 +123,7 @@ directory is expected to be set up can be found in ``data.rst``.
 
 .. code:: ipython3
 
-    basin_topo = xr.open_dataset('../topologies/yakima_huc12_topology.nc').load()
+    basin_topo = xr.open_dataset('yakima_workflow/topologies/yakima_huc12_topology.nc').load()
 
 Sometimes meteorological data may only be available for a larger region
 or watershed than anlayzing, so the following data will be described
@@ -105,17 +137,12 @@ be deleted or commented out completely.
 
 .. code:: ipython3
 
-    watershed_met = xr.open_dataset('../input/tmin.nc').load()
-    watershed_met['seasonal_precip'] = xr.open_dataset('../input/prec.nc')['prec'].load().rolling(time=30, min_periods=1).sum()
-    watershed_met['tmax'] = xr.open_dataset('../input/tmax.nc')['tmax'].load()
+    watershed_met = xr.open_dataset('yakima_workflow/input/yakima_met.nc').load()
+    watershed_met['hru'] = (watershed_met['hru'] - 1.7e7).astype(np.int32)
 
-Hydrualic response units (hru’s) are the typical coordinate for
+Hydrologic response units (hru’s) are the typical coordinate for
 meteorologic data. Later, mizuroute_utils will take care of mapping
 these hru’s to seg’s.
-
-.. code:: ipython3
-
-    watershed_met['hru'] = (watershed_met['hru'] - 1.7e7).astype(np.int32)
 
 And last not be certainly not least, we need the flows themselves!
 ``bmorph`` is designed to bias correct simulated streamflow as modeled
@@ -125,47 +152,20 @@ netcdf files, hence the ``open_mfdataset``.
 
 .. code:: ipython3
 
-    watershed_raw = xr.open_mfdataset('../input/first_route*.nc')[['IRFroutedRunoff', 'dlayRunoff', 'reachID']].load()
+    watershed_raw = xr.open_dataset('yakima_workflow/input/yakima_raw_flows.nc')[['IRFroutedRunoff', 'dlayRunoff', 'reachID']].load()
     watershed_raw['seg'] = watershed_raw.isel(time=0)['reachID'].astype(np.int32)
-    watershed_ref = xr.open_dataset('../input/nrni_reference_flows.nc').load().rename({'outlet':'site'})[['seg', 'seg_id', 'reference_flow']]
-
-
-.. parsed-literal::
-
-    /pool0/home/steinjao/.conda/envs/project/lib/python3.7/site-packages/ipykernel_launcher.py:1: FutureWarning: In xarray version 0.15 the default behaviour of `open_mfdataset`
-    will change. To retain the existing behavior, pass
-    combine='nested'. To use future default behavior, pass
-    combine='by_coords'. See
-    http://xarray.pydata.org/en/stable/combining.html#combining-multi
-    
-      """Entry point for launching an IPython kernel.
-    /pool0/home/steinjao/.conda/envs/project/lib/python3.7/site-packages/xarray/backends/api.py:933: FutureWarning: The datasets supplied have global dimension coordinates. You may want
-    to use the new `combine_by_coords` function (or the
-    `combine='by_coords'` option to `open_mfdataset`) to order the datasets
-    before concatenation. Alternatively, to continue concatenating based
-    on the order the datasets are supplied in future, please use the new
-    `combine_nested` function (or the `combine='nested'` option to
-    open_mfdataset).
-      from_openmfds=True,
-
+    watershed_ref = xr.open_dataset('yakima_workflow/input/nrni_reference_flows.nc').load().rename({'outlet':'site'})[['seg', 'seg_id', 'reference_flow']]
 
 In order to select data for the basin of analysis from the larger
 watershed, we need the topology of the larger watershed as well.
 
 .. code:: ipython3
 
-    watershed_topo = xr.open_dataset('../topologies/columbia_huc12_topology.nc').load()
+    watershed_topo = xr.open_dataset('yakima_workflow/topologies/yakima_huc12_topology.nc').load()
     watershed_topo = watershed_topo.where(watershed_topo['hru'] < 1.79e7, drop=True)
 
 Here we clean up a few naming conventions to get everything on the same
 page in accordance with ``data.rst``.
-
-.. code:: ipython3
-
-    if 'hru_id2' in basin_topo:
-        basin_topo['hru'] = basin_topo['hru_id2']
-    if 'seg_id' in basin_topo:
-        basin_topo['seg'] = basin_topo['seg_id']
 
 Convert ``mizuroute`` formatting to ``bmorph`` formatting
 ---------------------------------------------------------
@@ -260,6 +260,8 @@ this section so far, then there is nothing you need to change here.
 .. code:: ipython3
 
     conditonal_config = {
+        'data_path':  './yakima_workflow',
+        'output_prefix': "yakima",
         'train_window': train_window,
         'bmorph_window': bmorph_window,
         'reference_window': reference_window,
@@ -269,6 +271,8 @@ this section so far, then there is nothing you need to change here.
     }
     
     univariate_config = {
+        'data_path':  './yakima_workflow',
+        'output_prefix': "yakima",
         'train_window': train_window,
         'bmorph_window': bmorph_window,
         'reference_window': reference_window,
@@ -304,7 +308,7 @@ been extracted above for your convenience.
     raw_flows = {}
     ref_flows = {}
     
-    for site, seg in site_to_seg.items():
+    for site, seg in tqdm(site_to_seg.items()):
         raw_ts = basin_met_seg.sel(seg=seg)['IRFroutedRunoff'].to_series()
         train_ts = basin_met_seg.sel(seg=seg)['IRFroutedRunoff'].to_series()
         obs_ts = basin_met_seg.sel(seg=seg)['up_ref_flow'].to_series()
@@ -321,6 +325,25 @@ been extracted above for your convenience.
             raw_ts, train_ts, obs_ts, train_window, bmorph_window, reference_window, interval, overlap,
             raw_y=cond_var, train_y=cond_var, obs_y=cond_var)
 
+
+
+.. parsed-literal::
+
+      0%|          | 0/15 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/core/bmorph.py:141: FutureWarning: The pandas.np module is deprecated and will be removed from pandas in a future version. Import numpy directly instead
+      train_x = pd.np.percentile(train_cdf, u_t)
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/core/bmorph.py:145: FutureWarning: The pandas.np module is deprecated and will be removed from pandas in a future version. Import numpy directly instead
+      truth_x = pd.np.percentile(truth_cdf, u_t)
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/core/bmorph.py:43: FutureWarning: Support for multi-dimensional indexing (e.g. `obj[:, None]`) is deprecated and will be removed in a future version.  Convert to a numpy array before indexing instead.
+      locs =  np.argmin(np.abs(vals[:, np.newaxis] - y_raw), axis=1)
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/core/bmorph.py:75: FutureWarning: Support for multi-dimensional indexing (e.g. `obj[:, None]`) is deprecated and will be removed in a future version.  Convert to a numpy array before indexing instead.
+      u_t = raw_cdfs[np.argmin(np.abs(raw_x[:, np.newaxis] - x_raw), axis=1), nx]
+
+
 Here you specify where ``mizuroute`` is installed on your system and set
 up some variables to store total flows.
 
@@ -331,31 +354,31 @@ writen.
 
 .. code:: ipython3
 
-    mizuroute_exe = '/pool0/data/andrbenn/spatially_consistent_bias_correction/multi_site_workflow/mizuroute' # mizuroute designation
+    mizuroute_exe = f'{os.path.dirname(sys.executable)}/route_runoff.exe' # mizuroute designation
+    
     
     unconditioned_seg_totals = {}
     conditioned_seg_totals = {}
     unconditioned_site_totals = {}
     conditioned_site_totals = {}
-    output_prefix = "Yakima" # basin name
 
 Now we use ``run_parallel_scbc`` to do the rest! This may take a while …
 
 .. code:: ipython3
 
-    unconditioned_seg_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, output_prefix, mizuroute_exe, univariate_config)
-    conditioned_seg_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, output_prefix, mizuroute_exe, conditonal_config)
+    unconditioned_seg_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, mizuroute_exe, univariate_config)
+    conditioned_seg_totals = bmorph.workflows.run_parallel_scbc(basin_met_seg, client, mizuroute_exe, conditonal_config)
     # Here we select out our rerouted gauge site modeled flows.
-    for site, seg in site_to_seg.items():
+    for site, seg in tqdm(site_to_seg.items()):
         unconditioned_site_totals[site] = unconditioned_seg_totals['IRFroutedRunoff'].sel(seg=seg).to_series()
         conditioned_site_totals[site] = conditioned_seg_totals['IRFroutedRunoff'].sel(seg=seg).to_series()
 
 
 .. parsed-literal::
 
-    /pool0/home/steinjao/.conda/envs/project/lib/python3.7/site-packages/distributed/worker.py:3285: UserWarning: Large object of size 2.28 MB detected in task graph: 
+    /pool0/data/andrbenn/.conda/bmorph/lib/python3.9/site-packages/distributed/worker.py:3557: UserWarning: Large object of size 2.28 MB detected in task graph: 
       (<xarray.Dataset>
-    Dimensions:               (time: ... . 0.9181 1.31,)
+    Dimensions:               (time: ... . 7.513 8.827,)
     Consider scattering large objects ahead of time
     with client.scatter to reduce scheduler burden and 
     keep data on workers
@@ -364,37 +387,13 @@ Now we use ``run_parallel_scbc`` to do the rest! This may take a while …
     
         big_future = client.scatter(big_data)     # good
         future = client.submit(func, big_future)  # good
-      % (format_bytes(len(b)), s)
-    /pool0/data/steinjao/bmorph/bmorph/core/workflows.py:680: FutureWarning: In xarray version 0.15 the default behaviour of `open_mfdataset`
-    will change. To retain the existing behavior, pass
-    combine='nested'. To use future default behavior, pass
-    combine='by_coords'. See
-    http://xarray.pydata.org/en/stable/combining.html#combining-multi
-    
-      region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{region.lower()}_{scbc_type}_scbc*').load()
-    /pool0/home/steinjao/.conda/envs/project/lib/python3.7/site-packages/xarray/backends/api.py:933: FutureWarning: The datasets supplied have global dimension coordinates. You may want
-    to use the new `combine_by_coords` function (or the
-    `combine='by_coords'` option to `open_mfdataset`) to order the datasets
-    before concatenation. Alternatively, to continue concatenating based
-    on the order the datasets are supplied in future, please use the new
-    `combine_nested` function (or the `combine='nested'` option to
-    open_mfdataset).
-      from_openmfds=True,
-    /pool0/data/steinjao/bmorph/bmorph/core/workflows.py:680: FutureWarning: In xarray version 0.15 the default behaviour of `open_mfdataset`
-    will change. To retain the existing behavior, pass
-    combine='nested'. To use future default behavior, pass
-    combine='by_coords'. See
-    http://xarray.pydata.org/en/stable/combining.html#combining-multi
-    
-      region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{region.lower()}_{scbc_type}_scbc*').load()
-    /pool0/home/steinjao/.conda/envs/project/lib/python3.7/site-packages/xarray/backends/api.py:933: FutureWarning: The datasets supplied have global dimension coordinates. You may want
-    to use the new `combine_by_coords` function (or the
-    `combine='by_coords'` option to `open_mfdataset`) to order the datasets
-    before concatenation. Alternatively, to continue concatenating based
-    on the order the datasets are supplied in future, please use the new
-    `combine_nested` function (or the `combine='nested'` option to
-    open_mfdataset).
-      from_openmfds=True,
+      warnings.warn(
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/15 [00:00<?, ?it/s]
 
 
 Lastly we combine all the data into a singular xarray.Dataset, putting a
@@ -411,12 +410,12 @@ of bmoprh, make certain to comment out those lines below.
     basin_analysis['ibc_c'] = bmorph.workflows.bmorph_to_dataarray(ibc_c_flows, 'ibc_c')
     basin_analysis['raw'] = bmorph.workflows.bmorph_to_dataarray(raw_flows, 'raw')
     basin_analysis['ref'] = bmorph.workflows.bmorph_to_dataarray(ref_flows, 'ref')
-    basin_analysis.to_netcdf(f'../output/{output_prefix.lower()}_data_processed.nc')
+    basin_analysis.to_netcdf(f'./yakima_workflow/output/{univariate_config["output_prefix"]}_data_processed.nc')
 
 
 .. parsed-literal::
 
-    /pool0/data/steinjao/bmorph/bmorph/core/workflows.py:686: FutureWarning: arrays to stack must be passed as a "sequence" type such as list or tuple. Support for non-sequence iterables such as generators is deprecated as of NumPy 1.16 and will raise an error in the future.
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/core/workflows.py:692: FutureWarning: arrays to stack must be passed as a "sequence" type such as list or tuple. Support for non-sequence iterables such as generators is deprecated as of NumPy 1.16 and will raise an error in the future.
       da = xr.DataArray(np.vstack(dict_flows.values()), dims=('site', 'time'))
 
 
@@ -432,7 +431,7 @@ expect the variable ``seg``, we will need to conflate ``site`` and
 
     from bmorph.evaluation import plotting
     
-    yakima_ds = xr.open_dataset(f'../output/{output_prefix.lower()}_data_processed.nc')
+    yakima_ds = xr.open_dataset(f'yakima_workflow/output/{univariate_config["output_prefix"]}_data_processed.nc')
     yakima_ds = yakima_ds.rename({'site':'seg'})
 
 Let’s pick a few sites and colors to plot for consistency. To simplify
@@ -449,8 +448,8 @@ arguments properly line up.
 
     select_sites = ['KIOW','YUMW','BUM']
     select_sites_2 = ['KIOW','YUMW','BUM','KEE']
-    bcs = ['scbc_c']
-    colors = ['grey', 'black', 'red']
+    bcs = ['scbc_c', 'scbc_u', 'ibc_c', 'ibc_u']
+    colors = ['grey', 'black', 'red', 'orange', 'purple', 'blue']
 
 Scatter
 ~~~~~~~
@@ -464,7 +463,7 @@ Scatter
         ref_var = 'ref', 
         bc_vars = bcs, 
         bc_names = [bc.upper() for bc in bcs],
-        plot_colors = list(colors[-1]),
+        plot_colors = list(colors[2:]),
         pos_cone_guide = True,
         neg_cone_guide = True,
         symmetry = False,
@@ -486,7 +485,7 @@ Time Series
     plotting.plot_reduced_flows(
         flow_dataset= yakima_ds, 
         plot_sites = select_sites_2, 
-        interval = 'week',
+        interval = 'month',
         raw_var = 'raw', raw_name = "Uncorrected",
         ref_var = 'ref', ref_name = "Reference",
         bc_vars = bcs, bc_names = [bc.upper() for bc in bcs],
@@ -512,15 +511,25 @@ Probabilitiy Distribtutions
         ref_var = 'ref', ref_name = 'Reference',
         bc_vars = bcs, bc_names = [bc.upper() for bc in bcs],
         plot_colors = colors,
-        linestyles = ['-','-','-'],
-        markers = ['o', 'X', 'o'],
+        linestyles = 2 * ['-','-','-'],
+        markers = ['o', 'X', 'o', 'o', 'o', 'o'],
         fontsize_legend = 90,
         legend_bbox_to_anchor = (1.9,1.0)
     );
 
 
+.. parsed-literal::
 
-.. image:: bmorph_tutorial_files/bmorph_tutorial_52_0.png
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/evaluation/plotting.py:2721: MatplotlibDeprecationWarning: Case-insensitive properties were deprecated in 3.3 and support will be removed two minor releases later
+      plt.setp(ax.get_xticklabels(), Rotation=45)
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/evaluation/plotting.py:2721: MatplotlibDeprecationWarning: Case-insensitive properties were deprecated in 3.3 and support will be removed two minor releases later
+      plt.setp(ax.get_xticklabels(), Rotation=45)
+    /pool0/data/andrbenn/workspace/bmorph/bmorph/evaluation/plotting.py:2721: MatplotlibDeprecationWarning: Case-insensitive properties were deprecated in 3.3 and support will be removed two minor releases later
+      plt.setp(ax.get_xticklabels(), Rotation=45)
+
+
+
+.. image:: bmorph_tutorial_files/bmorph_tutorial_52_1.png
 
 
 Box & Whisker
@@ -535,10 +544,12 @@ Box & Whisker
         raw_var = 'raw', raw_name = 'Uncorrected',
         ref_var = 'ref', ref_name = 'Reference',
         bc_vars = bcs, bc_names = [bc.upper() for bc in bcs],
-        plot_colors = ['grey','red']
+        plot_colors = ['grey','red', 'orange', 'purple', 'blue']
     );
 
 
 
 .. image:: bmorph_tutorial_files/bmorph_tutorial_54_0.png
+
+
 
