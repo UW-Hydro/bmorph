@@ -27,3 +27,18 @@ Getting started
 
 A step-by-step tutorial can be found in documentation form `here <https://bmorph.readthedocs.io/en/develop/bmorph_tutorial.html>`_.
 We also have an interactive instance of the tutorial `here <>`_.
+
+
+Sitemap
+=======
+.. toctree::
+    :maxdepth: 2
+
+    index
+    bias_correction
+    bmorph_tutorial
+    overview
+    data
+    evaluation
+    for_developers
+    api
