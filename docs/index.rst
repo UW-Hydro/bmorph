@@ -26,7 +26,7 @@ Getting started
 ===============
 
 A step-by-step tutorial can be found in documentation form `here <https://bmorph.readthedocs.io/en/develop/bmorph_tutorial.html>`_.
-We also have an interactive instance of the tutorial `here <>`_.
+We also have an interactive instance of the tutorial `here <https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/gh/UW-Hydro/bmorph/develop>`_.
 
 
 Sitemap
