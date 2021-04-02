@@ -15,8 +15,7 @@ import scipy.stats
 from sklearn.neighbors import KernelDensity
 
 # Done fail silently on divide by zero, but raise an error instead
-pd.np.seterr(divide='raise')
-
+np.seterr(divide='raise')
 
 
 def kde2D(x, y, xbins=200, ybins=10, **kwargs):
@@ -29,6 +28,7 @@ def kde2D(x, y, xbins=200, ybins=10, **kwargs):
     # should this be exponential'd?
     z = np.exp(kde.score_samples(xy_sample))
     return xx[:, 0], yy[0, :], np.reshape(z, yy.shape)
+
 
 def hist2D(x, y, xbins, ybins, **kwargs):
     """ Create a 2 dimensional pdf vias numpy histogram2d"""
@@ -50,12 +50,12 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
                raw_y: pd.Series, train_y: pd.Series, truth_y: pd.Series=None,
                method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0) -> pd.Series:
     """Conditional Quantile Mapping
-    
+
     Multidimensional conditional equidistant CDF matching function:
     \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
                             - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
     """
-    
+
     if method == 'kde':
         x_raw, y_raw, z_raw = kde2D(raw_x, raw_y, xbins, ybins,
                                     bandwidth=bw, rtol=rtol, atol=atol)
@@ -82,7 +82,6 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
     mapped_truth = x_truth[np.argmin(np.abs(u_t - truth_cdfs[nx, :]), axis=1)]
 
     return pd.Series(mapped_truth / mapped_train, index=raw_x.index)
-
 
 
 def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
@@ -134,15 +133,20 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
     assert isinstance(truth_cdf, pd.Series)
 
     # Given raw_x and raw_cdf determine the quantiles u_t
-    u_t = [scipy.stats.percentileofscore(raw_cdf, x, kind='mean')
-           for x in raw_x]
+    # This method is slightly more efficient than using
+    # scipy.percentileofscore, especially on large arrays
+    cdf_idx = np.argsort(raw_cdf)
+    cdf_sort = raw_cdf[cdf_idx]
+    cdf_rank = 100 * scipy.stats.rankdata(cdf_sort) / len(cdf_idx)
+    offset = 100 / len(cdf_idx)
+    u_t = [cdf_rank[np.searchsorted(cdf_sort, x, side='left')]-offset for x in raw_x]
 
     # Given u_t and train_cdf determine train_x
-    train_x = pd.np.percentile(train_cdf, u_t)
+    train_x = np.percentile(train_cdf, u_t)
     train_x[train_x < 1e-6] = 1e-6
 
     # Given u_t and truth_cdf determine truth_x
-    truth_x = pd.np.percentile(truth_cdf, u_t)
+    truth_x = np.percentile(truth_cdf, u_t)
 
     # Calculate multiplier
     multiplier = truth_x / train_x
@@ -152,7 +156,7 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
 def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
            truth_ts, train_ts, training_window,
            nsmooth, raw_y=None, truth_y=None, train_y=None,
-           bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0, 
+           bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0,
            method='hist'):
     '''Morph `raw_ts` based on differences between `truth_ts` and `train_ts`
 
@@ -167,7 +171,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     The method differs from PresRat in that it is not applied for fixed periods
     (but uses a moving window) to prevent discontinuities in the corrected time
     series and it does not apply a frequency-based correction.
-    
+
     The method also allows changes to be made through an adapted version of the
     EDCDFm technique or through the multiDimensional ConDitional EquiDistant CDF
     matching function if a second timeseries variable is passed.
@@ -204,7 +208,7 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
         Bins for the flow time series
     ybins : int
         Bins for the second time series
-        
+
     Returns
     -------
     bmorph_ts : pandas.Series
@@ -220,16 +224,13 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
     assert isinstance(training_window, slice)
 
     # Smooth the raw Series
-    raw_smoothed_ts = raw_ts.rolling(
-        window=nsmooth, min_periods=1, center=True).mean()
+    raw_smoothed_ts = raw_ts.rolling(window=nsmooth, min_periods=1, center=True).mean()
     # Create the CDFs that are used for morphing the raw_ts. The mapping is
     # based on the training_window
-    truth_cdf = truth_ts[training_window].rolling(
-        window=nsmooth, min_periods=1, center=True).mean()
-    train_cdf = train_ts[training_window].rolling(
-        window=nsmooth, min_periods=1, center=True).mean()
-    
-    # Check if using edcdfm or cqm through second variable being added  
+    truth_cdf = truth_ts[training_window].rolling(window=nsmooth, min_periods=1, center=True).mean()
+    train_cdf = train_ts[training_window].rolling(window=nsmooth, min_periods=1, center=True).mean()
+
+    # Check if using edcdfm or cqm through second variable being added
     # for the raw and train series because truth can be set as train later
     if (raw_y is None) or (truth_y is None) or (train_y is None):
         # Calculate the bmorph multipliers based on the smoothed time series and
@@ -240,32 +241,32 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
 
         # Apply the bmorph multipliers to the raw time series
         bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
-        
+
     else:
         # Continue Type Checking additionally series
         assert isinstance(raw_y, pd.Series)
         assert isinstance(truth_y, pd.Series)
         assert isinstance(train_y, pd.Series)
-        
+
         # smooth the y series as well
         raw_smoothed_y = raw_y.rolling(
             window=nsmooth, min_periods=1, center=True).mean()
-        
+
         truth_smoothed_y = truth_y[training_window].rolling(
             window=nsmooth, min_periods=1, center=True).mean()
         train_smoothed_y = train_y[training_window].rolling(
             window=nsmooth, min_periods=1, center=True).mean()
-        
-        bmorph_multipliers = cqm(raw_smoothed_ts[raw_bmorph_window], 
-                                        train_cdf, truth_cdf,
-                                        raw_smoothed_y[raw_bmorph_window],
-                                        train_smoothed_y, truth_smoothed_y,
-                                        bw=bw, xbins=xbins, ybins=ybins,
-                                        rtol=rtol, atol=atol, method=method)
-        
+
+        bmorph_multipliers = cqm(raw_smoothed_ts[raw_bmorph_window],
+                                 train_cdf, truth_cdf,
+                                 raw_smoothed_y[raw_bmorph_window],
+                                 train_smoothed_y, truth_smoothed_y,
+                                 bw=bw, xbins=xbins, ybins=ybins,
+                                 rtol=rtol, atol=atol, method=method)
+
         bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
-        
-        
+
+
     return bmorph_ts, bmorph_multipliers
 
 

@@ -5,6 +5,7 @@ import xarray as xr
 from functools import partial
 from bmorph.util import mizuroute_utils as mizutil
 
+
 def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window,
         window_size, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
@@ -640,7 +641,7 @@ def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
     dn_obs_ts =    ds['down_ref_flow'].to_series()
     dn_seg =  int( ds['down_ref_seg'].values[()])
     blend_factor = ds['cdf_blend_factor'].values[()]
-    local_flow =   ds['dlayRunoff']
+    local_flow =   ds['dlayRunoff'].copy(deep=True)
 
     scbc_u_flows, scbc_u_mults = apply_interval_blendmorph(
             up_raw_ts, dn_raw_ts,
@@ -653,7 +654,7 @@ def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
 
 
-def run_parallel_scbc(ds, client, mizuroute_exe, bmorph_config):
+def run_parallel_scbc(ds, mizuroute_exe, bmorph_config, client=None):
     def unpack_and_write_netcdf(results, segs, file_path, out_varname='scbc_flow'):
         flows = [r[0] for r in results]
         mults = [r[1] for r in results]
@@ -672,8 +673,11 @@ def run_parallel_scbc(ds, client, mizuroute_exe, bmorph_config):
         scbc_type = 'univariate'
         scbc_fun = partial(_scbc_u_seg, **bmorph_config)
 
-    futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
-    results = client.gather(futures)
+    if client:
+        futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
+        results = client.gather(futures)
+    else:
+        results = [scbc_fun(ds.sel(seg=seg)) for seg in ds['seg'].values]
     unpack_and_write_netcdf(results, ds['seg'], f'{bmorph_config["data_path"]}/input/{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
     config_path, mizuroute_config = mizutil.write_mizuroute_config(bmorph_config["output_prefix"],
             scbc_type, bmorph_config['bmorph_window'],
