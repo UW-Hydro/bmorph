@@ -30,13 +30,13 @@ A step-by-step tutorial can be found `here <https://bmorph.readthedocs.io/en/dev
 Sitemap
 =======
 .. toctree::
-    :maxdepth: 2
-
-    index
+    
+    self
     bias_correction
     bmorph_tutorial
     overview
     data
     evaluation
+    srn
     for_developers
     api
