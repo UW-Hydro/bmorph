@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from functools import partial
+from tqdm.autonotebook import tqdm
 from bmorph.util import mizuroute_utils as mizutil
 
 
@@ -677,7 +678,9 @@ def run_parallel_scbc(ds, mizuroute_exe, bmorph_config, client=None):
         futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
         results = client.gather(futures)
     else:
-        results = [scbc_fun(ds.sel(seg=seg)) for seg in ds['seg'].values]
+        results = []
+        for seg in tqdm(ds['seg'].values):
+            results.append(scbc_fun(ds.sel(seg=seg)))
     unpack_and_write_netcdf(results, ds['seg'], f'{bmorph_config["data_path"]}/input/{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
     config_path, mizuroute_config = mizutil.write_mizuroute_config(bmorph_config["output_prefix"],
             scbc_type, bmorph_config['bmorph_window'],
@@ -687,10 +690,10 @@ def run_parallel_scbc(ds, mizuroute_exe, bmorph_config, client=None):
             output_dir=bmorph_config['data_path']+'/output/',
             )
     mizutil.run_mizuroute(mizuroute_exe, config_path)
-    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*').load()
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*')
     region_totals = region_totals.sel(time=slice(*bmorph_config['bmorph_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
-    return region_totals
+    return region_totals.load()
 
 def bmorph_to_dataarray(dict_flows, name):
     da = xr.DataArray(np.vstack(dict_flows.values()), dims=('site', 'time'))

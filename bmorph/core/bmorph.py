@@ -40,7 +40,10 @@ def hist2D(x, y, xbins, ybins, **kwargs):
 
 def marginalize_cdf(y_raw, z_raw, vals):
     """Find the marginalized cdf by computing cumsum(P(x|y=val)) for each val"""
-    locs =  np.argmin(np.abs(vals[:, np.newaxis] - y_raw), axis=1)
+    y_raw = np.array(y_raw)
+    z_raw = np.array(z_raw)
+    vals = np.array(vals)
+    locs = np.argmin(np.abs(vals[:, np.newaxis] - y_raw), axis=1)
     z = np.cumsum(z_raw[:, locs], axis=0)
     z /= z[-1, :]
     return z
@@ -72,7 +75,7 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
 
     nx = np.arange(len(raw_x))
     raw_cdfs = marginalize_cdf(y_raw, z_raw, raw_y)
-    u_t = raw_cdfs[np.argmin(np.abs(raw_x[:, np.newaxis] - x_raw), axis=1), nx]
+    u_t = raw_cdfs[np.argmin(np.abs(raw_x.values[:, np.newaxis] - x_raw), axis=1), nx]
     u_t = u_t[:, np.newaxis]
 
     train_cdf = marginalize_cdf(y_train, z_train, train_y).T
