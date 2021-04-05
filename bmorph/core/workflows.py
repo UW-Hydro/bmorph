@@ -3,7 +3,9 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from functools import partial
+from tqdm.autonotebook import tqdm
 from bmorph.util import mizuroute_utils as mizutil
+
 
 def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         training_window, bmorph_window, reference_window,
@@ -640,7 +642,7 @@ def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
     dn_obs_ts =    ds['down_ref_flow'].to_series()
     dn_seg =  int( ds['down_ref_seg'].values[()])
     blend_factor = ds['cdf_blend_factor'].values[()]
-    local_flow =   ds['dlayRunoff']
+    local_flow =   ds['dlayRunoff'].copy(deep=True)
 
     scbc_u_flows, scbc_u_mults = apply_interval_blendmorph(
             up_raw_ts, dn_raw_ts,
@@ -653,7 +655,7 @@ def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
 
 
-def run_parallel_scbc(ds, client, mizuroute_exe, bmorph_config):
+def run_parallel_scbc(ds, mizuroute_exe, bmorph_config, client=None):
     def unpack_and_write_netcdf(results, segs, file_path, out_varname='scbc_flow'):
         flows = [r[0] for r in results]
         mults = [r[1] for r in results]
@@ -672,8 +674,13 @@ def run_parallel_scbc(ds, client, mizuroute_exe, bmorph_config):
         scbc_type = 'univariate'
         scbc_fun = partial(_scbc_u_seg, **bmorph_config)
 
-    futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
-    results = client.gather(futures)
+    if client:
+        futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
+        results = client.gather(futures)
+    else:
+        results = []
+        for seg in tqdm(ds['seg'].values):
+            results.append(scbc_fun(ds.sel(seg=seg)))
     unpack_and_write_netcdf(results, ds['seg'], f'{bmorph_config["data_path"]}/input/{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
     config_path, mizuroute_config = mizutil.write_mizuroute_config(bmorph_config["output_prefix"],
             scbc_type, bmorph_config['bmorph_window'],
@@ -683,10 +690,10 @@ def run_parallel_scbc(ds, client, mizuroute_exe, bmorph_config):
             output_dir=bmorph_config['data_path']+'/output/',
             )
     mizutil.run_mizuroute(mizuroute_exe, config_path)
-    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*').load()
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*')
     region_totals = region_totals.sel(time=slice(*bmorph_config['bmorph_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
-    return region_totals
+    return region_totals.load()
 
 def bmorph_to_dataarray(dict_flows, name):
     da = xr.DataArray(np.vstack(dict_flows.values()), dims=('site', 'time'))
