@@ -40,10 +40,7 @@ Conditioning: EDCDFm vs Conditional Quantile Mapping (CQM)
 EDCDFm
 """"""
 
-Before describing how conditioning is integrated into ``bmorph`` bias correction, we need to discuss the standard method.
-``bmorph`` implements part of PresRat bias correction from Pierce et al. (2015), which is an extension of Equidistant quantile matching (EDCDFm) technique of Li et al. (2010). ``bmorph`` uses the amended EDCDFm to compute multiplicative changes in the quantiles of a Cumulative Distribution Fuction (CDF). Here, only flow values are used to construct the CDFs.
-
-[need image here comparing bias correction methods]
+Before describing how conditioning is integrated into ``bmorph`` bias correction, we need to discuss the standard method. ``bmorph`` implements part of PresRat bias correction from Pierce et al. (2015), which is an extension of Equidistant quantile matching (EDCDFm) technique of Li et al. (2010). ``bmorph`` uses the amended EDCDFm to compute multiplicative changes in the quantiles of a Cumulative Distribution Fuction (CDF). Here, only flow values are used to construct the CDFs.
 
 
 Conditional Quantile Mapping (CQM)
