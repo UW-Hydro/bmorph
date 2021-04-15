@@ -891,7 +891,7 @@ def map_met_hru_to_seg(met_hru, topo):
     return met_seg
 
 
-def mizuroute_to_blendmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
+def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
                             fill_method = 'kldiv'):
 

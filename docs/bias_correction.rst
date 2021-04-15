@@ -11,13 +11,13 @@ bmorph Functionality
 
 .. image:: Figures/bmorph_full_workflow.png
     :alt: Flowchart describing bmorph bias correction process from initial routing to bias correction to secondary routing, outlining the steps that must occur for conditioning and spatial consistency to be utilized in bias correction.
-    
-Blending and conditioning require certain pre-processing steps to be included in bias correction. `bmorph.utils.mizuroute_utils.mizuroute_to_blendmorph <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.util.mizuroute_utils.mizuroute_to_blendmorph>`_ takes care of the pre-processing automation, performing the neccessary steps to allow for blending and/or conditoning to take place during bias correction. Above summarizes how blending and conditioning fit into the overarching bias correction process walked through in the `tutorial <https://bmorph.readthedocs.io/en/develop/bmorph_tutorial.html>`_. Below we elaborate on what blending and conditioning are and how they are implemented in ``bmorph``.
+
+Blending and conditioning require certain pre-processing steps to be included in bias correction. `bmorph.utils.mizuroute_utils.to_bmorph <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.util.mizuroute_utils.to_bmorph>`_ takes care of the pre-processing automation, performing the neccessary steps to allow for blending and/or conditoning to take place during bias correction. Above summarizes how blending and conditioning fit into the overarching bias correction process walked through in the `tutorial <https://bmorph.readthedocs.io/en/develop/bmorph_tutorial.html>`_. Below we elaborate on what blending and conditioning are and how they are implemented in ``bmorph``.
 
 Spatial Consistency: Reference Site Selection & CDF Blend Factor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Spatial consistency is conserved by combining streamflows that are ``bmorph`` bias corrected with respect to upstream and downstream reprentative sites. Ideally, if a seg has a gauge site directly upstream and downstream of it, then a reference for that seg can be interpolated as a combination of those two gauge sites. Now because there are not gauge sites everywhere, (which would render this method unncessary), the gauge sites used as upstream/downstream references need to be selected, this is where ``fill_method`` comes into play in `bmorph.utils.mizuroute_utils.mizuroute_to_blendmorph <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.util.mizuroute_utils.mizuroute_to_blendmorph>`_. Looking downstream can typically yeild a gauge site as rivers do not typically branch out in the direction of flow. Looking upstream for a gauge site gets more complicated as a one:many relationship occurs. Hence, needing to "fill" in gauge sites that are not simply found. There are a few different means of doing this: leaving the sites empty (``leave_null``), using xarray's `forward_fill <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.ffill.html>`_, or selecting based on different statistical measures of simularity (``r2``, ``kldiv``, ``kge``). Segs that are gauge sites are simply assigned themselves as their upstream/downstream segments. 
+Spatial consistency is conserved by combining streamflows that are ``bmorph`` bias corrected with respect to upstream and downstream reprentative sites. Ideally, if a seg has a gauge site directly upstream and downstream of it, then a reference for that seg can be interpolated as a combination of those two gauge sites. Now because there are not gauge sites everywhere, (which would render this method unncessary), the gauge sites used as upstream/downstream references need to be selected, this is where ``fill_method`` comes into play in `bmorph.utils.mizuroute_utils.to_bmorph <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.util.mizuroute_utils.to_bmorph>`_. Looking downstream can typically yeild a gauge site as rivers do not typically branch out in the direction of flow. Looking upstream for a gauge site gets more complicated as a one:many relationship occurs. Hence, needing to "fill" in gauge sites that are not simply found. There are a few different means of doing this: leaving the sites empty (``leave_null``), using xarray's `forward_fill <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.ffill.html>`_, or selecting based on different statistical measures of simularity (``r2``, ``kldiv``, ``kge``). Segs that are gauge sites are simply assigned themselves as their upstream/downstream segments.
 
 .. image:: Figures/Blending_Diagram.png
     :alt: In blending, attributes from one gauge site are mixed with another gauge site depending on how close the intermediate seg is to each gauge site, (depicted left by 5 circles translating from pink to purple to blue across the segs). As a result, intermediate CDFs can be produced by transitioning from one gauge site CDF to another, (depicted right by pink CDF curves transforming into purple then blue CDFs curves).
@@ -25,11 +25,11 @@ Spatial consistency is conserved by combining streamflows that are ``bmorph`` bi
 Blend factor describes how upstream and downstream flows should be combined, or "blended" together.
 
 | Let ...
-|    UM, DM = Upstream Measure, Downstream Measure (length, r2, Kullback-Leibler Divergence, or Kling-Gupta Efficiency)    
-|    BF = Blend Factor    
-|    UF, DF, TF = Upstream Corrected Flow, Downstream Corrected Flow, Total Corrected Flow    
+|    UM, DM = Upstream Measure, Downstream Measure (length, r2, Kullback-Leibler Divergence, or Kling-Gupta Efficiency)
+|    BF = Blend Factor
+|    UF, DF, TF = Upstream Corrected Flow, Downstream Corrected Flow, Total Corrected Flow
 
-.. math:: 
+.. math::
 
 |    BF = \frac{UM}{UM+DM}
 |    TF = (BF*UF) + ((1-BF)*DF)
@@ -40,8 +40,8 @@ Conditioning: EDCDFm vs Conditional Quantile Mapping (CQM)
 EDCDFm
 """"""
 
-Before describing how conditioning is integrated into ``bmorph`` bias correction, we need to discuss the standard method. 
-``bmorph`` implements part of PresRat bias correction from Pierce et al. (2015), which is an extension of Equidistant quantile matching (EDCDFm) technique of Li et al. (2010). ``bmorph`` uses the amended EDCDFm to compute multiplicative changes in the quantiles of a Cumulative Distribution Fuction (CDF). Here, only flow values are used to construct the CDFs. 
+Before describing how conditioning is integrated into ``bmorph`` bias correction, we need to discuss the standard method.
+``bmorph`` implements part of PresRat bias correction from Pierce et al. (2015), which is an extension of Equidistant quantile matching (EDCDFm) technique of Li et al. (2010). ``bmorph`` uses the amended EDCDFm to compute multiplicative changes in the quantiles of a Cumulative Distribution Fuction (CDF). Here, only flow values are used to construct the CDFs.
 
 [need image here comparing bias correction methods]
 
@@ -50,7 +50,7 @@ Conditional Quantile Mapping (CQM)
 """"""""""""""""""""""""""""""""""
 
 Conditional Quantile Mapping, (CQM), incorporates meteorologic data into the ``bmorph`` bias correction process to condition flow time series to other hydrologically relevant information. By creating a series of CDFs based on meteorologic data, (such as minimum daily temperature), ``bmorph`` can select a CDF that will not only correct the time series, but most closely match the metrologic conditions simulated.
-    
+
 .. image:: Figures/conditioning_diagram_with_arrows.png
     :alt: Multidimensional CDF functions are shown has heat maps with raw taking up left and refernce taking up center. A cumulative proability plot compares raw model CDF and Reference flow CDF for one meteorologic slice of the heatmaps left of it. Arrows demonstrate mapping the reference data in the heat maps to the raw model data for bias correction.
 
@@ -58,8 +58,8 @@ Conditional Quantile Mapping, (CQM), incorporates meteorologic data into the ``b
 
     \tilde{x_{mp}} = x_{mp} + F^{-1}_{oc}(F_{mp}(x_{mp}|y_{mp})|y_{oc})
                             - F^{-1}_{mc}(F_{mp}(x_{mp}|y_{mp})|y_{mc})
-                            
-    
+
+
 Implementation
 --------------
 
@@ -77,14 +77,14 @@ Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.
     obs_ts = basin_met_seg.sel(seg=seg)['up_ref_flow'].to_series()
 
     ibc_u_flows[site], ibc_u_mults[site] = bmorph.workflows.apply_interval_bmorph(
-        raw_ts, train_ts, obs_ts, 
-        train_window, bmorph_window, reference_window, 
+        raw_ts, train_ts, obs_ts,
+        train_window, bmorph_window, reference_window,
         interval, overlap)
 
 Independent Bias Correction: Conditioned (IBC_C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Similar to `IBC_U <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-univariate-ibc-u>`_, Conditioned Independent Bias Correction (IBC_C) can only apply corrections at gauge sites where there is refence flow data. IBC_C integrates meteorologic data into the ``bmorph`` bias correction process as described in `bmorph.core.bmorph.cqm <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.bmorph.cqm>`_. Conditioning allows hydrologic process based knowledge to be included in the bias correction process that can help to root bias corrections in meteorologic trends. 
+Similar to `IBC_U <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-univariate-ibc-u>`_, Conditioned Independent Bias Correction (IBC_C) can only apply corrections at gauge sites where there is refence flow data. IBC_C integrates meteorologic data into the ``bmorph`` bias correction process as described in `bmorph.core.bmorph.cqm <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.bmorph.cqm>`_. Conditioning allows hydrologic process based knowledge to be included in the bias correction process that can help to root bias corrections in meteorologic trends.
 
 Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.workflows.apply_interval_bmorph`_
 
@@ -96,11 +96,11 @@ Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.
     cond_var = basin_met_seg.sel(seg=seg)[f'up_{condition_var}'].to_series()
 
     ibc_c_flows[site], ibc_c_mults[site] = bmorph.workflows.apply_interval_bmorph(
-        raw_ts, train_ts, obs_ts, 
-        train_window, bmorph_window, reference_window, 
+        raw_ts, train_ts, obs_ts,
+        train_window, bmorph_window, reference_window,
         interval, overlap,
         raw_y=cond_var, train_y=cond_var, obs_y=cond_var)
-        
+
 Notice that in order to use conditioning, the ``*_y`` variables are needed to specify which meteorological time series to use in conditioning.
 
 Spatially Consistent Bias Correction: Univariate (SCBC_U)
@@ -127,7 +127,7 @@ Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.c
 Spatially Consistent Bias Correction: Conditioned (SCBC_C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Conditioned Spatially Consistent Bias Correction (SCBC_C) combines the meteorologic conditioning elements of `IBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-conditioned-ibc-c>`_ with the spatial consistency of `SCBC_U <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-univariate-scbc-u>`_. This implementation of SCBC factors in meteorologic variables given into the formulation of refernce flows for each seg to be corrected to. Defined by the hydrologic response units, or `hru's <https://bmorph.readthedocs.io/en/develop/data.html#variable-naming-conventions>`_, they impact, meteorologic data is mappable to each seg within the watershed topology. In `IBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-conditioned-ibc-c>`_, only the data mapped to gauge sites would be used in bias correction, whereas SCBC_C can utilize meteorologic data across the watershed as it incoporates all defined segs. 
+Conditioned Spatially Consistent Bias Correction (SCBC_C) combines the meteorologic conditioning elements of `IBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-conditioned-ibc-c>`_ with the spatial consistency of `SCBC_U <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-univariate-scbc-u>`_. This implementation of SCBC factors in meteorologic variables given into the formulation of refernce flows for each seg to be corrected to. Defined by the hydrologic response units, or `hru's <https://bmorph.readthedocs.io/en/develop/data.html#variable-naming-conventions>`_, they impact, meteorologic data is mappable to each seg within the watershed topology. In `IBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-conditioned-ibc-c>`_, only the data mapped to gauge sites would be used in bias correction, whereas SCBC_C can utilize meteorologic data across the watershed as it incoporates all defined segs.
 
 Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.core.workflows.apply_interval_blendmorph`_
 
@@ -141,17 +141,17 @@ Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.c
     'bmorph_overlap': overlap,
     'condition_var': condition_var
     }
-    
+
     conditioned_seg_totals = bmorph.workflows.run_parallel_scbc(
     basin_met_seg, client, output_prefix, mizuroute_exe, conditonal_config)
 
-Again, because we are conditioning our bias corrections, ``condition_var`` must be included in running this script. 
+Again, because we are conditioning our bias corrections, ``condition_var`` must be included in running this script.
 
 .. _`bmorph.core.workflows.apply_annual_bmorph`: https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.workflows.apply_annual_bmorph
 .. _`bmorph.core.workflows.apply_interval_bmorph`: https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.workflows.apply_interval_bmorph`
 .. _`bmorph.core.workflows.apply_annual_blendmorph`: https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.workflows.apply_annual_blendmorph
 .. _`bmorph.core.workflows.apply_interval_blendmorph`: https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.workflows.apply_interval_blendmorph
-                            
+
 Citations
 ---------
 

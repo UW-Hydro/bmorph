@@ -20,12 +20,14 @@ Then, to install ``bmorph`` run,
    conda activate bmorph
    python setup.py develop
    python -m ipykernel install --user --name bmorph
-   
+
 
 Getting started
 ===============
 
-A step-by-step tutorial can be found `here <https://bmorph.readthedocs.io/en/develop/bmorph_tutorial.html>`_.
+A step-by-step tutorial can be found in documentation form `here <https://bmorph.readthedocs.io/en/develop/bmorph_tutorial.html>`_.
+We also have an interactive instance of the tutorial `here <https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/gh/UW-Hydro/bmorph/develop>`_.
+
 
 Sitemap
 =======
