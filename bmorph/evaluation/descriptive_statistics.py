@@ -217,3 +217,4 @@ def median_standardize(data:pd.DataFrame) -> pd.DataFrame:
         median_standard_df[column] = column_series
 
     return median_standard_df
+
