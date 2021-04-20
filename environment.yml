@@ -20,6 +20,8 @@ dependencies:
     - graphviz
     - pygraphviz
     - jupyter
+    - pyproj>=3.0.0
+    - mizuroute
     - pip
     - pip:
         - probscale

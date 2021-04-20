@@ -1178,9 +1178,11 @@ class SimpleRiverNetwork:
         if with_cbar:
             cbar = plt.colorbar(network_color_cbar)
             cbar.ax.tick_params(labelsize=cbar_labelsize)
-            cbar.set_label(cbar_title, rotation=270, labelpad=cbar_label_pad)
+            cbar.set_label(cbar_title, rotation=270, labelpad=cbar_label_pad, fontsize=cbar_labelsize)
         if not with_background:
             plt.axis('off')
+
+        ax.invert_yaxis()
             
     def draw_multi_measure(self, color_dict, label_map = [], 
                      node_size = 200, font_size = 8, font_weight = 'bold', node_shape = 's', 

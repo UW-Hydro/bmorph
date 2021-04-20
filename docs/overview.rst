@@ -5,3 +5,15 @@ Package Overview
     :alt: Flowchart describing bmorph package directory structure to key directories util, core, and evaluation. util describes mizuroute_utils as "Configuring output from mizuRoute into input for bmorph. Blending and Conditioning pre-processing occurs here." core describes workflows as "Automated workflows for applying bmorph across multiple sites and time intervals" and bmorph as "Where bias corection compuations take place for individual site and time increments." evaluation describes plotting as "Plotting functions for analyzing and visualizing bias corrections relative to refernce and uncorrected data" and simple_river_network as "Pseudo-physical river network visualization for depciting spatial variables at segs across the watershed."
     
 
+``util``
+--------
+
+The ``util`` directiory contains ``mizuroute_utils``, a fundamental Python script for organizing data exported by mizuRoute into an easily accesible form for ``bmorph``. 
+
+``core``
+--------
+
+The ``core`` directory 
+
+``evaluation``
+--------------

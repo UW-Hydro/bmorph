@@ -31,7 +31,7 @@ Percent Bias (PB)
 
 .. math::
 
-    PB = 100% * \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{\Sigma_{i=0}^{n}O_i}
+    PB = 100\% * \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{\Sigma_{i=0}^{n}O_i}
     
 Percent Bias preserves direction like MBE, but aims to describe relative error instead of finite error. PB is often used when analyzing performance across sites with different magnitudes that are only a matter of scale. Because direction is preserved, the issue of positive and negative biases canceling out arises again here like in MBE.
     
@@ -84,7 +84,7 @@ Scatter
 .. image:: Figures/Before_After_Absolute_Error_Scatter.png
     :alt: Three scatter plots labeled KIOW, YUMW, and BUM are shown, comparing differences in flow between reference data and the raw data on the horizontal axis while differences between the reference data and bias correctd data are plotted on the vertical axis. 1 to 1 and -1 to 1 lines are plotted for reference.
     
-Scatter plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from `bmorph.evaluation.plotting.compare_correction_scatter <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_correction_scatter>`_ to compare how absolute error changes with `SCBC_C <bias_correction.rst/Spatially Consistent Bias Correction: Conditioned (SCBC_C)>`_ bias correction. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in abosulte error for each flow time.
+Scatter plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from `bmorph.evaluation.plotting.compare_correction_scatter <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_correction_scatter>`_ to compare how absolute error changes with `SCBC_C <bias_correction.rst/Spatially Consistent Bias Correction: Conditioned (SCBC_C)>`_ bias correction with Q being stream discharge. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in abosulte error for each flow time.
 
 Time Series
 ^^^^^^^^^^^
@@ -151,24 +151,8 @@ Box & Whisker
     
 Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from `bmorph.evaluation.plotting.kl_divergence_annual_compare <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.kl_divergence_annual_compare>`_ to compare KL Divergence with respect to reference flows for raw and `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
 
-Simple River Network
---------------------
-
-The Simple River Network, or SRN, is a graphical, psuedo-physical diagnostic tool used to visualize watershed models. Utilizing `NetworkX's <https://networkx.org/>`_ nodal network structure, SRNs represent each river segment, or `seg <https://bmorph.readthedocs.io/en/develop/data.html#variable-naming-conventions>`_, as a singular SegNode and connects them according to the watershed's topology. Each SRN is color-codable to assigned data values, such as percent bias, so you can visualize where issues may appear in the watershed during ``bmorph`` bias correction to more easily understand spatial patterns of bias correction in the network. 
-
-.. image:: Figures/crb_srn_example.png
-    :alt: Nodal network of the Columbia River Basin showing river segement connections and color-coded by Pfaffsetter basin.
-
-SRN SegNode's contain identifying information that allow the network to be partitioned according to Pfaffstetter Codes (Verdin & Verdin 1999, Arge et. al. 2006). Pfaffstetter enconding not only allows the networks to be partitioned, but also to be "rolled up", effectively reducing the granularity of the network to simplify large watersheds. Data can also be subsected and split into new SRN's for simple manipulation.
-
-SRN does not aim to supplant geographically accurate drawings of watershed networks. Instead it aims to provide a quicker, intermediate tool that allows for easy identification of spatial patterns within the network without having to configure spatial data. 
-
 Citations
 ---------
 
-Arge, L., Danner, A., Haverkort, H., & Zeh, N. (2006). I/O-Efficient Hierarchial Watershed Decomposition og Grid Terrain Models. In A. Riedl, W. Kainz, G.A. Elmes (Eds.), *Progress in Spatial Data Handling* (pp. 825-844). Springer, Berlin, Heidelberg. `https://doi.org/10.1007/3-540-35589-8_51 <https://doi.org/10.1007/3-540-35589-8_51>`_
-
 Knoben, W. J. M., Freer, J. E., & Woods, R. A. (2019). Technical note: Inherent benchmark or not? Comparing Nash-Sutcliffe and Kling-Gupta efficiency scores. *Hydrology and Earth System Sciences, 23*, 4323-4331.  `https://doi.org/10.5194/hess-23-4323-2019 <https://doi.org/10.5194/hess-23-4323-2019>`_
-
-Verdin, K.L., & Verdin, J. P. (1999). A topological system for delineation and codification of the Earth's river basins. *Elsevier Journal of Hydrology, 218*, 1-12. 
 
