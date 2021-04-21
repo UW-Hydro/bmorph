@@ -15,8 +15,8 @@ Any images in the notebook will be saved as png files within a newly created ``m
     
 For more information, check out `here <https://www.tutorialspoint.com/jupyter/jupyter_converting_notebooks.htm>`_
 
-Helper functions
-----------------
+Helper functions from ``bmorph``
+--------------------------------
 
 ``log10_1p``
 ^^^^^^^^^^^^
@@ -27,3 +27,11 @@ Similar to numpy's `log1p <https://numpy.org/doc/stable/reference/generated/nump
 ^^^^^^^^^^^^^^^^^^^^^
 
 Tired of having to constantly reformat you subplots whenever you want to tack on one more plot or scratch off something you didnt' think you wanted? Well `bmorph.plotting.evaluation.determine_row_col <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.determine_row_col>`_ automates that process for you by calculating the tightest possible square/rectangular dimensions for your subplots. There may be some extra subplots leftover (and therefore we recommend turning off axis past the number you wish to plot), there will be at least enough subplots to fit all that you ask for.
+
+Creating Documentation
+----------------------
+
+Documentation for this project was done with `Sphinx <https://www.sphinx-doc.org/en/master/index.html>`_'s `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_. Compiling of the documentation into an HTMl format was performed by `Read the Docs <https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html>`_. Thanks to through software, documentation was made easily updatable through GitHub version control without needing to develop a website from scratch in HTML itself.
+
+The tutorial is made runnable by `binder <https://mybinder.org>`_ while data is stored on `Hydroshare <https://www.hydroshare.org/>`_ for simple online access.
+
