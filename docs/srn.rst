@@ -16,12 +16,45 @@ SRN does not aim to supplant geographically accurate drawings of watershed netwo
 Construction
 ------------
 
-[TBC]
+.. code:: python3
+    
+    from bmorph.evaluation import simple_river_network as srn
+    
+    srn_basin = srn.SimpleRiverNetwork(
+        topo=basin_topo, pfaf_seed='', outlet_index=0, max_level_pfaf=42)
+        
+All we need to setup the SRN is the topology of the basin, ``basin_topo``, as an ``xarray.Dataset``. If you wish to include the Pfaffstetter digits of the larger watershed that contains the basin, you can do so with ``pfaf_seed``. While the constructor will assume that the outlet of the basin is the first index of the topology file provided, you can specify a different index to build the SRN off of with ``outlet_index``. Lastly, because the SRN is constructred recursively, a maximum number of Pfaffstetter digits is specifiable in ``max_level_pfaf``, which defaults as 42. Note that the larger the basin SRN, the longer construction may take.
 
 Plotting on the SRN
 -------------------
 
-[TBC]
+Plotting the SRN is fully describe in `bmorph.evaluation.simple_river_network.SimpleRiverNetwork.draw_network <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.simple_river_network.SimpleRiverNetwork.draw_network>`_, so let's cover some of the basics. 
+
+Plotting data on the SRN is done through ``draw_network``'s ``color_measure`` that requires a ``pandas.Series`` with and index that contains the indicies of ``basin_topo`` and corresponding values to be plotted on a linear colorbar. Several functions automate this process for highlighting different sections of the SRN, such as `bmorph.evaluation.simple_river_network.SimpleRiverNetwork.generate_mainstream_map <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.simple_river_network.SimpleRiverNetwork.generate_mainstream_map>`_ to plot the mainstream, `bmorph.evaluation.simple_river_network.SimpleRiverNetwork.generate_pfaf_color_map <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.simple_river_network.SimpleRiverNetwork.generate_pfaf_color_map>`_ to color code Pfaffstetter basins, and `bmorph.evaluation.simple_river_network.SimpleRiverNetwork.generate_node_highlight_map <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.simple_river_network.SimpleRiverNetwork.generate_node_highlight_map>`_ to highlight specific river segments within the drawing.
+
+.. code:: python3
+
+    mainstream_map = srn_basin.generate_mainstream_map()
+
+    fig, ax = plt.subplots(figsize=(30,40))
+    srn_yak.draw_network(color_measure=mainstream_map, cmap=mpl.cm.get_cmap('cividis'), ax=ax)
+    ax.invert_xaxis() # inverting the axis can be applied to increase resemblance with real watershed 
+    
+For an example of how to construct your own ``color_measure``, we can look at how the tutorial plots percent difference across the SRN:
+
+.. code:: python3
+
+    scbc_c = conditioned_seg_totals['IRFroutedRunoff']
+    raw = yakima_met_seg['IRFroutedRunoff']
+    p_diff = ((scbc_c-raw)/raw).mean(dim='time')*100
+
+    percent_diff = pd.Series(data=p_diff.to_pandas().values,index=mainstream_map.index)
+    
+    fig, ax = plt.subplots(figsize=(30,40))
+    srn_yak.draw_network(color_measure=percent_diff, cmap=mpl.cm.get_cmap('coolwarm_r'), 
+                     with_cbar=True, cbar_labelsize=40, ax=ax, cbar_title='Percent Difference (%)')
+                     
+The SRN is compatable with subplotting, but may require a large subplot space to spread out.
 
 Citations
 ---------
