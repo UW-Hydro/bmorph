@@ -1,10 +1,7 @@
 Evaluation of Bias Correction
 =============================
 
-Fundamental Statistics
-----------------------
-
-Below are the statistics used in ``bmorph`` to evaluate bias correction performance.
+Below are descriptions of statistics implemented in bmorph for evaluating bias correction performance.
 Let **P** be predicted values, such as the corrected flows, and **O** be the observed values, such as reference flows.
 
 Mean Bias Error (MBE)
@@ -14,8 +11,7 @@ Mean Bias Error (MBE)
     
     MBE = \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{n}
     
-Mean Bias Error is useful for preserving directionality of bias, yet may hide bias if both positive and negative bias exist in a dataset. MBE is therefore useful to determine how well biases balance out if you are only interested in the net or cumulative behavior of a system. This method is recommended against if looking to describe local changes without fine discritization to minimize biases canceling each other out.
-    
+Mean Bias Error is useful for preserving directionality of bias, yet may hide bias if both positive and negative bias exist in a dataset. MBE is therefore useful to determine how well biases balance out if you are only interested in the net or cumulative behavior of a system. This method is recommended against if looking to describe local changes without fine discretization to minimize biases canceling each other out.
 
 Root Mean Square Error (RMSE)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -24,7 +20,7 @@ Root Mean Square Error (RMSE)
 
     RMSE = \sqrt{\frac{\Sigma_{i=0}^{n}(P_i - O_i)^2}{n}}
     
-Root Mean Square Error perserves magnitudes over directionality, unlike MBE. This method is highly recommended when looking to reduce abosolute bias, but can result in overfitting models to a system.
+Root Mean Square Error preserves magnitudes over directionality, unlike MBE.
 
 Percent Bias (PB)
 ^^^^^^^^^^^^^^^^^
@@ -33,7 +29,7 @@ Percent Bias (PB)
 
     PB = 100\% * \frac{\Sigma_{i=0}^{n}(P_i - O_i)}{\Sigma_{i=0}^{n}O_i}
     
-Percent Bias preserves direction like MBE, but aims to describe relative error instead of finite error. PB is often used when analyzing performance across sites with different magnitudes that are only a matter of scale. Because direction is preserved, the issue of positive and negative biases canceling out arises again here like in MBE.
+Percent Bias preserves direction like MBE, but aims to describe relative error instead of absolute error. PB is often used when analyzing performance across sites with different magnitudes. Because direction is preserved, the issue of positive and negative biases canceling out arises again here like in MBE.
     
 Kullback-Leibler Divergence (KL Divergence)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -42,19 +38,19 @@ Kullback-Leibler Divergence, or relative entropy, is used to describe how simila
 
 Kling-Gupta Efficiency (KGE)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 .. math::
     
     KGE = 1 - \sqrt{(r-1)^2 + (\frac{\sigma_{P}}{\sigma_{O}}-1)^2 + (\frac{\mu_{P}}{\mu}_{O}-1)^2}
 
-The Kling-Gupta compares predicted flows to observed flows by combining linear correlations, flow variability, and bias (Knoben et. al. 2019). A KGE value of 1 represents predicted flows matching observed flows perfectly. Unlike Nash-Sutcliffe efficiency (NSE) values, there is no inherent benchmark in KGE values that describes "bad" predicted flows, so this measure needs to be used relative to raw flows as a benchmark (Knoben et. al 2019).
+The Kling-Gupta Efficiency compares predicted flows to observed flows by combining linear correlations, flow variability, and bias (Knoben et. al. 2019). A KGE value of 1 represents predicted flows matching observed flows perfectly.
 
 Plotting
 --------
+The ``Evaluation`` package of bmorph comes with a number of plotting tools to analyze bias correction performance. 
+Whether you want to compare corrected to uncorrected values, contrast different bias correction parameters, or simply compile your results into a tidy plot across multiple sites, there are plenty of plotting functions to choose from. 
+You can find plotting functions `here <api.rst/Plotting>`_.
 
-The ``Evaluation`` package of ``bmorph`` comes with a number of helpful plotting tools to analyze bias correction performance. Whether you want to compare corrected to uncorrected values, contrast different bias correction parameters, or simply compile your results into a tidy plot across multiple sites, there are plenty of plotting functions to choose from. You can find plotting functions `here <api.rst/Plotting>`_.
-
-The following plots are created from the results produced by the `tutorial <bmorph_tutorial.rst>`_, where ``yakima_ds`` is ``yakima_data_processed.nc`` from the sample data Before using any of the code provided below, make certain to import ``plotting`` like so:
+The following plots are created from the results produced by the `tutorial <bmorph_tutorial.rst>`_, where ``yakima_ds`` is ``yakima_data_processed.nc`` from the sample data before using any of the code provided below, make certain to import ``plotting`` like so:
 
 .. code:: ipython3
     
@@ -104,7 +100,7 @@ Time Series
 .. image:: Figures/Reduced_Flows_Weekly.png
     :alt: Four time series plots labeled KIOW, YUMW, BUM, and KEE compare mean week of year flows between raw, reference, and scbc_c bias correction.
     
-Time Series plots are inherent to hydrologic plotting for visualizing flows throughout the year. The above plot is produced from `bmorph.evaluation.plotting.plot_reduced_flows <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.plot_reduced_flows>`_ to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
+The above plot is produced from `bmorph.evaluation.plotting.plot_reduced_flows <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.plot_reduced_flows>`_ to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
 
 Probabilty Distribtuions
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -127,9 +123,9 @@ Probabilty Distribtuions
     );
 
 .. image:: Figures/CDF_Annual.png
-    :alt: Three cumaltive percentile plots labeled KIOW, YUMW, and BUM compare probabilites of mean annual flows at each site as described by raw, reference, and scbc_c bias correction.
+    :alt: Three cumultive percentile plots labeled KIOW, YUMW, and BUM compare probabilities of mean annual flows at each site as described by raw, reference, and scbc_c bias correction.
     
-Probability Distributions being widley used in hydrologic planning are essential for comparing bis correction methods. The above plot is produced from `bmorph.evaluation.plotting.compare_mean_grouped_CPD <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_mean_grouped_CPD>`_ to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
+The above plot is produced from `bmorph.evaluation.plotting.compare_mean_grouped_CPD <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_mean_grouped_CPD>`_ to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
 
 Box & Whisker
 ^^^^^^^^^^^^^
@@ -149,10 +145,8 @@ Box & Whisker
 .. image:: Figures/KL_Div_Comparison.png
     :alt: Three box and whisker plots labeld KIOW, YUMW, and BUM compare Annual KL Divergence between reference and 2 scenarios: Raw and SCBC_C.
     
-Box & Whisker plots are useful for representing statistics that only require a single axis such as `KL Divergence <Kullback-Leibler Divergence (KL Divergence)>`_ or `KGE <Kling-Gupta Efficiency (KGE)>`_. The above plot is produced from `bmorph.evaluation.plotting.kl_divergence_annual_compare <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.kl_divergence_annual_compare>`_ to compare KL Divergence with respect to reference flows for raw and `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
+The above plot is produced from `bmorph.evaluation.plotting.kl_divergence_annual_compare <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.kl_divergence_annual_compare>`_ to compare KL Divergence with respect to reference flows for raw and `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
 
 Citations
 ---------
-
 Knoben, W. J. M., Freer, J. E., & Woods, R. A. (2019). Technical note: Inherent benchmark or not? Comparing Nash-Sutcliffe and Kling-Gupta efficiency scores. *Hydrology and Earth System Sciences, 23*, 4323-4331.  `https://doi.org/10.5194/hess-23-4323-2019 <https://doi.org/10.5194/hess-23-4323-2019>`_
-
