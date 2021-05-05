@@ -156,6 +156,7 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
 
     return pd.Series(multiplier, index=raw_x.index)
 
+
 def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
            truth_ts, train_ts, training_window,
            nsmooth, raw_y=None, truth_y=None, train_y=None,
@@ -269,7 +270,6 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
 
         bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
 
-
     return bmorph_ts, bmorph_multipliers
 
 
@@ -326,4 +326,4 @@ def bmorph_correct(raw_ts, bmorph_ts, correction_window,
     # Apply the correction to the bmorph time series
     bmorph_corrected_ts = correction_ts * bmorph_ts[correction_window]
 
-    return bmorph_corrected_ts
+    return bmorph_corrected_ts, correction_ts
