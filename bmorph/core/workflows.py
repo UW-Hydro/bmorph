@@ -115,7 +115,7 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
                                                         n_smooth_long)
     else:
         bmorph_corr_ts = bmorph_ts
-    return bmorph_corr_ts, bmorph_multipliers
+    return bmorph_corr_ts[bmorph_window], bmorph_multipliers[bmorph_window]
 
 def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         train_window, bmorph_window, reference_window, bmorph_interval,
@@ -234,7 +234,7 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
                                                         n_smooth_long)
     else:
         bmorph_corr_ts = bmorph_ts
-    return bmorph_corr_ts, bmorph_multipliers
+    return bmorph_corr_ts[bmorph_window], bmorph_multipliers[bmorph_window]
 
 
 def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
@@ -425,7 +425,7 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                                                    n_smooth_long)
         bc_multipliers *= corr_ts
 
-    return bc_totals, bc_multipliers
+    return bc_totals[bmorph_window], bc_multipliers[bmorph_window]
 
 def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             train_upstream_ts, train_downstream_ts,
@@ -618,13 +618,13 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         obs_ts = (blend_factor * truth_upstream_ts) + ((1 - blend_factor) * truth_downstream_ts)
         train_ts = (blend_factor * train_upstream_ts) + ((1 - blend_factor) * train_downstream_ts)
         nrni_mean = obs_ts[reference_window].mean()
-        train_mean = train_ts[reference_window].mean()
+        train_mean = train_ts[train_window].mean()
         bc_totals, corr_ts = bmorph.bmorph_correct(raw_ts, bc_totals, raw_ts_window,
                                                    nrni_mean, train_mean,
                                                    n_smooth_long)
         bc_multipliers *= corr_ts
 
-    return bc_totals, bc_multipliers
+    return bc_totals[bmorph_window], bc_multipliers[bmorph_window]
 
 
 def _scbc_c_seg(ds, train_window, bmorph_window, reference_window,
