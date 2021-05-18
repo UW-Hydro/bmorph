@@ -50,8 +50,8 @@ def marginalize_cdf(y_raw, z_raw, vals):
 
 
 def cqm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
-               raw_y: pd.Series, train_y: pd.Series, truth_y: pd.Series=None,
-               method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0) -> pd.Series:
+        raw_y: pd.Series, train_y: pd.Series, truth_y: pd.Series=None,
+        method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0) -> pd.Series:
     """Conditional Quantile Mapping
 
     Multidimensional conditional equidistant CDF matching function:
@@ -71,7 +71,8 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, truth_x: pd.Series,
         x_train, y_train, z_train = hist2D(train_x, train_y, xbins, ybins)
         x_truth, y_truth, z_truth = hist2D(truth_x, truth_y, xbins, ybins)
     else:
-        raise Exception("Current methods for cqm only include 'hist' to use hist2D and 'kde' to use kde2D, please select one.")
+        raise Exception("Current methods for cqm only include 'hist' to use hist2D "
+                        "and 'kde' to use kde2D, please select one.")
 
     nx = np.arange(len(raw_x))
     raw_cdfs = marginalize_cdf(y_raw, z_raw, raw_y)
@@ -155,6 +156,7 @@ def edcdfm(raw_x, raw_cdf, train_cdf, truth_cdf):
     multiplier = truth_x / train_x
 
     return pd.Series(multiplier, index=raw_x.index)
+
 
 def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
            truth_ts, train_ts, training_window,
@@ -269,7 +271,6 @@ def bmorph(raw_ts, raw_cdf_window, raw_bmorph_window,
 
         bmorph_ts = bmorph_multipliers * raw_ts[raw_bmorph_window]
 
-
     return bmorph_ts, bmorph_multipliers
 
 
@@ -326,4 +327,4 @@ def bmorph_correct(raw_ts, bmorph_ts, correction_window,
     # Apply the correction to the bmorph time series
     bmorph_corrected_ts = correction_ts * bmorph_ts[correction_window]
 
-    return bmorph_corrected_ts
+    return bmorph_corrected_ts, correction_ts
