@@ -11,7 +11,7 @@ bmorph Functionality
 
 The figure above shows the full workflow and options available in bmorph. The input, in the upper left, shows that bmorph takes in routed streamflows. 
 Then, if necessary, we perform some pre-processing steps as implemented in the `bmorph.utils.mizuroute_utils.to_bmorph <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.util.mizuroute_utils.to_bmorph>`_ function.
-These proprocessing steps are necessary if either spatially consistent bias correction (through blending) and/or process-aware bias correction (through conditioning) are selected.
+These preprocessing steps are necessary if either spatially consistent bias correction (through blending) and/or process-aware bias correction (through conditioning) are selected.
 Following the pre-processing steps bias correction is performed according to the selected options.
 If spatially consistent bias correction is performed the bias corrected local flows are then rerouted through mizuRoute.
 

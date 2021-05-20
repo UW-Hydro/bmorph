@@ -34,7 +34,7 @@ Percent Bias preserves direction like MBE, but aims to describe relative error i
 Kullback-Leibler Divergence (KL Divergence)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Kullback-Leibler Divergence, or relative entropy, is used to describe how similar predicted and observation distributions are. Taken from Information Theory, KL Divergence describes the error in using one probability distribution in place of another, turning out to be a strong statistic to analyze how ``bmorph`` corrects probability distrubtions of stream flows. A KL Divergence value of 0 symbolizes a perfect match between the two probability distributions, or no error in assuming the one distrution in place of the other.
+Kullback-Leibler Divergence, or relative entropy, is used to describe how similar predicted and observation distributions are. Taken from Information Theory, KL Divergence describes the error in using one probability distribution in place of another, turning out to be a strong statistic to analyze how ``bmorph`` corrects probability distributions of stream flows. A KL Divergence value of 0 symbolizes a perfect match between the two probability distributions, or no error in assuming the one distribution in place of the other.
 
 Kling-Gupta Efficiency (KGE)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -78,9 +78,9 @@ Scatter
     )
 
 .. image:: Figures/Before_After_Absolute_Error_Scatter.png
-    :alt: Three scatter plots labeled KIOW, YUMW, and BUM are shown, comparing differences in flow between reference data and the raw data on the horizontal axis while differences between the reference data and bias correctd data are plotted on the vertical axis. 1 to 1 and -1 to 1 lines are plotted for reference.
+    :alt: Three scatter plots labeled KIOW, YUMW, and BUM are shown, comparing differences in flow between reference data and the raw data on the horizontal axis while differences between the reference data and bias corrected data are plotted on the vertical axis. 1 to 1 and -1 to 1 lines are plotted for reference.
     
-Scatter plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from `bmorph.evaluation.plotting.compare_correction_scatter <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_correction_scatter>`_ to compare how absolute error changes with `SCBC_C <bias_correction.rst/Spatially Consistent Bias Correction: Conditioned (SCBC_C)>`_ bias correction with Q being stream discharge. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in abosulte error for each flow time.
+Scatter plots are most useful for comparing absolute error before and after bias correction. The above plot is produced from `bmorph.evaluation.plotting.compare_correction_scatter <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_correction_scatter>`_ to compare how absolute error changes with `SCBC_C <bias_correction.rst/Spatially Consistent Bias Correction: Conditioned (SCBC_C)>`_ bias correction with Q being stream discharge. 1 to 1 and -1 to 1 lines are plotted for reference, as points plotted vertically between the lines demonstrates a reduction in absolute error while points plotted horizontally between the lines demonstrates an increase in absolute error for each flow time.
 
 Time Series
 ^^^^^^^^^^^
@@ -123,9 +123,9 @@ Probabilty Distribtuions
     );
 
 .. image:: Figures/CDF_Annual.png
-    :alt: Three cumultive percentile plots labeled KIOW, YUMW, and BUM compare probabilities of mean annual flows at each site as described by raw, reference, and scbc_c bias correction.
+    :alt: Three cumulative percentile plots labeled KIOW, YUMW, and BUM compare probabilities of mean annual flows at each site as described by raw, reference, and scbc_c bias correction.
     
-The above plot is produced from `bmorph.evaluation.plotting.compare_mean_grouped_CPD <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_mean_grouped_CPD>`_ to compare cumulative percentile distributions of mean annual flow at each site for raw, refererence, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. This function is also capable of subsetting data by month should you want to compare only Januaray flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
+The above plot is produced from `bmorph.evaluation.plotting.compare_mean_grouped_CPD <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.compare_mean_grouped_CPD>`_ to compare cumulative percentile distributions of mean annual flow at each site for raw, reference, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. This function is also capable of subsetting data by month should you want to compare only January flows for example. Because ``bmorph`` makes changes based on flow distributions, this plot is the closest to directly analyzing how the different methods correct flows.
 
 Box & Whisker
 ^^^^^^^^^^^^^
@@ -143,7 +143,7 @@ Box & Whisker
     );
 
 .. image:: Figures/KL_Div_Comparison.png
-    :alt: Three box and whisker plots labeld KIOW, YUMW, and BUM compare Annual KL Divergence between reference and 2 scenarios: Raw and SCBC_C.
+    :alt: Three box and whisker plots labeled KIOW, YUMW, and BUM compare Annual KL Divergence between reference and 2 scenarios: Raw and SCBC_C.
     
 The above plot is produced from `bmorph.evaluation.plotting.kl_divergence_annual_compare <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.kl_divergence_annual_compare>`_ to compare KL Divergence with respect to reference flows for raw and `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Being able to view KL Divergence for different scenarios side-by-side helps to provide a better understanding of how well probability distributions are being fitted across the entire time provided.
 

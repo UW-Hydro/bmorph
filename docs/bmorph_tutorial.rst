@@ -167,7 +167,7 @@ mappings for later use.
     ref_sites = list(site_to_seg.keys())
     ref_segs = list(site_to_seg.values())    
 
-Next we load in stream network topology (topo), meteorlogical data
+Next we load in stream network topology (topo), meteorological data
 (met), uncorrected flows (raw), and reference flows (ref). A description
 of how your project directory is expected to be set up can be found in
 `the
@@ -220,7 +220,7 @@ perform spatially consistent bias corrections (SCBC). For more
 information about how we perform SCBC see `the SCBC page in the
 documentation <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatial-consistency-reference-site-selection-cdf-blend-factor>`__.
 Now we pass our data in to ``to_bmorph``, the primary utility function
-for automating ``bmorph`` pre-procesing.
+for automating ``bmorph`` pre-processing.
 
 .. code:: ipython3
 
@@ -290,7 +290,7 @@ written.
 
 .. code:: ipython3
 
-    conditonal_config = {
+    conditional_config = {
         'data_path':  './yakima_workflow',
         'output_prefix': "yakima",
         'train_window': train_window,
@@ -394,7 +394,7 @@ corrections. Finally we combine all the data into a single xarray
 .. code:: ipython3
 
     # SCBC with conditioning
-    conditioned_seg_totals = bmorph.workflows.run_parallel_scbc(yakima_met_seg, mizuroute_exe, conditonal_config)
+    conditioned_seg_totals = bmorph.workflows.run_parallel_scbc(yakima_met_seg, mizuroute_exe, conditional_config)
 
 
 
@@ -611,7 +611,7 @@ the ``bmorph`` process.
 
     from bmorph.evaluation import simple_river_network as srn
 
-All wee need to set up the SimpleRiverNetwork (SRN) is the topology of
+All we need to set up the SimpleRiverNetwork (SRN) is the topology of
 the watershed (``yakima_topo``). We are not going to consider external
 watersheds such as the Columbia, so we will set the first Pfaffstetter
 digit to nothing. In the instance that the outlet of the watershed is

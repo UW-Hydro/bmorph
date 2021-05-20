@@ -34,7 +34,7 @@ to mizuRoute
 
 ``bmorph`` is designed to bias correct simulated streamflow as modeled by `mizuRoute <https://mizuroute.readthedocs.io/en/latest/>`_.  `bmorph.util.mizuroute_utils.write_mizuroute_config <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.util.mizuroute_utils.write_mizuroute_config>`_ automates writing a valid mizuroute configuration file for the purposes of ``bmorph``. 
 
-Running ``mizuRoute`` during bias correction is only necessary for spatially consistent methods were local flows need to be routed. As a result, writing the configuration file is automated through only the `bmorph.core.workflows.run_parallel_scbc <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.workflows.run_parallel_scbc>`_. The configuration script recieves the name of the region, the type of bias correction, and the time window from ``run_parallel_scbc``, writing the rest of the configuration file assuming the `Directory Setup <https://bmorph.readthedocs.io/en/develop/data.html#directory-setup>`_ described above.
+Running ``mizuRoute`` during bias correction is only necessary for spatially consistent methods were local flows need to be routed. As a result, writing the configuration file is automated through only the `bmorph.core.workflows.run_parallel_scbc <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.workflows.run_parallel_scbc>`_. The configuration script receives the name of the region, the type of bias correction, and the time window from ``run_parallel_scbc``, writing the rest of the configuration file assuming the `Directory Setup <https://bmorph.readthedocs.io/en/develop/data.html#directory-setup>`_ described above.
 
 
 to bmorph

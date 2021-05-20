@@ -37,7 +37,7 @@ bmorph Overview
     
 ``core``
 --------
-The ``core`` directory is where the functions for perfoming bias correction are located. 
+The ``core`` directory is where the functions for performing bias correction are located. 
 The ``bmorph.py`` module contains the functions for individual bias corrections. 
 ``workflows.py`` contains the functions that define some helper workflows that make it easier to apply bias corrections across a stream network.
 More on the specifics of how bias correction is performed can be found in the `Bias Correction <bias_correction.html>`_ page.
