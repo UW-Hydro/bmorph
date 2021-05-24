@@ -102,7 +102,7 @@ Time Series
     
 The above plot is produced from `bmorph.evaluation.plotting.plot_reduced_flows <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.plot_reduced_flows>`_ to compare a statistical representation of the flows at each site, (Mean in this case), for raw, reference, and bias corrected flows according to `SCBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-conditioned-scbc-c>`_. Here, averages are computed on weekly intervals to simplify the figure, but can also be plotted on daily or monthly intervals for more or less granularity. Comparing this with median flows can describe how much the mean is impacted by extreme flows. 
 
-Probabilty Distribtuions
+Probability Distributions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ipython3
