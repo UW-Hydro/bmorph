@@ -90,7 +90,7 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, ref_x: pd.Series,
     mapped_ref = x_ref[np.argmin(np.abs(u_t - ref_cdf[nx_raw, :]), axis=1)]
     mapped_train = x_train[np.argmin(np.abs(u_t - train_cdf[nx_raw, :]), axis=1)]
     mapped_train[mapped_train < 1e-6] = 1e-6
-    multipliers = pd.Series(mapped_ref / mapped_train, index=raw_x.index)
+    multipliers = pd.Series(mapped_ref / mapped_train, index=raw_x.index, name='multiplier')
     if method == 'hist':
         # Do some smoothing just to reduce effects of histogram bin edges
         multipliers = multipliers.rolling(nsmooth, win_type='triang', min_periods=1).mean()
@@ -163,18 +163,13 @@ def edcdfm(raw_x, raw_cdf, train_cdf, ref_cdf):
 
     # Calculate multiplier
     multiplier = ref_x / train_x
-
-    return pd.Series(multiplier, index=raw_x.index)
+    return pd.Series(multiplier, index=raw_x.index, name='multiplier')
 
 
 def bmorph(raw_ts, train_ts, ref_ts,
-           raw_apply_window,
-           raw_train_window,
-           ref_train_window,
-           raw_cdf_window,
-           nsmooth=12, raw_y=None, ref_y=None, train_y=None,
-           bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0,
-           method='hist'):
+           raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
+           raw_y=None, ref_y=None, train_y=None,
+           nsmooth=12, bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0, method='hist'):
     '''Morph `raw_ts` based on differences between `ref_ts` and `train_ts`
 
     bmorph is an adaptation of the PresRat bias correction procedure from
