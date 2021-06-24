@@ -24,6 +24,11 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         Flow timeseries to train the bias correction model with.
     ref_ts : pandas.Series
         Observed/reference flow timeseries.
+    condition_ts: pandas.Series
+        A timeseries with a variable to condition on. This will be
+        used in place of `raw_y`, `train_y`, and `ref_y`. It is
+        mainly added as a convenience over specifying the same
+        timeseries for each of those variables.
     apply_window : pandas.date_range
         Date range to apply bmorph onto flow timeseries.
     raw_train_window : pandas.date_range
@@ -89,7 +94,6 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
     raw_ts_window = slice(pd.to_datetime(raw_ts.index.values[0]),
                           pd.to_datetime(raw_ts.index.values[-1]))
 
-    # bmorph the series
     overlap_period = int(bmorph_overlap / 2)
     bmorph_ts = pd.Series([])
     bmorph_multipliers = pd.Series([])
@@ -100,33 +104,30 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         bmorph_start = bmorph_range[i]
         bmorph_end = bmorph_range[i+1]
 
-        ## we don't need to adjust for overlap if it is the last entry at i+1
-        #if i < len(bmorph_range)-2:
-        #    bmorph_end -= pd.DateOffset(days=1)
-
         raw_apply_window =  slice(pd.to_datetime(str(bmorph_start)),
                                    pd.to_datetime(str(bmorph_end)))
-
         raw_cdf_window = slice(
                 pd.to_datetime(str(bmorph_start - pd.DateOffset(days=overlap_period))),
                 pd.to_datetime(str(bmorph_end + pd.DateOffset(days=overlap_period))))
-
+        # No overlap for the first/last periods
         if ((raw_cdf_window.start < raw_ts_window.start) or (raw_cdf_window.stop > raw_ts_window.stop)):
             raw_cdf_window = slice(raw_ts_window.start, raw_ts_window.stop)
 
+        # Perform the bias correction
         bc_total, bc_mult = bmorph.bmorph(
                 raw_ts, train_ts, ref_ts,
                 raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
                 raw_y, ref_y, train_y,
-                n_smooth_short,
-                bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
+                n_smooth_short, bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
                 method=method)
         bmorph_ts = bmorph_ts.append(bc_total)
         bmorph_multipliers = bmorph_multipliers.append(bc_mult)
 
+    # Eliminate duplicate timestamps because of overlapping period
     bmorph_ts = bmorph_ts.groupby(bmorph_ts.index).mean()
     bmorph_multipliers = bmorph_multipliers.groupby(bmorph_multipliers.index).mean()
-    # Apply the correction
+
+    # Apply the correction to the change in mean
     if n_smooth_long:
         nrni_mean = ref_ts[ref_train_window].mean()
         train_mean = train_ts[raw_train_window].mean()
@@ -142,9 +143,9 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
                      ref_upstream_ts, ref_downstream_ts,
                      apply_window, raw_train_window, ref_train_window,
                      bmorph_interval, bmorph_overlap, blend_factor,
-                     raw_upstream_y = None, raw_downstream_y = None,
-                     train_upstream_y = None, train_downstream_y = None,
-                     ref_upstream_y = None, ref_downstream_y = None,
+                     raw_upstream_y=None, raw_downstream_y=None,
+                     train_upstream_y=None, train_downstream_y=None,
+                     ref_upstream_y=None, ref_downstream_y=None,
                      n_smooth_long=None, n_smooth_short=5,
                      bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, method='hist', **kwargs):
     """Bias correction performed by blending bmorphed flows on user defined intervals.
@@ -190,8 +191,6 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
         entries are the proportion of upstream multiplers and totals added with
         1-blend_factor of downstream multipliers and totals.
     n_smooth_long : int, optional
-        This functionality is still to be implemented.
-
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
         used for the bmorph function itself. For example, 365 days.
@@ -387,7 +386,33 @@ def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
 
 
-def run_parallel_scbc(ds, mizuroute_exe, bmorph_config, client=None):
+def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None):
+    """
+    Applies Spatially Consistent Bias Correction (SCBC) by
+    bias correcting local flows and re-routing them through
+    mizuroute. This method can be run in parallel by providing
+    a `dask client`.
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+        An xarray dataset containing `time` and `seg` dimensions and
+        variables to be bias corrected. This will mostly likely come from
+        the provided preprocessing utility, `mizuroute_utils.to_bmorph`
+    mizuroute_exe: str
+        The path to the mizuroute executable
+    bmorph_config: dict
+        The configuration for the bias correction. See the documentation
+        on input specifications and selecting bias correction techniques
+        for descriptions of the options and their choices.
+    client: dask.Client (optional)
+        A `client` object to manage parallel computation.
+
+    Returns
+    -------
+    region_totals: xr.Dataset
+        The rerouted, total, bias corrected flows for the region
+    """
     def unpack_and_write_netcdf(results, segs, file_path, out_varname='scbc_flow'):
         flows = [r[0] for r in results]
         mults = [r[1] for r in results]
