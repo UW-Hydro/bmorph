@@ -7,8 +7,8 @@ from tqdm.autonotebook import tqdm
 from bmorph.util import mizuroute_utils as mizutil
 
 
-def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
-        train_window, bmorph_window, reference_window,
+def apply_annual_bmorph(raw_ts, train_ts, ref_ts,
+        raw_train_window, apply_window, ref_train_window,
         bmorph_overlap, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
         raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10,
         rtol=1e-7, atol=0, method='hist', **kwargs):
@@ -20,13 +20,13 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         Raw flow timeseries.
     train_ts : pandas.Series
         Flow timeseries to train the bias correction model with.
-    obs_ts : pandas.Series
+    ref_ts : pandas.Series
         Observed/reference flow timeseries.
-    train_window : pandas.date_range
+    raw_train_window : pandas.date_range
         Date range to train the bias correction model.
-    bmorph_window : pandas.date_range
+    apply_window : pandas.date_range
         Date range to apply bmorph onto flow timeseries.
-    reference_window : pandas.date_range
+    ref_train_window : pandas.date_range
         Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
     bmorph_overlap : int
         Total overlap CDF windows have with each other, distributed evenly
@@ -73,9 +73,9 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
         Returns a time series of equal length to bc_totals used to scale the
         raw flow values into the bmorphed values returned in bc_totals.
     """
-    train_window = slice(*train_window)
-    bmorph_window = slice(*bmorph_window)
-    reference_window = slice(*reference_window)
+    raw_train_window = slice(*raw_train_window)
+    apply_window = slice(*apply_window)
+    ref_train_window = slice(*ref_train_window)
     raw_ts_window = slice(pd.to_datetime(raw_ts.index.values[0]),
                           pd.to_datetime(raw_ts.index.values[-1]))
 
@@ -83,11 +83,11 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
     overlap_period = int(bmorph_overlap / 2)
     bmorph_ts = pd.Series([])
     bmorph_multipliers = pd.Series([])
-    for year in range(bmorph_window.start.year, bmorph_window.stop.year+1):
+    for year in range(apply_window.start.year, apply_window.stop.year+1):
         if train_on_year:
-            train_window = slice(pd.to_datetime('{}-10-01 00:00:00'.format(year-1)),
+            raw_train_window = slice(pd.to_datetime('{}-10-01 00:00:00'.format(year-1)),
                                    pd.to_datetime('{}-09-30 00:00:00'.format(year)))
-        raw_bmorph_window =  slice(pd.to_datetime('{}-01-01 00:00:00'.format(year)),
+        raw_apply_window =  slice(pd.to_datetime('{}-01-01 00:00:00'.format(year)),
                                    pd.to_datetime('{}-12-31 00:00:00'.format(year)))
         raw_cdf_window = slice(pd.to_datetime('{}-01-01 00:00:00'.format(year - overlap_period)),
                                pd.to_datetime('{}-12-31 00:00:00'.format(year + overlap_period)))
@@ -98,8 +98,8 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
             offset = raw_ts_window.stop - raw_cdf_window.stop
             raw_cdf_window = slice(raw_cdf_window.start + offset, raw_ts_window.stop)
 
-        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window, raw_bmorph_window, obs_ts, train_ts,
-                                          train_window, n_smooth_short, raw_y, obs_y, train_y,
+        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window, raw_apply_window, ref_ts, train_ts,
+                                          raw_train_window, n_smooth_short, raw_y, obs_y, train_y,
                                           bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
                                           method=method)
         bmorph_ts = bmorph_ts.append(bc_total)
@@ -108,19 +108,22 @@ def apply_annual_bmorph(raw_ts, train_ts, obs_ts,
 
     # Apply the correction
     if n_smooth_long:
-        nrni_mean = obs_ts[reference_window].mean()
-        train_mean = train_ts[reference_window].mean()
+        ref_mean = ref_ts[ref_train_window].mean()
+        train_mean = train_ts[raw_train_window].mean()
         bmorph_corr_ts, corr_ts = bmorph.bmorph_correct(raw_ts, bmorph_ts, raw_ts_window,
-                                                        nrni_mean, train_mean,
+                                                        ref_mean, train_mean,
                                                         n_smooth_long)
     else:
         bmorph_corr_ts = bmorph_ts
-    return bmorph_corr_ts[bmorph_window], bmorph_multipliers[bmorph_window]
+    return bmorph_corr_ts[apply_window], bmorph_multipliers[apply_window]
 
-def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
-        train_window, bmorph_window, reference_window, bmorph_interval,
-        bmorph_overlap, n_smooth_long=None, n_smooth_short=5,
-        raw_y=None, train_y=None, obs_y=None, bw=3, xbins=200, ybins=10,
+def apply_interval_bmorph(raw_ts, train_ts, ref_ts,
+        apply_window, raw_train_window, ref_train_window,
+        condition_ts=None,
+        raw_y=None, train_y=None, ref_y=None,
+        bmorph_interval=pd.DateOffset(years=1),
+        bmorph_overlap=60, n_smooth_long=None, n_smooth_short=5,
+        bw=3, xbins=200, ybins=10,
         rtol=1e-6, atol=1e-8, method='hist', **kwargs):
     """Bias correction is performed by bmorph on user-defined intervals.
 
@@ -130,14 +133,20 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
         Raw flow timeseries.
     train_ts : pandas.Series
         Flow timeseries to train the bias correction model with.
-    obs_ts : pandas.Series
+    ref_ts : pandas.Series
         Observed/reference flow timeseries.
-    train_window : pandas.date_range
-        Date range to train the bias correction model.
-    bmorph_window : pandas.date_range
+    apply_window : pandas.date_range
         Date range to apply bmorph onto flow timeseries.
-    reference_window : pandas.date_range
+    raw_train_window : pandas.date_range
+        Date range to train the bias correction model.
+    ref_train_window : pandas.date_range
         Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
+    raw_y : pandas.Series, optional
+        Raw time series of the second time series variable for conditioning.
+    train_y : pandas.Series, optional
+        Training second time series.
+    ref_y : pandas.Series, optional
+        Target second time series.
     bmorph_interval : pandas.DateOffset
         Difference between bmorph application intervals.
     bmorph_overlap : int
@@ -150,12 +159,6 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
     n_smooth_short : int, optional
         Number of elements that will be smoothed when determining CDFs used
         for the bmorph function itself.
-    raw_y : pandas.Series, optional
-        Raw time series of the second time series variable for conditioning.
-    train_y : pandas.Series, optional
-        Training second time series.
-    obs_y : pandas.Series, optional
-        Target second time series.
     bw : int, optional
         Bandwidth for KernelDensity. This should only be used if `method='kde'`.
     xbins : int, optional
@@ -183,12 +186,17 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
     """
     assert isinstance(bmorph_interval, pd.DateOffset)
 
+    if condition_ts is not None:
+        raw_y = condition_ts
+        ref_y = condition_ts
+        train_y = condition_ts
+
     if bmorph_interval == pd.DateOffset(days=1):
         raise Exception("Please enter a bmorph_interval greater than 1 day(s)")
 
-    train_window = slice(*train_window)
-    bmorph_window = slice(*bmorph_window)
-    reference_window = slice(*reference_window)
+    raw_train_window = slice(*raw_train_window)
+    apply_window = slice(*apply_window)
+    ref_train_window = slice(*ref_train_window)
     raw_ts_window = slice(pd.to_datetime(raw_ts.index.values[0]),
                           pd.to_datetime(raw_ts.index.values[-1]))
 
@@ -196,55 +204,58 @@ def apply_interval_bmorph(raw_ts, train_ts, obs_ts,
     overlap_period = int(bmorph_overlap / 2)
     bmorph_ts = pd.Series([])
     bmorph_multipliers = pd.Series([])
-    bmorph_range = pd.date_range(bmorph_window.start, bmorph_window.stop+bmorph_interval,
+    bmorph_range = pd.date_range(apply_window.start,
+                                 apply_window.stop+bmorph_interval,
                                  freq=bmorph_interval)
     for i in range(0,len(bmorph_range)-1):
         bmorph_start = bmorph_range[i]
         bmorph_end = bmorph_range[i+1]
 
-        # we don't need ot adjust for overlap if it is the last entry at i+1
-        if i < len(bmorph_range)-2:
-            bmorph_end -= pd.DateOffset(days=1)
+        ## we don't need to adjust for overlap if it is the last entry at i+1
+        #if i < len(bmorph_range)-2:
+        #    bmorph_end -= pd.DateOffset(days=1)
 
-        raw_bmorph_window =  slice(pd.to_datetime(str(bmorph_start)),
+        raw_apply_window =  slice(pd.to_datetime(str(bmorph_start)),
                                    pd.to_datetime(str(bmorph_end)))
-        raw_cdf_window = slice(pd.to_datetime(str(bmorph_start - pd.DateOffset(years=overlap_period))),
-                               pd.to_datetime(str(bmorph_end + pd.DateOffset(years=overlap_period))))
-        if (raw_cdf_window.start < raw_ts_window.start):
-            offset = raw_ts_window.start - raw_cdf_window.start
-            raw_cdf_window = slice(raw_ts_window.start, raw_cdf_window.stop + offset)
-        if(raw_cdf_window.stop > raw_ts_window.stop):
-            offset = raw_ts_window.stop - raw_cdf_window.stop
-            raw_cdf_window = slice(raw_cdf_window.start + offset, raw_ts_window.stop)
 
-        bc_total, bc_mult = bmorph.bmorph(raw_ts, raw_cdf_window, raw_bmorph_window, obs_ts, train_ts,
-                                          train_window, n_smooth_short, raw_y, obs_y, train_y,
-                                          bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
-                                          method=method)
+        raw_cdf_window = slice(pd.to_datetime(str(bmorph_start - pd.DateOffset(days=overlap_period))),
+                               pd.to_datetime(str(bmorph_end + pd.DateOffset(days=overlap_period))))
+
+        if ((raw_cdf_window.start < raw_ts_window.start) or (raw_cdf_window.stop > raw_ts_window.stop)):
+            #offset = raw_ts_window.start - raw_cdf_window.start
+            #offset = raw_ts_window.stop - raw_cdf_window.stop
+            raw_cdf_window = slice(raw_ts_window.start, raw_ts_window.stop)
+
+        bc_total, bc_mult = bmorph.bmorph(
+                raw_ts, train_ts, ref_ts,
+                raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
+                n_smooth_short, raw_y, ref_y, train_y,
+                bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
+                method=method)
         bmorph_ts = bmorph_ts.append(bc_total)
         bmorph_multipliers = bmorph_multipliers.append(bc_mult)
 
 
     # Apply the correction
     if n_smooth_long:
-        nrni_mean = obs_ts[reference_window].mean()
-        train_mean = train_ts[reference_window].mean()
+        nrni_mean = ref_ts[ref_train_window].mean()
+        train_mean = train_ts[raw_train_window].mean()
         bmorph_corr_ts, corr_ts = bmorph.bmorph_correct(raw_ts, bmorph_ts, raw_ts_window,
                                                         nrni_mean, train_mean,
                                                         n_smooth_long)
     else:
         bmorph_corr_ts = bmorph_ts
-    return bmorph_corr_ts[bmorph_window], bmorph_multipliers[bmorph_window]
+    return bmorph_corr_ts[apply_window], bmorph_multipliers[apply_window]
 
 
 def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             train_upstream_ts, train_downstream_ts,
-                            truth_upstream_ts, truth_downstream_ts,
-                            train_window, bmorph_window, reference_window, bmorph_overlap,
+                            ref_upstream_ts, ref_downstream_ts,
+                            raw_train_window, apply_window, ref_train_window, bmorph_overlap,
                             blend_factor, n_smooth_long=None, n_smooth_short=5, train_on_year=False,
                             raw_upstream_y = None, raw_downstream_y = None,
                             train_upstream_y = None, train_downstream_y = None,
-                            truth_upstream_y = None, truth_downstream_y = None,
+                            ref_upstream_y = None, ref_downstream_y = None,
                             bw=3, xbins=200, ybins=10, atol=0, rtol=1e-7, method='hist', **kwargs):
     """Bias correction is performed by blending bmorphed flows on yearly intervals.
 
@@ -268,15 +279,15 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Flow timeseries to train the bias correction model with for the upstream flows.
     train_downstream_ts : pandas.Series
         Flow timeseries to train the bias correction model with for the downstream flows.
-    truth_upstream_ts : pandas.Series
+    ref_upstream_ts : pandas.Series
         Observed/reference flow timeseries corresponding to the upstream flows.
-    truth_downstream_ts : pandas.Series
+    ref_downstream_ts : pandas.Series
         Observed/reference flow timeseries corresponding to the downstream flows.
-    train_window : pandas.date_range
+    raw_train_window : pandas.date_range
         Date range to train the bias correction model.
-    bmorph_window : pandas.date_range
+    apply_window : pandas.date_range
         Date range to apply bmorph onto flow timeseries.
-    reference_window : pandas.date_range
+    ref_train_window : pandas.date_range
         Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
     bmorph_overlap : int
         Total overlap CDF windows have with each other, distributed evenly
@@ -309,9 +320,9 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Training second time series variable for conditioning correpsonding to downstream flows.
     train_downstream_y : pandas.Series, optional
         Training second time series variable for conditioning correpsonding to upstream flows.
-    truth_upstream_y : pandas.Series, optional
+    ref_upstream_y : pandas.Series, optional
         Target second time series variable for conditioning corresponding to upstream flows.
-    truth_downstream_y : pandas.Series, optional
+    ref_downstream_y : pandas.Series, optional
         Target second time series variable for conditioning corresponding to downtream flows.
     bw : int, optional
         Bandwidth for KernelDensity. This should only be used if `method='kde'`.
@@ -342,9 +353,9 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
 
-    train_window = slice(*train_window)
-    bmorph_window = slice(*bmorph_window)
-    reference_window = slice(*reference_window)
+    raw_train_window = slice(*raw_train_window)
+    apply_window = slice(*apply_window)
+    ref_train_window = slice(*ref_train_window)
     raw_ts_window = slice(pd.to_datetime(raw_upstream_ts.index.values[0]),
                           pd.to_datetime(raw_upstream_ts.index.values[-1]))
     # Check if there is enough data input to run conditioning for both upstream
@@ -352,20 +363,20 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     # both upstream and downstream use the same method and to minimze checks within
     # the for-loop
     run_mdcd = False
-    y_varlist = [raw_upstream_y, train_upstream_y, truth_upstream_y,
-                 raw_downstream_y, train_downstream_y, truth_downstream_y]
+    y_varlist = [raw_upstream_y, train_upstream_y, ref_upstream_y,
+                 raw_downstream_y, train_downstream_y, ref_downstream_y]
     if np.any(list(map(lambda x: x is not None, y_varlist))):
         run_mdcd = True
 
     # bmorph the series
     overlap_period = int(bmorph_overlap / 2)
 
-    for year in range(bmorph_window.start.year, bmorph_window.stop.year+1):
+    for year in range(apply_window.start.year, apply_window.stop.year+1):
         # set up annual windows
         if train_on_year:
-            train_window = slice(pd.to_datetime('{}-10-01 00:00:00'.format(year-1)),
+            raw_train_window = slice(pd.to_datetime('{}-10-01 00:00:00'.format(year-1)),
                                    pd.to_datetime('{}-09-30 00:00:00'.format(year)))
-        raw_bmorph_window =  slice(pd.to_datetime('{}-01-01 00:00:00'.format(year)),
+        raw_apply_window =  slice(pd.to_datetime('{}-01-01 00:00:00'.format(year)),
                                    pd.to_datetime('{}-12-31 00:00:00'.format(year)))
         raw_cdf_window = slice(pd.to_datetime('{}-01-01 00:00:00'.format(year - overlap_period)),
                                pd.to_datetime('{}-12-31 00:00:00'.format(year + overlap_period)))
@@ -380,32 +391,32 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
         # Upstream & Downstream bias correction
         if run_mdcd:
             bc_up_total, bc_up_mult = bmorph.bmorph(raw_upstream_ts, raw_cdf_window,
-                                                    raw_bmorph_window,
-                                                    truth_upstream_ts, train_upstream_ts,
-                                                    train_window, n_smooth_short,
-                                                    raw_upstream_y, truth_upstream_y,
+                                                    raw_apply_window,
+                                                    ref_upstream_ts, train_upstream_ts,
+                                                    raw_train_window, n_smooth_short,
+                                                    raw_upstream_y, ref_upstream_y,
                                                     train_upstream_y, bw=bw, xbins=xbins,
                                                     ybins=ybins, rtol=rtol, atol=atol,
                                                     method=method)
 
             bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
-                                                        raw_bmorph_window,
-                                                        truth_downstream_ts, train_downstream_ts,
-                                                        train_window, n_smooth_short,
-                                                        raw_downstream_y, truth_downstream_y,
+                                                        raw_apply_window,
+                                                        ref_downstream_ts, train_downstream_ts,
+                                                        raw_train_window, n_smooth_short,
+                                                        raw_downstream_y, ref_downstream_y,
                                                         train_downstream_y, bw=bw, xbins=xbins,
                                                         ybins=ybins, rtol=rtol, atol=atol,
                                                         method=method)
         else:
             bc_up_total, bc_up_mult = bmorph.bmorph(raw_upstream_ts, raw_cdf_window,
-                                                    raw_bmorph_window,
-                                                    truth_upstream_ts, train_upstream_ts,
-                                                    train_window, n_smooth_short)
+                                                    raw_apply_window,
+                                                    ref_upstream_ts, train_upstream_ts,
+                                                    raw_train_window, n_smooth_short)
 
             bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
-                                                        raw_bmorph_window,
-                                                        truth_downstream_ts, train_downstream_ts,
-                                                       train_window, n_smooth_short)
+                                                        raw_apply_window,
+                                                        ref_downstream_ts, train_downstream_ts,
+                                                       raw_train_window, n_smooth_short)
 
         bc_multiplier = (blend_factor * bc_up_mult) + ((1 - blend_factor) * bc_down_mult)
         bc_total = (blend_factor * bc_up_total) + ((1 - blend_factor) * bc_down_total)
@@ -416,25 +427,25 @@ def apply_annual_blendmorph(raw_upstream_ts, raw_downstream_ts,
     # Apply the correction to preserve the mean change
     if n_smooth_long:
         raw_ts = (blend_factor * raw_upstream_ts) + ((1 - blend_factor) * raw_downstream_ts)
-        obs_ts = (blend_factor * truth_upstream_ts) + ((1 - blend_factor) * truth_downstream_ts)
+        ref_ts = (blend_factor * ref_upstream_ts) + ((1 - blend_factor) * ref_downstream_ts)
         train_ts = (blend_factor * train_upstream_ts) + ((1 - blend_factor) * train_downstream_ts)
-        nrni_mean = obs_ts[reference_window].mean()
-        train_mean = train_ts[reference_window].mean()
+        nrni_mean = ref_ts[ref_train_window].mean()
+        train_mean = train_ts[ref_train_window].mean()
         bc_totals, corr_ts = bmorph.bmorph_correct(raw_ts, bc_totals, raw_ts_window,
                                                    nrni_mean, train_mean,
                                                    n_smooth_long)
         bc_multipliers *= corr_ts
 
-    return bc_totals[bmorph_window], bc_multipliers[bmorph_window]
+    return bc_totals[apply_window], bc_multipliers[apply_window]
 
 def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
                             train_upstream_ts, train_downstream_ts,
-                            truth_upstream_ts, truth_downstream_ts,
-                            train_window, bmorph_window, reference_window, bmorph_interval, bmorph_overlap,
+                            ref_upstream_ts, ref_downstream_ts,
+                            raw_train_window, apply_window, ref_train_window, bmorph_interval, bmorph_overlap,
                             blend_factor, n_smooth_long=None, n_smooth_short=5,
                             raw_upstream_y = None, raw_downstream_y = None,
                             train_upstream_y = None, train_downstream_y = None,
-                            truth_upstream_y = None, truth_downstream_y = None,
+                            ref_upstream_y = None, ref_downstream_y = None,
                             bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, method='hist', **kwargs):
     """Bias correction is performed by blending bmorphed flows on user defined intervals.
 
@@ -458,15 +469,15 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Flow timeseries to train the bias correction model with for the upstream flows.
     train_downstream_ts : pandas.Series
         Flow timeseries to train the bias correction model with for the downstream flows.
-    truth_upstream_ts : pandas.Series
+    ref_upstream_ts : pandas.Series
         Observed/reference flow timeseries corresponding to the upstream flows.
-    truth_downstream_ts : pandas.Series
+    ref_downstream_ts : pandas.Series
         Observed/reference flow timeseries corresponding to the downstream flows.
-    train_window : pandas.date_range
+    raw_train_window : pandas.date_range
         Date range to train the bias correction model.
-    bmorph_window : pandas.date_range
+    apply_window : pandas.date_range
         Date range to apply bmorph onto flow timeseries.
-    reference_window : pandas.date_range
+    ref_train_window : pandas.date_range
         Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
     bmorph_interval : pandas.DateOffset
         Difference between bmorph application intervals.
@@ -497,9 +508,9 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Training second time series variable for conditioning correpsonding to downstream flows.
     train_downstream_y : pandas.Series, optional
         Training second time series variable for conditioning correpsonding to upstream flows.
-    truth_upstream_y : pandas.Series, optional
+    ref_upstream_y : pandas.Series, optional
         Target second time series variable for conditioning corresponding to upstream flows.
-    truth_downstream_y : pandas.Series, optional
+    ref_downstream_y : pandas.Series, optional
         Target second time series variable for conditioning corresponding to downtream flows.
     bw : int, optional
         Bandwidth for KernelDensity. This should only be used if `method='kde'`.
@@ -534,9 +545,9 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
 
-    train_window = slice(*train_window)
-    bmorph_window = slice(*bmorph_window)
-    reference_window = slice(*reference_window)
+    raw_train_window = slice(*raw_train_window)
+    apply_window = slice(*apply_window)
+    ref_train_window = slice(*ref_train_window)
     raw_ts_window = slice(pd.to_datetime(raw_upstream_ts.index.values[0]),
                           pd.to_datetime(raw_upstream_ts.index.values[-1]))
 
@@ -545,8 +556,8 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     # both upstream and downstream use the same method and to minimze checks within
     # the for-loop
     run_mdcd = False
-    y_varlist = [raw_upstream_y, train_upstream_y, truth_upstream_y,
-                 raw_downstream_y, train_downstream_y, truth_downstream_y]
+    y_varlist = [raw_upstream_y, train_upstream_y, ref_upstream_y,
+                 raw_downstream_y, train_downstream_y, ref_downstream_y]
     if np.any(list(map(lambda x: x is not None, y_varlist))):
         run_mdcd = True
 
@@ -554,7 +565,7 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     overlap_period = int(bmorph_overlap / 2)
     bmorph_ts = pd.Series([])
     bmorph_multipliers = pd.Series([])
-    bmorph_range = pd.date_range(bmorph_window.start, bmorph_window.stop+bmorph_interval,
+    bmorph_range = pd.date_range(apply_window.start, apply_window.stop+bmorph_interval,
                                  freq=bmorph_interval)
     for i in range(0,len(bmorph_range)-1):
         bmorph_start = bmorph_range[i]
@@ -564,7 +575,7 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         if i < len(bmorph_range)-2:
             bmorph_end -= pd.DateOffset(days=1)
 
-        raw_bmorph_window =  slice(pd.to_datetime(str(bmorph_start)),
+        raw_apply_window =  slice(pd.to_datetime(str(bmorph_start)),
                                    pd.to_datetime(str(bmorph_end)))
         raw_cdf_window = slice(pd.to_datetime(str(bmorph_start - pd.DateOffset(years=overlap_period))),
                                pd.to_datetime(str(bmorph_end + pd.DateOffset(years=overlap_period))))
@@ -578,32 +589,32 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
         # Upstream & Downstream bias correction
         if run_mdcd:
             bc_up_total, bc_up_mult = bmorph.bmorph(raw_upstream_ts, raw_cdf_window,
-                                                    raw_bmorph_window,
-                                                    truth_upstream_ts, train_upstream_ts,
-                                                    train_window, n_smooth_short,
-                                                    raw_upstream_y, truth_upstream_y,
+                                                    raw_apply_window,
+                                                    ref_upstream_ts, train_upstream_ts,
+                                                    raw_train_window, n_smooth_short,
+                                                    raw_upstream_y, ref_upstream_y,
                                                     train_upstream_y, bw=bw, xbins=xbins,
                                                     ybins=ybins, rtol=rtol, atol=atol,
                                                     method=method)
 
             bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
-                                                        raw_bmorph_window,
-                                                        truth_downstream_ts, train_downstream_ts,
-                                                        train_window, n_smooth_short,
-                                                        raw_downstream_y, truth_downstream_y,
+                                                        raw_apply_window,
+                                                        ref_downstream_ts, train_downstream_ts,
+                                                        raw_train_window, n_smooth_short,
+                                                        raw_downstream_y, ref_downstream_y,
                                                         train_downstream_y, bw=bw, xbins=xbins,
                                                         ybins=ybins, rtol=rtol, atol=atol,
                                                         method=method)
         else:
             bc_up_total, bc_up_mult = bmorph.bmorph(raw_upstream_ts, raw_cdf_window,
-                                                    raw_bmorph_window,
-                                                    truth_upstream_ts, train_upstream_ts,
-                                                    train_window, n_smooth_short)
+                                                    raw_apply_window,
+                                                    ref_upstream_ts, train_upstream_ts,
+                                                    raw_train_window, n_smooth_short)
 
             bc_down_total, bc_down_mult = bmorph.bmorph(raw_downstream_ts, raw_cdf_window,
-                                                        raw_bmorph_window,
-                                                        truth_downstream_ts, train_downstream_ts,
-                                                       train_window, n_smooth_short)
+                                                        raw_apply_window,
+                                                        ref_downstream_ts, train_downstream_ts,
+                                                       raw_train_window, n_smooth_short)
 
 
         bc_multiplier = (blend_factor * bc_up_mult) + ((1 - blend_factor) * bc_down_mult)
@@ -615,28 +626,28 @@ def apply_interval_blendmorph(raw_upstream_ts, raw_downstream_ts,
     # Apply the correction to preserve the mean change
     if n_smooth_long:
         raw_ts = (blend_factor * raw_upstream_ts) + ((1 - blend_factor) * raw_downstream_ts)
-        obs_ts = (blend_factor * truth_upstream_ts) + ((1 - blend_factor) * truth_downstream_ts)
+        ref_ts = (blend_factor * ref_upstream_ts) + ((1 - blend_factor) * ref_downstream_ts)
         train_ts = (blend_factor * train_upstream_ts) + ((1 - blend_factor) * train_downstream_ts)
-        nrni_mean = obs_ts[reference_window].mean()
-        train_mean = train_ts[train_window].mean()
+        nrni_mean = ref_ts[ref_train_window].mean()
+        train_mean = train_ts[raw_train_window].mean()
         bc_totals, corr_ts = bmorph.bmorph_correct(raw_ts, bc_totals, raw_ts_window,
                                                    nrni_mean, train_mean,
                                                    n_smooth_long)
         bc_multipliers *= corr_ts
 
-    return bc_totals[bmorph_window], bc_multipliers[bmorph_window]
+    return bc_totals[apply_window], bc_multipliers[apply_window]
 
 
-def _scbc_c_seg(ds, train_window, bmorph_window, reference_window,
+def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
                bmorph_interval, bmorph_overlap, condition_var, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
-    up_obs_ts =    ds['up_ref_flow'].to_series()
+    up_ref_ts =    ds['up_ref_flow'].to_series()
     up_seg =  int( ds['up_ref_seg'].values[()])
     up_cond =      ds[f'up_{condition_var}'].to_series()
     dn_raw_ts =    ds['IRFroutedRunoff'].to_series()
     dn_train_ts =  ds['down_raw_flow'].to_series()
-    dn_obs_ts =    ds['down_ref_flow'].to_series()
+    dn_ref_ts =    ds['down_ref_flow'].to_series()
     dn_seg =  int( ds['down_ref_seg'].values[()])
     dn_cond =      ds[f'down_{condition_var}'].to_series()
     blend_factor = ds['cdf_blend_factor'].values[()]
@@ -645,26 +656,26 @@ def _scbc_c_seg(ds, train_window, bmorph_window, reference_window,
     scbc_c_flows, scbc_c_mults = apply_interval_blendmorph(
         up_raw_ts, dn_raw_ts,
         up_train_ts, dn_train_ts,
-        up_obs_ts, dn_obs_ts,
-        train_window, bmorph_window, reference_window,
+        up_ref_ts, dn_ref_ts,
+        raw_train_window, apply_window, ref_train_window,
         bmorph_interval, bmorph_overlap, blend_factor,
         raw_upstream_y=up_cond, raw_downstream_y=dn_cond,
         train_upstream_y=up_cond, train_downstream_y=dn_cond,
-        truth_upstream_y=up_cond, truth_downstream_y=dn_cond)
+        ref_upstream_y=up_cond, ref_downstream_y=dn_cond)
 
     scbc_c_locals = scbc_c_mults * local_flow.sel(time=scbc_c_mults.index)
     return scbc_c_flows, scbc_c_mults, scbc_c_locals
 
 
-def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
+def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
                bmorph_interval, bmorph_overlap, condition_var=None, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
-    up_obs_ts =    ds['up_ref_flow'].to_series()
+    up_ref_ts =    ds['up_ref_flow'].to_series()
     up_seg =  int( ds['up_ref_seg'].values[()])
     dn_raw_ts =    ds['IRFroutedRunoff'].to_series()
     dn_train_ts =  ds['down_raw_flow'].to_series()
-    dn_obs_ts =    ds['down_ref_flow'].to_series()
+    dn_ref_ts =    ds['down_ref_flow'].to_series()
     dn_seg =  int( ds['down_ref_seg'].values[()])
     blend_factor = ds['cdf_blend_factor'].values[()]
     local_flow =   ds['dlayRunoff'].copy(deep=True)
@@ -672,8 +683,8 @@ def _scbc_u_seg(ds, train_window, bmorph_window, reference_window,
     scbc_u_flows, scbc_u_mults = apply_interval_blendmorph(
             up_raw_ts, dn_raw_ts,
             up_train_ts, dn_train_ts,
-            up_obs_ts, dn_obs_ts,
-            train_window, bmorph_window, reference_window,
+            up_ref_ts, dn_ref_ts,
+            raw_train_window, apply_window, ref_train_window,
             bmorph_interval, bmorph_overlap, blend_factor)
 
     scbc_u_locals = scbc_u_mults * local_flow.sel(time=scbc_u_mults.index)
@@ -708,7 +719,7 @@ def run_parallel_scbc(ds, mizuroute_exe, bmorph_config, client=None):
             results.append(scbc_fun(ds.sel(seg=seg)))
     unpack_and_write_netcdf(results, ds['seg'], f'{bmorph_config["data_path"]}/input/{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
     config_path, mizuroute_config = mizutil.write_mizuroute_config(bmorph_config["output_prefix"],
-            scbc_type, bmorph_config['bmorph_window'],
+            scbc_type, bmorph_config['apply_window'],
             config_dir=bmorph_config['data_path']+'/mizuroute_configs/',
             topo_dir=bmorph_config['data_path']+'/topologies/',
             input_dir=bmorph_config['data_path']+'/input/',
@@ -716,7 +727,7 @@ def run_parallel_scbc(ds, mizuroute_exe, bmorph_config, client=None):
             )
     mizutil.run_mizuroute(mizuroute_exe, config_path)
     region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*')
-    region_totals = region_totals.sel(time=slice(*bmorph_config['bmorph_window']))
+    region_totals = region_totals.sel(time=slice(*bmorph_config['apply_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals.load()
 
