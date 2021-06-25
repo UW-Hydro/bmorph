@@ -44,8 +44,8 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
     bmorph_interval : pandas.DateOffset
         Difference between bmorph application intervals.
     bmorph_overlap : int
-        Total overlap CDF windows have with each other, distributed evenly
-        before and after the application window.
+        Total number of days overlap CDF windows have with each other,
+        distributed evenly before and after the application window.
     n_smooth_long : int, optional
         Number of elements that will be smoothed in `raw_ts` and `bmorph_ts`.
         The nsmooth value in this case is typically much larger than the one
@@ -183,8 +183,8 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
     bmorph_interval : pandas.DateOffset
         Difference between bmorph application intervals.
     bmorph_overlap: int
-        Total overlap CDF windows have with each other, distributed evenly
-        before and after the application window.
+        Total overlap in number of days the CDF windows have with each other,
+        distributed evenly before and after the application window.
     blend_factor : numpy.array
         An array determining how upstream and downstream bmorphing is proportioned.
         This is determined by the fill_method used in mizuroute_utils. The blend_factor
