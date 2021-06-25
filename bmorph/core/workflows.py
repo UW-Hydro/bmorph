@@ -68,6 +68,9 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
     method : str
         Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
+    **kwargs:
+        Additional keyword arguments. Mainly implemented for cross-compatibility with
+        other methods so that a unified configuration can be used
 
     Returns
     -------
@@ -226,6 +229,9 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
     method : str, optional
         Method to use for conditioning. Currently 'hist' using hist2D and 'kde'
         using kde2D are the only supported methods.
+    **kwargs:
+        Additional keyword arguments. Mainly implemented for cross-compatibility with
+        other methods so that a unified configuration can be used
 
     Returns
     -------
