@@ -72,9 +72,9 @@ Below we show how to implement and combine the the various options described abo
 Independent Bias Correction: Univariate (IBC_U)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Univariate Independent Bias Correction (IBC_U) is considered the traditional bias correction method implemented here as described in `EDCDFm`_. This method can only be performed at sites with reference data, which is useful when gauge sites can measure flows but does not guarantee spatially consistent corrections amongst a series of gauge sites.
+Univariate Independent Bias Correction (IBC_U) is considered the traditional bias correction method implemented here as described in the EDCDFm section above. This method can only be performed at sites with reference data, which is useful when gauge sites can measure flows but does not guarantee spatially consistent corrections amongst a series of gauge sites.
 
-Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.workflows.apply_interval_bmorph`_
+Workflow function : `bmorph.core.workflows.apply_bmorph`_
 
 .. code:: ipython3
 
@@ -84,28 +84,28 @@ Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.
 
     ibc_u_flows[site], ibc_u_mults[site] = bmorph.workflows.apply_interval_bmorph(
         raw_ts, train_ts, obs_ts,
-        train_window, bmorph_window, reference_window,
-        interval, overlap)
+        apply_window, train_window, reference_window,
+        interval=interval, overlap=overlap)
 
 Independent Bias Correction: Conditioned (IBC_C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Similar to `IBC_U <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-univariate-ibc-u>`_, Conditioned Independent Bias Correction (IBC_C) can only apply corrections at gauge sites where there is reference flow data. IBC_C integrates meteorologic data into the ``bmorph`` bias correction process as described in `bmorph.core.bmorph.cqm <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.core.bmorph.cqm>`_. Conditioning allows hydrologic process based knowledge to be included in the bias correction process that can help to root bias corrections in meteorologic trends.
 
-Workflow functions : `bmorph.core.workflows.apply_annual_bmorph`_, `bmorph.core.workflows.apply_interval_bmorph`_
+Workflow function : `bmorph.core.workflows.apply_bmorph`_
 
 .. code:: ipython3
 
     raw_ts = basin_met_seg.sel(seg=seg)['IRFroutedRunoff'].to_series()
     train_ts = basin_met_seg.sel(seg=seg)['IRFroutedRunoff'].to_series()
-    obs_ts = basin_met_seg.sel(seg=seg)['up_ref_flow'].to_series()
+    ref_ts = basin_met_seg.sel(seg=seg)['up_ref_flow'].to_series()
     cond_var = basin_met_seg.sel(seg=seg)[f'up_{condition_var}'].to_series()
 
-    ibc_c_flows[site], ibc_c_mults[site] = bmorph.workflows.apply_interval_bmorph(
-        raw_ts, train_ts, obs_ts,
-        train_window, bmorph_window, reference_window,
-        interval, overlap,
-        raw_y=cond_var, train_y=cond_var, obs_y=cond_var)
+    ibc_c_flows[site], ibc_c_mults[site] = bmorph.workflows.apply_bmorph(
+        raw_ts, train_ts, ref_ts,
+        apply_window, train_window, reference_window,
+        condition_ts=cond_var,
+        interval=interval, overlap=overlap)
 
 Notice that in order to use conditioning, the ``*_y`` variables are needed to specify which meteorological time series to use in conditioning.
 
@@ -114,16 +114,16 @@ Spatially Consistent Bias Correction: Univariate (SCBC_U)
 
 Univariate Spatially Consistent Bias Correction (SCBC_U) aims to address IBC's inability to correct flows at non-gauge sites where reference timeseries do not exist. Spatial consistency is conserved by performing bias corrections at every river segment, or `seg <https://bmorph.readthedocs.io/en/develop/data.html#variable-naming-conventions>`_, and then rerouting the corrected flows through `mizuRoute <https://mizuroute.readthedocs.io/en/latest/>`_. Reference data for each seg that is not a gauge site is done by creating proxy reference data for each seg from upstream and downstream proxy gauge flows that can be combined, or blended, together to create what the reference flow data for that seg should look like, as described in `Spatial Consistency: Reference Site Selection & CDF Blend Factor <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatial-consistency-reference-site-selection-cdf-blend-factor>`_.
 
-Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.core.workflows.apply_interval_blendmorph`_
+Workflow functions : `bmorph.core.workflows.apply_blendmorph`_, `bmorph.core.workflows.run_parallel_scbc`_
 
 .. code:: ipython3
 
     univariate_config = {
     'train_window': train_window,
-    'bmorph_window': bmorph_window,
+    'apply_window': apply_window,
     'reference_window': reference_window,
-    'bmorph_interval': interval,
-    'bmorph_overlap': overlap,
+    'interval': interval,
+    'overlap': overlap,
     }
 
     unconditioned_seg_totals = bmorph.workflows.run_parallel_scbc(
@@ -135,16 +135,16 @@ Spatially Consistent Bias Correction: Conditioned (SCBC_C)
 
 Conditioned Spatially Consistent Bias Correction (SCBC_C) combines the meteorologic conditioning elements of `IBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-conditioned-ibc-c>`_ with the spatial consistency of `SCBC_U <https://bmorph.readthedocs.io/en/develop/bias_correction.html#spatially-consistent-bias-correction-univariate-scbc-u>`_. This implementation of SCBC factors in meteorologic variables given into the formulation of reference flows for each seg to be corrected to. Defined by the hydrologic response units, or `hru's <https://bmorph.readthedocs.io/en/develop/data.html#variable-naming-conventions>`_, they impact, meteorologic data is mappable to each seg within the watershed topology. In `IBC_C <https://bmorph.readthedocs.io/en/develop/bias_correction.html#independent-bias-correction-conditioned-ibc-c>`_, only the data mapped to gauge sites would be used in bias correction, whereas SCBC_C can utilize meteorologic data across the watershed as it incorporates all defined segs.
 
-Workflow functions : `bmorph.core.workflows.apply_annual_blendmorph`_, `bmorph.core.workflows.apply_interval_blendmorph`_
+Workflow functions : `bmorph.core.workflows.apply_blendmorph`_, `bmorph.core.workflows.run_parallel_scbc`_
 
 .. code:: ipython3
 
     conditonal_config = {
     'train_window': train_window,
-    'bmorph_window': bmorph_window,
+    'apply_window': apply_window,
     'reference_window': reference_window,
-    'bmorph_interval': interval,
-    'bmorph_overlap': overlap,
+    'interval': interval,
+    'overlap': overlap,
     'condition_var': condition_var
     }
 

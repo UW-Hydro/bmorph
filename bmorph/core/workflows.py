@@ -10,8 +10,8 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         apply_window, raw_train_window, ref_train_window,
         condition_ts=None,
         raw_y=None, train_y=None, ref_y=None,
-        bmorph_interval=pd.DateOffset(years=1),
-        bmorph_overlap=60, n_smooth_long=None, n_smooth_short=5,
+        interval=pd.DateOffset(years=1),
+        overlap=60, n_smooth_long=None, n_smooth_short=5,
         bw=3, xbins=200, ybins=10,
         rtol=1e-6, atol=1e-8, method='hist', **kwargs):
     """Bias correction is performed by bmorph on user-defined intervals.
@@ -41,9 +41,9 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         Training second time series.
     ref_y : pandas.Series, optional
         Target second time series.
-    bmorph_interval : pandas.DateOffset
+    interval : pandas.DateOffset
         Difference between bmorph application intervals.
-    bmorph_overlap : int
+    overlap : int
         Total number of days overlap CDF windows have with each other,
         distributed evenly before and after the application window.
     n_smooth_long : int, optional
@@ -81,15 +81,15 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         Returns a time series of equal length to bc_totals used to scale the
         raw flow values into the bmorphed values returned in bc_totals.
     """
-    assert isinstance(bmorph_interval, pd.DateOffset)
+    assert isinstance(interval, pd.DateOffset)
 
     if condition_ts is not None:
         raw_y = condition_ts
         ref_y = condition_ts
         train_y = condition_ts
 
-    if bmorph_interval == pd.DateOffset(days=1):
-        raise Exception("Please enter a bmorph_interval greater than 1 day(s)")
+    if interval == pd.DateOffset(days=1):
+        raise Exception("Please enter an interval greater than 1 day(s)")
 
     raw_train_window = slice(*raw_train_window)
     apply_window = slice(*apply_window)
@@ -97,12 +97,12 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
     raw_ts_window = slice(pd.to_datetime(raw_ts.index.values[0]),
                           pd.to_datetime(raw_ts.index.values[-1]))
 
-    overlap_period = int(bmorph_overlap / 2)
+    overlap_period = int(overlap / 2)
     bmorph_ts = pd.Series([])
     bmorph_multipliers = pd.Series([])
     bmorph_range = pd.date_range(apply_window.start,
-                                 apply_window.stop+bmorph_interval,
-                                 freq=bmorph_interval)
+                                 apply_window.stop+interval,
+                                 freq=interval)
     for i in range(0,len(bmorph_range)-1):
         bmorph_start = bmorph_range[i]
         bmorph_end = bmorph_range[i+1]
@@ -145,7 +145,7 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
                      train_upstream_ts, train_downstream_ts,
                      ref_upstream_ts, ref_downstream_ts,
                      apply_window, raw_train_window, ref_train_window,
-                     bmorph_interval, bmorph_overlap, blend_factor,
+                     interval, overlap, blend_factor,
                      raw_upstream_y=None, raw_downstream_y=None,
                      train_upstream_y=None, train_downstream_y=None,
                      ref_upstream_y=None, ref_downstream_y=None,
@@ -183,9 +183,9 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Date range to apply bmorph onto flow timeseries.
     ref_train_window : pandas.date_range
         Date range to smooth elements in 'raw_ts' and 'bmorph_ts'.
-    bmorph_interval : pandas.DateOffset
+    interval : pandas.DateOffset
         Difference between bmorph application intervals.
-    bmorph_overlap: int
+    overlap: int
         Total overlap in number of days the CDF windows have with each other,
         distributed evenly before and after the application window.
     blend_factor : numpy.array
@@ -242,10 +242,10 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
         Returns a time series of equal length to bc_totals used to scale the
         raw flow values into the bmorphed values returned in bc_totals.
     """
-    assert isinstance(bmorph_interval, pd.DateOffset)
+    assert isinstance(interval, pd.DateOffset)
 
-    if bmorph_interval == pd.DateOffset(days=1):
-        raise Exception("Please enter a bmorph_interval greater than 1 day(s)")
+    if interval == pd.DateOffset(days=1):
+        raise Exception("Please enter a interval greater than 1 day(s)")
 
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
@@ -267,11 +267,11 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
         run_mdcd = True
 
     # bmorph the series
-    overlap_period = int(bmorph_overlap / 2)
+    overlap_period = int(overlap / 2)
     bmorph_ts = pd.Series([])
     bmorph_multipliers = pd.Series([])
-    bmorph_range = pd.date_range(apply_window.start, apply_window.stop+bmorph_interval,
-                                 freq=bmorph_interval)
+    bmorph_range = pd.date_range(apply_window.start, apply_window.stop+interval,
+                                 freq=interval)
     for i in range(0,len(bmorph_range)-1):
         bmorph_start = bmorph_range[i]
         bmorph_end = bmorph_range[i+1]
@@ -340,7 +340,7 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
 
 
 def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
-                bmorph_interval, bmorph_overlap, condition_var, **kwargs):
+                interval, overlap, condition_var, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
     up_ref_ts =    ds['up_ref_flow'].to_series()
@@ -359,7 +359,7 @@ def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
         up_train_ts, dn_train_ts,
         up_ref_ts, dn_ref_ts,
         raw_train_window, apply_window, ref_train_window,
-        bmorph_interval, bmorph_overlap, blend_factor,
+        interval, overlap, blend_factor,
         raw_upstream_y=up_cond, raw_downstream_y=dn_cond,
         train_upstream_y=up_cond, train_downstream_y=dn_cond,
         ref_upstream_y=up_cond, ref_downstream_y=dn_cond)
@@ -369,7 +369,7 @@ def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
 
 
 def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
-               bmorph_interval, bmorph_overlap, condition_var=None, **kwargs):
+               interval, overlap, condition_var=None, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
     up_ref_ts =    ds['up_ref_flow'].to_series()
@@ -386,7 +386,7 @@ def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
             up_train_ts, dn_train_ts,
             up_ref_ts, dn_ref_ts,
             raw_train_window, apply_window, ref_train_window,
-            bmorph_interval, bmorph_overlap, blend_factor)
+            interval, overlap, blend_factor)
 
     scbc_u_locals = scbc_u_mults * local_flow.sel(time=scbc_u_mults.index)
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
