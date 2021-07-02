@@ -5,12 +5,12 @@ bmorph
 
 bmorph is a package for streamflow bias correction. bmorph is designed to work in conjunction with the `mizuRoute <https://mizuroute.readthedocs.io/en/latest/>`_ streamflow routing model.
 bmorph provides methods for performing bias corrections that are spatially consistent as well as offers methods which can account for process-dependent biases.
-We discuss bmorph's methodological details on the `bias correction page<https://bmorph.readthedocs.io/en/develop/bias_correction.html>`_.
+We discuss bmorph's methodological details on the `bias correction page <https://bmorph.readthedocs.io/en/develop/bias_correction.html>`_.
 For an overview of the structure of bmorph, see the package overview, below.
 
 Installation
 ============
-We recommend installing bmorph using `mamba<https://github.com/mamba-org/mamba>`_ using the command:
+We recommend installing bmorph using `mamba <https://github.com/mamba-org/mamba>`_ using the command:
 
 .. code-block::
 

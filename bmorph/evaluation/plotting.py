@@ -901,7 +901,6 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
         if np.abs(measure.min()) > extreme:
             extreme = np.abs(measure.min())
 
-
         #sets up color values
         segs = measure.index
         color_vals = (measure.values + extreme) / (2 * extreme)
@@ -963,9 +962,9 @@ def plot_reduced_flows(flow_dataset: xr.Dataset, plot_sites: list,
                         raw_var = 'IRFroutedRunoff', raw_name = 'Mizuroute Raw',
                         ref_var = 'upstream_ref_flow', ref_name = 'upstream_ref_flow',
                         bc_vars = list(), bc_names = list(),
-                        fontsize_title = 80, fontsize_legend = 68, fontsize_subplot = 60,
-                        fontsize_tick = 45, fontcolor = 'black',
-                        figsize_width = 70, figsize_height = 30,
+                        fontsize_title = 24, fontsize_legend = 20, fontsize_subplot = 20,
+                        fontsize_tick = 20, fontcolor = 'black',
+                        figsize_width = 20, figsize_height = 12,
                         plot_colors = ['grey', 'black', 'blue', 'red'],
                         return_reduced_flows = False):
     """Creates a series of subplots plotting statistical day of year flows per gauge site.
