@@ -967,13 +967,13 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
     met_seg = map_met_hru_to_seg(met_hru, topo)
 
     # Get the longest overlapping time period between all datasets
-    [routed, reference, met_seg] = trim_time([routed, reference, met_seg])
+    routed, reference, met_seg = trim_time([routed, reference, met_seg])
     routed = calculate_blend_vars(routed, topo, reference, route_var = route_var,
                                   fill_method = fill_method)
 
     # Put all data on segments
     seg_ref =  xr.Dataset({'reference_flow':(('time','seg'), reference['reference_flow'].values)},
-                            coords = {'time': reference['time'].values, 'seg': ref_segs},)
+                           coords = {'time': reference['time'].values, 'seg': ref_segs},)
     routed = map_var_to_segs(routed, routed[route_var], 'raw_flow')
     routed = map_var_to_segs(routed, seg_ref['reference_flow'], 'ref_flow')
     for v in met_vars:
