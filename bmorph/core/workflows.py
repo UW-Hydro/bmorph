@@ -362,7 +362,7 @@ def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
         interval, overlap, blend_factor,
         raw_upstream_y=up_cond, raw_downstream_y=dn_cond,
         train_upstream_y=up_cond, train_downstream_y=dn_cond,
-        ref_upstream_y=up_cond, ref_downstream_y=dn_cond)
+        ref_upstream_y=up_cond, ref_downstream_y=dn_cond, **kwargs)
 
     scbc_c_locals = scbc_c_mults * local_flow.sel(time=scbc_c_mults.index)
     return scbc_c_flows, scbc_c_mults, scbc_c_locals
@@ -386,7 +386,7 @@ def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
             up_train_ts, dn_train_ts,
             up_ref_ts, dn_ref_ts,
             raw_train_window, apply_window, ref_train_window,
-            interval, overlap, blend_factor)
+            interval, overlap, blend_factor, **kwargs)
 
     scbc_u_locals = scbc_u_mults * local_flow.sel(time=scbc_u_mults.index)
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
