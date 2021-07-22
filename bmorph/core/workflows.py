@@ -5,6 +5,7 @@ import xarray as xr
 from functools import partial
 from tqdm.autonotebook import tqdm
 from bmorph.util import mizuroute_utils as mizutil
+import os
 
 def apply_bmorph(raw_ts, train_ts, ref_ts,
         apply_window, raw_train_window, ref_train_window,
@@ -13,7 +14,7 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         interval=pd.DateOffset(years=1),
         overlap=60, n_smooth_long=None, n_smooth_short=5,
         bw=3, xbins=200, ybins=10,
-        rtol=1e-6, atol=1e-8, method='hist', **kwargs):
+        rtol=1e-6, atol=1e-8, method='hist', train_cdf_min=1e-4, **kwargs):
     """Bias correction is performed by bmorph on user-defined intervals.
 
     Parameters
@@ -122,7 +123,7 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
                 raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
                 raw_y, ref_y, train_y,
                 n_smooth_short, bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
-                method=method)
+                method=method, train_cdf_min=train_cdf_min)
         bmorph_ts = bmorph_ts.append(bc_total)
         bmorph_multipliers = bmorph_multipliers.append(bc_mult)
 
@@ -150,7 +151,8 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
                      train_upstream_y=None, train_downstream_y=None,
                      ref_upstream_y=None, ref_downstream_y=None,
                      n_smooth_long=None, n_smooth_short=5,
-                     bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, method='hist', **kwargs):
+                     bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, 
+                     method='hist', train_cdf_min=1e-4, **kwargs):
     """Bias correction performed by blending bmorphed flows on user defined intervals.
 
     Blendmorph is used to perform spatially consistent bias correction, this function
@@ -250,8 +252,8 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
 
-    raw_train_window = slice(*raw_train_window)
     apply_window = slice(*apply_window)
+    raw_train_window = slice(*raw_train_window)
     ref_train_window = slice(*ref_train_window)
     raw_ts_window = slice(pd.to_datetime(raw_upstream_ts.index.values[0]),
                           pd.to_datetime(raw_upstream_ts.index.values[-1]))
@@ -295,25 +297,25 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
         if run_mdcd:
             bc_up_total, bc_up_mult = bmorph.bmorph(
                     raw_upstream_ts, train_upstream_ts, ref_upstream_ts,
-                    raw_apply_window, raw_cdf_window, raw_train_window, raw_cdf_window,
+                    raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
                     raw_upstream_y, ref_upstream_y, train_upstream_y,
                     n_smooth_short, bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
-                    method=method)
+                    method=method, train_cdf_min=train_cdf_min)
             bc_down_total, bc_down_mult = bmorph.bmorph(
                     raw_downstream_ts, train_downstream_ts, ref_downstream_ts,
-                    raw_apply_window, raw_cdf_window, raw_train_window, raw_cdf_window,
+                    raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
                     raw_downstream_y, ref_downstream_y, train_downstream_y,
                     n_smooth_short, bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
-                    method=method)
+                    method=method, train_cdf_min=train_cdf_min)
         else:
             bc_up_total, bc_up_mult = bmorph.bmorph(
                     raw_upstream_ts, train_upstream_ts, ref_upstream_ts,
                     raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
-                    n_smooth_short)
+                    n_smooth_short, train_cdf_min=train_cdf_min)
             bc_down_total, bc_down_mult = bmorph.bmorph(
                     raw_downstream_ts, train_downstream_ts, ref_downstream_ts,
                     raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
-                    n_smooth_short)
+                    n_smooth_short, train_cdf_min=train_cdf_min)
 
         bc_multiplier = (blend_factor * bc_up_mult) + ((1 - blend_factor) * bc_down_mult)
         bc_total = (blend_factor * bc_up_total) + ((1 - blend_factor) * bc_down_total)
@@ -339,7 +341,7 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
     return bc_totals[apply_window], bc_multipliers[apply_window]
 
 
-def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
+def _scbc_c_seg(ds, apply_window, raw_train_window, ref_train_window,
                 interval, overlap, condition_var, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
@@ -358,17 +360,17 @@ def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
         up_raw_ts, dn_raw_ts,
         up_train_ts, dn_train_ts,
         up_ref_ts, dn_ref_ts,
-        raw_train_window, apply_window, ref_train_window,
+        apply_window, raw_train_window, ref_train_window,
         interval, overlap, blend_factor,
         raw_upstream_y=up_cond, raw_downstream_y=dn_cond,
         train_upstream_y=up_cond, train_downstream_y=dn_cond,
-        ref_upstream_y=up_cond, ref_downstream_y=dn_cond)
+        ref_upstream_y=up_cond, ref_downstream_y=dn_cond, **kwargs)
 
     scbc_c_locals = scbc_c_mults * local_flow.sel(time=scbc_c_mults.index)
     return scbc_c_flows, scbc_c_mults, scbc_c_locals
 
 
-def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
+def _scbc_u_seg(ds, apply_window, raw_train_window, ref_train_window,
                interval, overlap, condition_var=None, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
@@ -385,14 +387,14 @@ def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
             up_raw_ts, dn_raw_ts,
             up_train_ts, dn_train_ts,
             up_ref_ts, dn_ref_ts,
-            raw_train_window, apply_window, ref_train_window,
-            interval, overlap, blend_factor)
+            apply_window, raw_train_window, ref_train_window,
+            interval, overlap, blend_factor, **kwargs)
 
     scbc_u_locals = scbc_u_mults * local_flow.sel(time=scbc_u_mults.index)
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
 
 
-def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None):
+def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
     """
     Applies Spatially Consistent Bias Correction (SCBC) by
     bias correcting local flows and re-routing them through
@@ -413,13 +415,17 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None):
         for descriptions of the options and their choices.
     client: dask.Client (optional)
         A `client` object to manage parallel computation.
+    save_mults: boolean (optional)
+        Whether to save multipliers from bmorph for diagnosis. If True,
+        multipliers are saved in the same directory as local flows. Defaults
+        as False to not save multipliers.
 
     Returns
     -------
     region_totals: xr.Dataset
         The rerouted, total, bias corrected flows for the region
     """
-    def unpack_and_write_netcdf(results, segs, file_path, out_varname='scbc_flow'):
+    def unpack_and_write_netcdf(results, segs, file_path, out_varname='scbc_flow', mult_path=None):
         flows = [r[0] for r in results]
         mults = [r[1] for r in results]
         local = [r[2] for r in results]
@@ -428,7 +434,22 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None):
         local_ds['time'] = flows[0].index
         local_ds.name = out_varname
         local_ds = local_ds.where(local_ds >= 1e-4, other=1e-4)
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
         local_ds.transpose().to_netcdf(file_path)
+
+        if mult_path:
+            try:
+                os.remove(mult_path)
+            except OSError:
+                pass
+            mult_ds = xr.DataArray(np.vstack(mults), dims=('seg','time'))
+            mult_ds['seg'] = segs
+            mult_ds['time'] = flows[0].index
+            mult_ds.name = 'mults'
+            mult_ds.transpose().to_netcdf(mult_path)
 
     if 'condition_var' in bmorph_config.keys() and bmorph_config['condition_var']:
         scbc_type = 'conditional'
@@ -447,7 +468,12 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None):
 
     out_file = (f'{bmorph_config["data_path"]}/input/'
                 f'{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
-    unpack_and_write_netcdf(results, ds['seg'], out_file)
+    if save_mults: 
+        mult_file = (f'{bmorph_config["data_path"]}/input/'
+                f'{bmorph_config["output_prefix"]}_local_mult_{scbc_type}_scbc.nc')
+    else:
+        mult_file = None
+    unpack_and_write_netcdf(results, ds['seg'], out_file, mult_path=mult_file)
     config_path, mizuroute_config = mizutil.write_mizuroute_config(
             bmorph_config["output_prefix"],
             scbc_type, bmorph_config['apply_window'],

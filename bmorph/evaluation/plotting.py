@@ -862,7 +862,8 @@ def organize_nxgraph(topo: nx.Graph):
     return pos
 
 def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
-                       cmap = mpl.cm.get_cmap('coolwarm_r'))-> dict:
+                       cmap=mpl.cm.get_cmap('coolwarm_r'),
+                       vmin=None, vmax=None)-> dict:
     """Creates a dictionary mapping of nodes to color values.
 
     Parameters
@@ -875,6 +876,10 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
     cmap : matplotlib.colors.LinearSegmentedColormap, optional
         Colormap to be used for coloring the SimpleRiverNewtork
         plot. This defaults as 'coolwarm_r'.
+    vmin: float, optional
+        Minimum value for coloring
+    vmax: float, optional
+        Maximum value for coloring
 
     Returns
     -------
@@ -891,22 +896,27 @@ def color_code_nxgraph(graph: nx.graph, measure: pd.Series,
         maximum = measure.max()
 
         color_vals = (measure.values) / (maximum)
-        color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = minimum, vmax = maximum))
+        color_bar = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = minimum, vmax = maximum))
 
         color_dict =  {f'{seg}' : mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
         return color_dict, color_bar
     else:
-        #determine colorbar range
-        extreme = abs(measure.max())
-        if np.abs(measure.min()) > extreme:
-            extreme = np.abs(measure.min())
-
-        #sets up color values
         segs = measure.index
-        color_vals = (measure.values + extreme) / (2 * extreme)
-        color_bar = plt.cm.ScalarMappable(cmap=cmap, norm = plt.Normalize(vmin = -extreme, vmax = extreme))
+        #determine colorbar range
+        if vmin is None and vmax is None:
+            extreme = np.max(np.abs([np.min(measure), np.max(measure)]))
+            vmin = -extreme
+            vmax = extreme
+        elif vmin is None:
+            vmin = measure.min()
+        elif vmax is None:
+            vmax = measure.max()
 
-        color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        color_bar = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+
+        color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(norm(i)))
+                       for i, seg in zip(measure.values, segs)}
         return color_dict, color_bar
 
 def draw_dataset(topo: xr.Dataset, color_measure: pd.Series, cmap = mpl.cm.get_cmap('coolwarm_r')):
@@ -1053,12 +1063,12 @@ def plot_reduced_flows(flow_dataset: xr.Dataset, plot_sites: list,
     elif interval == 'week':
         interval_name = "Week of Year"
         raw_flow = flow_dataset[raw_var].groupby(
-            flow_dataset['time'].dt.week).reduce(reduce_func)
+            flow_dataset['time'].dt.isocalendar().week).reduce(reduce_func)
         reference_flow = flow_dataset[ref_var].groupby(
-            flow_dataset['time'].dt.week).reduce(reduce_func)
+            flow_dataset['time'].dt.isocalendar().week).reduce(reduce_func)
         bc_flows = list()
         for bc_var in bc_vars:
-            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.week).reduce(reduce_func))
+            bc_flows.append(flow_dataset[bc_var].groupby(flow_dataset['time'].dt.isocalendar().week).reduce(reduce_func))
         time = raw_flow['week'].values
     elif interval == 'month':
         interval_name = "Month"
