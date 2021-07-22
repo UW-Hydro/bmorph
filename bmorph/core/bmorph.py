@@ -51,7 +51,8 @@ def marginalize_cdf(y_raw, z_raw, vals):
 
 def cqm(raw_x: pd.Series, train_x: pd.Series, ref_x: pd.Series,
         raw_y: pd.Series, train_y: pd.Series, ref_y: pd.Series=None,
-        method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0, nsmooth=5) -> pd.Series:
+        method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0, 
+        nsmooth=5, train_cdf_min=1e-4) -> pd.Series:
     """Conditional Quantile Mapping
 
     Multidimensional conditional equidistant CDF matching function:
@@ -89,7 +90,7 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, ref_x: pd.Series,
     # Lookup the associated flow values in the CDFs for the reference and training periods
     mapped_ref = x_ref[np.argmin(np.abs(u_t - ref_cdf[nx_raw, :]), axis=1)]
     mapped_train = x_train[np.argmin(np.abs(u_t - train_cdf[nx_raw, :]), axis=1)]
-    mapped_train[mapped_train < 1e-6] = 1e-6
+    mapped_train[mapped_train < train_cdf_min] = train_cdf_min
     multipliers = pd.Series(mapped_ref / mapped_train, index=raw_x.index, name='multiplier')
     if method == 'hist':
         # Do some smoothing just to reduce effects of histogram bin edges
@@ -97,7 +98,7 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, ref_x: pd.Series,
     return multipliers
 
 
-def edcdfm(raw_x, raw_cdf, train_cdf, ref_cdf):
+def edcdfm(raw_x, raw_cdf, train_cdf, ref_cdf, train_cdf_min=1e-4):
     '''Calculate  multipliers using an adapted version of the EDCDFm technique
 
     This routine implements part of the PresRat bias correction method from
@@ -156,7 +157,7 @@ def edcdfm(raw_x, raw_cdf, train_cdf, ref_cdf):
 
     # Given u_t and train_cdf determine train_x
     train_x = np.percentile(train_cdf, u_t)
-    train_x[train_x < 1e-6] = 1e-6
+    train_x[train_x < train_cdf_min] = train_cdf_min
 
     # Given u_t and ref_cdf determine ref_x
     ref_x = np.percentile(ref_cdf, u_t)
@@ -170,7 +171,7 @@ def bmorph(raw_ts, train_ts, ref_ts,
            raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
            raw_y=None, ref_y=None, train_y=None,
            nsmooth=12, bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0, method='hist',
-           smooth_multipliers=True):
+           smooth_multipliers=True, train_cdf_min=1e-4):
     '''Morph `raw_ts` based on differences between `ref_ts` and `train_ts`
 
     bmorph is an adaptation of the PresRat bias correction procedure from
@@ -221,6 +222,10 @@ def bmorph(raw_ts, train_ts, ref_ts,
         Bins for the flow time series
     ybins : int
         Bins for the second time series
+    train_cdf_min : float (optional)
+        Minimum percentile allowed for train cdf. Defaults as 1e-4 to help handle
+        data spikes in corrections caused by multipliers being too large from
+        the ratio between reference and training flows being large.
 
     Returns
     -------
@@ -253,7 +258,7 @@ def bmorph(raw_ts, train_ts, ref_ts,
         # Calculate the bmorph multipliers based on the smoothed time series and
         # PDFs
         bmorph_multipliers = edcdfm(raw_smoothed_ts[raw_apply_window],
-                                    raw_cdf, train_cdf, ref_cdf)
+                                    raw_cdf, train_cdf, ref_cdf, train_cdf_min)
 
         # Apply the bmorph multipliers to the raw time series
         bmorph_ts = bmorph_multipliers * raw_ts[raw_apply_window]
@@ -277,7 +282,8 @@ def bmorph(raw_ts, train_ts, ref_ts,
                                  raw_smoothed_y[raw_cdf_window],
                                  train_smoothed_y, ref_smoothed_y,
                                  bw=bw, xbins=xbins, ybins=ybins,
-                                 rtol=rtol, atol=atol, method=method)
+                                 rtol=rtol, atol=atol, method=method,
+                                 train_cdf_min=train_cdf_min)
         if smooth_multipliers:
             bmorph_multipliers = bmorph_multipliers.rolling(window=nsmooth, min_periods=1, center=True).mean()
         bmorph_ts = bmorph_multipliers[raw_apply_window] * raw_ts[raw_apply_window]
