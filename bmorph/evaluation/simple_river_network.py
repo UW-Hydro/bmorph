@@ -1007,7 +1007,7 @@ class SimpleRiverNetwork:
             self.network_graph = plotting.create_nxgraph(self.adj_mat)
             self.network_positions = plotting.organize_nxgraph(self.network_graph)
 
-    def color_network_graph(self, measure, cmap):
+    def color_network_graph(self, measure, cmap, vmax=None, vmin=None):
         """Creats a dictionary and colorbar depicting `measure`.
 
         Parameters
@@ -1022,6 +1022,10 @@ class SimpleRiverNetwork:
         cmap : matplotlib.colors.LinearSegmentedColormap
             Colormap to be used for coloring the SimpleRiverNewtork
             plot.
+        vmin: float, optional
+            Minimum value for coloring
+        vmax: float, optional
+            Maximum value for coloring
 
         Returns
         -------
@@ -1033,12 +1037,14 @@ class SimpleRiverNetwork:
             for plotting in draw_network.
         """
         if type(measure) != type(None):
-            return plotting.color_code_nxgraph(self.network_graph, measure, cmap)
+            return plotting.color_code_nxgraph(self.network_graph, measure, cmap,
+                    vmax=vmax, vmin=vmin)
         else:
             color_bar = None
             segs = np.arange(0,len(self.seg_id_values))
             color_vals = segs/len(segs)
-            color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i)) for i, seg in zip(color_vals, segs)}
+            color_dict =  {f'{seg}': mpl.colors.to_hex(cmap(i))
+                           for i, seg in zip(color_vals, segs)}
             return color_dict, color_bar
 
     def size_network_graph(self, measure):
@@ -1052,6 +1058,7 @@ class SimpleRiverNetwork:
                      node_size = 200, font_size = 8, font_weight = 'bold',
                      node_shape = 's', linewidths = 2, font_color = 'w', node_color = None,
                      with_labels=False, with_cbar=False, with_background=True, cbar_labelsize=10,
+                     vmin=None, vmax=None,
                      edge_color='k', alpha=1, cbar_title = '', cbar_label_pad=40, ax = None):
         """Plots the river network through networkx.
 
@@ -1107,6 +1114,10 @@ class SimpleRiverNetwork:
         cbar_labelsize : float, optional
             Font size of the labels on the colorbar that can be attached in `with_cbar`
             being set to True, defaulted as 10.
+        vmin: float, optional
+            Minimum value for coloring
+        vmax: float, optional
+            Maximum value for coloring
         edge_color : str, optional
             Node outline color of each node, defaulted as 'k' for black.
         alpha : float
@@ -1128,7 +1139,7 @@ class SimpleRiverNetwork:
             elif color_measure.size != len(self.seg_id_values):
                 raise Exception("Color_measure size does not match number of nodes, double check measure aggregation.")
 
-        network_color_dict, network_color_cbar = self.color_network_graph(color_measure,cmap)
+        network_color_dict, network_color_cbar = self.color_network_graph(color_measure,cmap, vmin=vmin, vmax=vmax)
 
         # we need to make sure that if the nodes have been relabeled by a previous
         # draw_network call, that we then restore them to their original labels
@@ -1154,7 +1165,6 @@ class SimpleRiverNetwork:
 
         # if we want to relabel the nodes in this function call,
         # then we will do so here
-
         if len(label_map) > 0:
             new_network_color_dict = dict()
             for key in network_color_dict.keys():

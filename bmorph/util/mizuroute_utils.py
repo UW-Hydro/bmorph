@@ -88,7 +88,8 @@ def find_up(ds, seg, sel_method='first', sel_var='IRFroutedRunoff'):
         segments.
     sel_var: str
         Variable used when comparing segments amonth multiple
-        upstream segments.
+        upstream segments. Can be 'forward_fill', 'r2', or 'kge'.
+
 
     Returns
     -------
@@ -112,7 +113,8 @@ def find_up(ds, seg, sel_method='first', sel_var='IRFroutedRunoff'):
             for i in up_idxs])
         up_idx = up_idxs[idx_of_up_idx]
     elif sel_method == 'kldiv':
-        pass
+        raise NotImplementedError('kldiv has not been implemented, please select ',
+                                  'forward_fill, r2, or kge')
 
     up_seg = ds['seg'].isel(seg=up_idx).values[()]
     return up_seg
@@ -586,9 +588,9 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
 
         fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
         fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
+        routed['kge_up_gauge'] = min_kge + 0.0 * routed['is_gauge']
+        routed['kge_down_gauge'] = min_kge + 0.0 * routed['is_gauge']
 
-        routed['kge_up_gauge'] = min_kge * routed['is_gauge']
-        routed['kge_down_gauge'] = min_kge * routed['is_gauge']
 
         for curr_seg in routed['seg'].values:
             up_ref_seg = np.nan
@@ -915,7 +917,6 @@ def map_met_hru_to_seg(met_hru, topo):
 def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
                             fill_method = 'r2', min_kge=None):
-
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
     allows an optional dataset of hru meteorological data to be given for conditional

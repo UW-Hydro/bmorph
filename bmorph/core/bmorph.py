@@ -170,8 +170,8 @@ def edcdfm(raw_x, raw_cdf, train_cdf, ref_cdf, train_cdf_min=1e-4):
 def bmorph(raw_ts, train_ts, ref_ts,
            raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
            raw_y=None, ref_y=None, train_y=None,
-           nsmooth=12, bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0, method='hist', 
-           train_cdf_min=1e-4):
+           nsmooth=12, bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0, method='hist',
+           smooth_multipliers=True, train_cdf_min=1e-4):
     '''Morph `raw_ts` based on differences between `ref_ts` and `train_ts`
 
     bmorph is an adaptation of the PresRat bias correction procedure from
@@ -284,6 +284,8 @@ def bmorph(raw_ts, train_ts, ref_ts,
                                  bw=bw, xbins=xbins, ybins=ybins,
                                  rtol=rtol, atol=atol, method=method,
                                  train_cdf_min=train_cdf_min)
+        if smooth_multipliers:
+            bmorph_multipliers = bmorph_multipliers.rolling(window=nsmooth, min_periods=1, center=True).mean()
         bmorph_ts = bmorph_multipliers[raw_apply_window] * raw_ts[raw_apply_window]
 
     return bmorph_ts, bmorph_multipliers
