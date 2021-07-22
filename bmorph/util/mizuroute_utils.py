@@ -70,7 +70,7 @@ def run_mizuroute(mizuroute_exe, mizuroute_config):
     return p
 
 
-def find_up(ds, seg):
+def find_up(ds, seg, sel_method='first', sel_var='IRFroutedRunoff'):
     """
     Finds the segment directly upstream of seg given seg is not
     a headwater segment, (in which case np.nan is returned).
@@ -83,6 +83,12 @@ def find_up(ds, seg):
         each seg in 'down_seg'.
     seg: int
         River segment designation to search from.
+    sel_method: str
+        Method to use when selecting among multiple upstream
+        segments.
+    sel_var: str
+        Variable used when comparing segments amonth multiple
+        upstream segments. Can be 'forward_fill', 'r2', or 'kge'.
 
     Returns
     -------
@@ -92,7 +98,23 @@ def find_up(ds, seg):
     """
     if ds.sel(seg=seg)['is_headwaters']:
         return np.nan
-    up_idx = np.argwhere(ds['down_seg'].values == seg).flatten()[0]
+    up_idxs = np.argwhere(ds['down_seg'].values == seg).flatten()
+    if sel_method == 'first' or sel_method == 'forward_fill':
+        up_idx = up_idxs[0]
+    elif sel_method == 'r2':
+        idx_of_up_idx = np.argmax([
+            np.corrcoef(ds[sel_var].sel(seg=seg), ds[sel_var].isel(seg=i))[0, 1]**2
+            for i in up_idxs])
+        up_idx = up_idxs[idx_of_up_idx]
+    elif sel_method == 'kge':
+        idx_of_up_idx = np.argmax([
+            kling_gupta_efficiency(ds[sel_var].sel(seg=seg), ds[sel_var].isel(seg=i))
+            for i in up_idxs])
+        up_idx = up_idxs[idx_of_up_idx]
+    elif sel_method == 'kldiv':
+        raise NotImplementedError('kldiv has not been implemented, please select ',
+                                  'forward_fill, r2, or kge')
+
     up_seg = ds['seg'].isel(seg=up_idx).values[()]
     return up_seg
 
@@ -311,13 +333,9 @@ def find_max_kge(ds, curr_seg_flow):
     """
     max_kge = -np.inf
     max_kge_ref_seg = -1
-    for ref_seg in ds['seg'].values:
-        ref_flow = ds.sel(seg=ref_seg).values
-        curr_ref_kge = kling_gupta_efficiency(curr_seg_flow, ref_flow)
-        if curr_ref_kge > max_kge:
-            max_kge = curr_ref_kge
-            max_kge_ref_seg = ref_seg
-    return max_kge, max_kge_ref_seg
+    all_kge = [kling_gupta_efficiency(curr_seg_flow, ds.sel(seg=ref_seg).values)
+               for ref_seg in ds['seg'].values]
+    return np.max(all_kge), ds['seg'].values[np.argmax(all_kge)]
 
 
 def trim_time(dataset_list: list):
@@ -386,8 +404,8 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
 
 
 def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
-                    gauge_sites=None, route_var = 'IRFroutedRunoff',
-                    fill_method='kldiv'):
+                    gauge_sites=None, route_var='IRFroutedRunoff',
+                    fill_method='r2', min_kge=-0.41):
     """
     Assigns segs within routed boolean 'is_gauge' "identifiers" and
     what each seg's upstream and downstream reference seg designations are.
@@ -448,7 +466,7 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
     routed['down_ref_seg'] = np.nan * routed['seg']
     routed['up_ref_seg'] = np.nan * routed['seg']
     routed['up_seg'] = 0 * routed['is_headwaters']
-    routed['up_seg'].values = [find_up(routed, s) for s in routed['seg'].values]
+    routed['up_seg'].values = [find_up(routed, s, sel_method=fill_method) for s in routed['seg'].values]
     for s in routed['seg']:
         if s in list(gauge_segs):
             routed['is_gauge'].loc[{'seg':s}] = True
@@ -570,8 +588,8 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
         fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
         fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
 
-        routed['kge_up_gauge'] = 0 * routed['is_gauge']
-        routed['kge_down_gauge'] = 0 * routed['is_gauge']
+        routed['kge_up_gauge'] = min_kge + 0.0 * routed['is_gauge']
+        routed['kge_down_gauge'] = min_kge + 0.0 * routed['is_gauge']
 
         for curr_seg in routed['seg'].values:
             up_ref_seg = np.nan
@@ -597,6 +615,8 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
                 # this seg has already been filled in, but kge still needs to be calculated
                 ref_flow = routed[route_var].sel(seg=routed['down_ref_seg'].sel(seg=curr_seg)).values
                 down_ref_kge = kling_gupta_efficiency(curr_seg_flow, ref_flow)
+                if down_ref_kge < min_kge:
+                    down_ref_kge, down_ref_seg = find_max_kge(routed[route_var].sel(seg=gauge_segs), curr_seg_flow)
                 routed['kge_down_gauge'].loc[{'seg':curr_seg}] = down_ref_kge
     else:
         raise ValueError('Invalid method provided for "fill_method"')
@@ -631,7 +651,7 @@ def map_headwater_sites(routed: xr.Dataset):
 
 
 def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
-                               gauge_sites=None, fill_method='kldiv'):
+                               gauge_sites=None, fill_method='kldiv', min_kge=-0.41):
     """
     Calculates the cumulative distribution function blend factor based on distance
     to a seg's nearest up gauge site with respect to the total distance between
@@ -701,19 +721,17 @@ def calculate_cdf_blend_factor(routed: xr.Dataset, gauge_reference: xr.Dataset,
                                                  / (routed['r2_up_gauge']
                                                    + routed['r2_down_gauge'])).values
         elif fill_method == 'kge':
-            # since kge can be negative, the blend factor ratios
-            # will use kge squared to ensure they don't cancel out
-            raise Exception('kge is not currently supported, please select a different method')
-            routed['cdf_blend_factor'].values = ((routed['kge_up_gauge']**2)
-                                                 / ((routed['kge_up_gauge']**2)
-                                                   + (routed['kge_down_gauge']**2))).values
+            # since kge can be negative, the blend factor needs scaling
+            lower_bound = np.min([routed['kge_up_gauge'], routed['kge_down_gauge']])
+            upper_bound = np.max([routed['kge_up_gauge'], routed['kge_down_gauge']])
+            routed['cdf_blend_factor'].values = ((routed['kge_up_gauge'] - lower_bound) / (upper_bound - lower_bound))
 
     routed['cdf_blend_factor'] = routed['cdf_blend_factor'].where(~np.isnan(routed['cdf_blend_factor']), other=0.0)
     return routed
 
 def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr.Dataset,
                          gauge_sites = None, route_var = 'IRFroutedRunoff',
-                         fill_method='kldiv'):
+                         fill_method='kldiv', min_kge=-0.41):
     """
     Calculates a number of variables used in blendmorph and map_var_to_seg.
 
@@ -779,10 +797,10 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
     routed = map_segs_topology(routed=routed, topology=topology)
     routed = map_headwater_sites(routed=routed)
     routed = map_ref_sites(routed=routed, gauge_reference=reference,
-                             gauge_sites = gauge_sites, route_var = route_var,
-                             fill_method = fill_method)
+                             gauge_sites=gauge_sites, route_var=route_var,
+                             fill_method=fill_method, min_kge=min_kge)
     routed = calculate_cdf_blend_factor(routed=routed, gauge_reference=reference,
-                             gauge_sites = gauge_sites, fill_method = fill_method)
+                             gauge_sites=gauge_sites, fill_method=fill_method, min_kge=min_kge)
 
     for seg in routed['seg']:
         # if one of the refernece sites has been left null or determined
@@ -893,7 +911,7 @@ def map_met_hru_to_seg(met_hru, topo):
 
 def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
-                            fill_method = 'kldiv'):
+                            fill_method = 'kldiv', min_kge=None):
 
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
