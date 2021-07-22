@@ -144,7 +144,7 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
 def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
                      train_upstream_ts, train_downstream_ts,
                      ref_upstream_ts, ref_downstream_ts,
-                     raw_train_window, apply_window, ref_train_window,
+                     apply_window, raw_train_window, ref_train_window,
                      interval, overlap, blend_factor,
                      raw_upstream_y=None, raw_downstream_y=None,
                      train_upstream_y=None, train_downstream_y=None,
@@ -250,8 +250,8 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
     bc_multipliers = pd.Series([])
     bc_totals = pd.Series([])
 
-    raw_train_window = slice(*raw_train_window)
     apply_window = slice(*apply_window)
+    raw_train_window = slice(*raw_train_window)
     ref_train_window = slice(*ref_train_window)
     raw_ts_window = slice(pd.to_datetime(raw_upstream_ts.index.values[0]),
                           pd.to_datetime(raw_upstream_ts.index.values[-1]))
@@ -295,13 +295,13 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
         if run_mdcd:
             bc_up_total, bc_up_mult = bmorph.bmorph(
                     raw_upstream_ts, train_upstream_ts, ref_upstream_ts,
-                    raw_apply_window, raw_cdf_window, raw_train_window, raw_cdf_window,
+                    raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
                     raw_upstream_y, ref_upstream_y, train_upstream_y,
                     n_smooth_short, bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
                     method=method)
             bc_down_total, bc_down_mult = bmorph.bmorph(
                     raw_downstream_ts, train_downstream_ts, ref_downstream_ts,
-                    raw_apply_window, raw_cdf_window, raw_train_window, raw_cdf_window,
+                    raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
                     raw_downstream_y, ref_downstream_y, train_downstream_y,
                     n_smooth_short, bw=bw, xbins=xbins, ybins=ybins, rtol=rtol, atol=atol,
                     method=method)
@@ -339,7 +339,7 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
     return bc_totals[apply_window], bc_multipliers[apply_window]
 
 
-def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
+def _scbc_c_seg(ds, apply_window, raw_train_window, ref_train_window,
                 interval, overlap, condition_var, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
@@ -358,7 +358,7 @@ def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
         up_raw_ts, dn_raw_ts,
         up_train_ts, dn_train_ts,
         up_ref_ts, dn_ref_ts,
-        raw_train_window, apply_window, ref_train_window,
+        apply_window, raw_train_window, ref_train_window,
         interval, overlap, blend_factor,
         raw_upstream_y=up_cond, raw_downstream_y=dn_cond,
         train_upstream_y=up_cond, train_downstream_y=dn_cond,
@@ -368,7 +368,7 @@ def _scbc_c_seg(ds, raw_train_window, apply_window, ref_train_window,
     return scbc_c_flows, scbc_c_mults, scbc_c_locals
 
 
-def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
+def _scbc_u_seg(ds, apply_window, raw_train_window, ref_train_window,
                interval, overlap, condition_var=None, **kwargs):
     up_raw_ts =    ds['IRFroutedRunoff'].to_series()
     up_train_ts =  ds['up_raw_flow'].to_series()
@@ -385,7 +385,7 @@ def _scbc_u_seg(ds, raw_train_window, apply_window, ref_train_window,
             up_raw_ts, dn_raw_ts,
             up_train_ts, dn_train_ts,
             up_ref_ts, dn_ref_ts,
-            raw_train_window, apply_window, ref_train_window,
+            apply_window, raw_train_window, ref_train_window,
             interval, overlap, blend_factor, **kwargs)
 
     scbc_u_locals = scbc_u_mults * local_flow.sel(time=scbc_u_mults.index)
