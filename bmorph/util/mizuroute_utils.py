@@ -90,6 +90,7 @@ def find_up(ds, seg, sel_method='first', sel_var='IRFroutedRunoff'):
         Variable used when comparing segments amonth multiple
         upstream segments. Can be 'forward_fill', 'r2', or 'kge'.
 
+
     Returns
     -------
     up_seg: int
@@ -587,9 +588,9 @@ def map_ref_sites(routed: xr.Dataset, gauge_reference: xr.Dataset,
 
         fill_up_isegs = np.where(np.isnan(routed['up_ref_seg'].values))[0]
         fill_down_isegs = np.where(np.isnan(routed['down_ref_seg'].values))[0]
-
         routed['kge_up_gauge'] = min_kge + 0.0 * routed['is_gauge']
         routed['kge_down_gauge'] = min_kge + 0.0 * routed['is_gauge']
+
 
         for curr_seg in routed['seg'].values:
             up_ref_seg = np.nan
@@ -818,7 +819,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
 
 
 def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
-                    gauge_segs = None):
+                    var_key: str, gauge_segs = None):
     """
     Splits the variable into its up and down components to be used in blendmorph.
 
@@ -832,6 +833,8 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
         the same as routed, (must also contain the dimension 'seg')
     var_label: str
         suffix of the up and down parts of the variable
+    var_key: str
+        variable name to access the variable to be split in map_var
     gauge_segs: list, optional
         List of the gauge segs that identify the reaches that are gauge sites, pulled from routed
         if None.
@@ -849,6 +852,8 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     map_var.load()
     routed[down_var] = np.nan * map_var
     routed[up_var] = np.nan * map_var
+    # and need to make certain dimensions all line up
+    map_var = xr.merge([map_var, routed])[var_key]
 
     for seg in routed['seg'].values:
         up_seg = routed['up_ref_seg'].sel(seg=seg)
@@ -911,8 +916,7 @@ def map_met_hru_to_seg(met_hru, topo):
 
 def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
-                            fill_method = 'kldiv', min_kge=None):
-
+                            fill_method = 'r2', min_kge=None):
     '''
     Prepare mizuroute output for bias correction via the blendmorph algorithm. This
     allows an optional dataset of hru meteorological data to be given for conditional
@@ -924,10 +928,11 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
         Topology dataset for running mizuRoute.
         We expect this to have ``seg`` and ``hru`` dimensions.
     routed: xr.Dataset
-        The initially routed dataset from mizuRoute
+        The initially routed dataset from mizuRoute.
     reference: xr.Dataset
         A dataset containing reference flows for bias correction.
-        We expect this to have ``site`` and ``time`` dimensions.
+        We expect this to have ``site`` and ``time`` dimensions with
+        flows being stored in ``reference_flow``.
     met_hru: xr.Dataset, optional
         A dataset of meteorological data to be mapped
         onto the stream segments to facilitate conditioning.
@@ -985,17 +990,16 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
     met_seg = map_met_hru_to_seg(met_hru, topo)
 
     # Get the longest overlapping time period between all datasets
-    routed, reference, met_seg = trim_time([routed, reference, met_seg])
     routed = calculate_blend_vars(routed, topo, reference, route_var = route_var,
                                   fill_method = fill_method)
 
     # Put all data on segments
     seg_ref =  xr.Dataset({'reference_flow':(('time','seg'), reference['reference_flow'].values)},
                            coords = {'time': reference['time'].values, 'seg': ref_segs},)
-    routed = map_var_to_segs(routed, routed[route_var], 'raw_flow')
-    routed = map_var_to_segs(routed, seg_ref['reference_flow'], 'ref_flow')
+    routed = map_var_to_segs(routed, routed[route_var], 'raw_flow', route_var)
+    routed = map_var_to_segs(routed, seg_ref['reference_flow'], 'ref_flow', 'reference_flow')
     for v in met_vars:
-        routed = map_var_to_segs(routed, met_seg[v], v)
+        routed = map_var_to_segs(routed, met_seg[v], v, v)
 
     # Merge it all together
     met_seg = xr.merge([met_seg, routed])
