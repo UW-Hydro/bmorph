@@ -3,6 +3,7 @@ channels:
     - conda-forge
 dependencies:
     - python>=3.5
+    - bmorph>= 0.0.3
     - xarray
     - pandas
     - bottleneck
