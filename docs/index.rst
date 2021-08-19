@@ -33,7 +33,7 @@ Then, to install bmorph run,
 Getting started
 ===============
 
-You can run through our interactive tutorial `here <https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/gh/UW-Hydro/bmorph/develop>`_.
+You can run through our interactive tutorial `here <https://notebooks.gesis.org/binder/v2/gh/UW-Hydro/bmorph/develop>`_.
 A static version of the tutorial can be found `here <https://bmorph.readthedocs.io/en/develop/bmorph_tutorial.html>`_.
 
 bmorph Overview
