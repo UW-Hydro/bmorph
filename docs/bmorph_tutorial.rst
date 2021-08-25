@@ -18,9 +18,9 @@ page. The rest of the documentation for bmorph can be found
    correcting for specific biases that are process-dependent. This
    method can only be performed at sites with reference data.
 -  Spatially Consistent Bias Correction: Univariate (SCBC_U): SCBC_U
-   corrects local flows at each river reach in the network, and then
-   reroutes them to aggregate, producing bias corrected flows
-   everywhere.
+   corrects local flows at each river reach in the network, and then 
+   reroutes them to aggregate, producing bias corrected flows at 
+   locations of interest where reference data does and does not exist.
 -  Spatially Consistent Bias Correction: Conditioned (SCBC_C): SCBC_C
    also corrects the local flows like SCBC_U, but allows for
    conditioning on dependent processes.
@@ -57,7 +57,7 @@ Learning objectives & goals
 
 By the end of this tutorial you will learn
 
--  The data requirements to perform bias corrections with bmorph
+-  The data requirements to perform streamflow bias corrections with bmorph
 -  Input and output formats that bmorph expects
 -  The meaning of parameters for algorithmic control of bias corrections
 -  How to perform independent bias correction at locations with
@@ -76,7 +76,7 @@ Import Packages and Load Data
 We start by importing the necessary packages for the notebook. This
 tutorial mainly shows how to use ``bmorph.core.workflows`` and
 ``bmorph.core.mizuroute_utils`` to bias correct streamflow data in the
-Yakima river basin.
+Yakima River Basin.
 
 .. code:: ipython3
 
@@ -125,7 +125,7 @@ Getting the sample data
 -----------------------
 
 The following code cell has two commands preceded by ``!``, which
-indicates that they are shell command. They will download the sample
+indicates that they are shell commands. They will download the sample
 data and unpackage it. The sample data can be viewed as a HydroShare
 resource
 `here <https://www.hydroshare.org/resource/fd2a347d34f145b4bfa8b6bff39c782b/>`__.
@@ -186,10 +186,13 @@ This cell may take a few moments.
 Test dataset: The Yakima River Basin
 ====================================
 
-Before getting into how to run bmorph, let’s look at what is in the
-sample data. You will note that we now have a ``yakima_workflow``
-directory. This contains all of the data that you need to run the
-tutorial. There are a few subdirectories:
+Before getting into how to run bmorph, let's look at what is in the 
+sample data. You will note that we now have a ``yakima_workflow`` 
+directory downloaded in the same directory as this notebook (found by 
+clicking on the ``1tutorial/`` tab left by Binder or navigating to 
+this directory in the file explorer of your choice). This contains 
+all of the data that you need to run the tutorial. There are a few 
+subdirectories:
 
 -  ``gis_data``: contains shapefiles, this is mainly used for plotting,
    not for analysis
@@ -203,7 +206,7 @@ tutorial. There are a few subdirectories:
 -  ``topologies``: this contains the stream network topologies that will
    be used for routing flows via mizuroute
 
-The Yakima river basin is a tributary of the Columbia river basin in the
+The Yakima River Basin is a tributary of the Columbia river basin in the
 Pacific northwestern United States. It’s western half is situated in the
 Cascade mountains and receives seasonal snowpack. The eastern half is
 lower elevation and is semi-arid. Let’s load up the shapefiles for the
@@ -235,24 +238,27 @@ sites are on the stream network in the next section.
     ref_sites = list(site_to_seg.keys())
     ref_segs = list(site_to_seg.values())
 
-Mapping the Yakima river basin
+Mapping the Yakima River Basin
 ==============================
 
 With our necessary metadata defined let’s make a couple of quick plots
-orienting you to the Yakima river basin. To do so we will read in a
+orienting you to the Yakima River Basin. To do so we will read in a
 network topology file, and shapefiles for the region. We will make one
-plot which has the Yakima river basin, along with stream network,
+plot which has the Yakima River Basin, along with stream network,
 subbasins, and gauged sites labeled. We will also plot a network diagram
 which displays in an abstract sense how each stream segment is
 connected. For the latter we use the
 `SimpleRiverNetwork <https://bmorph.readthedocs.io/en/latest/srn.html>`__
 that we’ve implemented in bmorph. To set up the ``SimpleRiverNetwork``
-we the topology of the watershed (``yakima_topo``). The river network
-and shapefiles that we use to draw the map, and perform simulations on
-is the `Geospatial Fabric <https://doi.org/10.5066/P971JAGF>`__. The
-locations of the gauged sites are shown in red, while all of the
-un-gauged stream segments are shown in darker grey. The sub-basins for
-each stream segment are shown in lighter grey.
+we need the topology of the watershed (``yakima_topo``). The river 
+network and shapefiles that we use to draw the map, and perform 
+simulations on is the `Geospatial Fabric <https://doi.org/10.5066/P971JAGF>`__. 
+In the Geospatial Fabric, rivers and streams are broken into 
+segments, each with a unique identifier, as illustrated above in the 
+``site_to_seg`` definition. The locations of the gauged sites are 
+shown in red, while all of the un-gauged stream segments are shown in 
+darker grey. The sub-basins for each stream segment are shown in 
+lighter grey.
 
 .. code:: ipython3
 
@@ -300,11 +306,13 @@ Loading in the streamflow data and associated meteorological data
 
 Now we load in the meteorological data that will be used for conditional
 bias correction: daily minimum temperature (``tmin``), seasonal
-precipitation (``prec``), and daily maximum temperature (``tmax``). In
-principle, any type of data can be used for conditioning. This data is
-initially arranged on the sub-basins, rather than stream segments. We
-will remap these onto the stream segments in a moment, so that they can
-be used in the bias correction process.
+precipitation (``prec``), and daily maximum temperature (``tmax``). 
+In principle, any type of data can be used for conditioning, (i.e. 
+Snow-Water Equivalent (SWE), groundwater storage, landscape slope 
+angle, etc.). This data is initially arranged on the sub-basins, 
+rather than stream segments. We will remap these onto the stream 
+segments in a moment, so that they can be used in the bias correction 
+process.
 
 Finally, we load the simulated flows and reference flows. bmorph is
 designed to bias correct streamflow simulated with
@@ -425,14 +433,14 @@ maximum temperature (tmax), 90 day rolling total precipitation
 (seasonal_precip), or daily minimum temperature (tmin). At this time,
 only one conditioning meteorological variable can be used per ``bmorph``
 execution. In this example, ``tmax`` and ``seasonal_precip`` have been
-commented out to select ``tmin`` as the conditioning variable. We have
-precomputed the ``seasonal_precip`` to be If you wish to change this, be
-sure to either change which variables are commented out or change the
-value of ``condition_var`` itself. For now we will just use ``tmin``,
-which is the daily minimum temperature. Our hypothesis on choosing
-``tmin`` is that it will be a good indicator for errors in snow
-processes, which should provide a good demonstration for how conditional
-bias correction can modify flow timing in desirable ways.
+commented out to select ``tmin`` as the conditioning variable. If you 
+wish to change this, be sure to either change which variables are 
+commented out or change the value of ``condition_var`` itself. For 
+now we will just use ``tmin``, which is the daily minimum 
+temperature. Our hypothesis on choosing ``tmin`` is that it will be a 
+good indicator for errors in snow processes, which should provide a 
+good demonstration for how conditional bias correction can modify 
+flow timing in desirable ways.
 
 Further algorithmic controls can be used to tune the conditional bias
 correction as well. Here we use the histogram method for estimating the
@@ -495,7 +503,7 @@ written.
         'n_smooth_short': n_smooth_short,
     }
 
-You made it! Now we can actually bias correction with ``bmorph``!
+You made it! Now we can actually bias correct with ``bmorph``!
 
 First off we run the Independent Bias Corrections, which are completely
 contained in the cell below.
@@ -556,7 +564,7 @@ Now we use ``run_parallel_scbc`` to do the rest. In the first cell we
 will run the spatially-consistent bias correction without any
 conditioning. The second cell will run the spatially-consistent bias
 correction with conditioning. This produced bias corrected flows at all
-143 stream segments in the Yakima river basin. Finally, we select out
+143 stream segments in the Yakima River Basin. Finally, we select out
 the corrected streamflows for both cases (with and without conditioning)
 to only contain the gauged sites. Selecting out only the gauged
 locations allows us to compare the spatially-consistent methods with the
