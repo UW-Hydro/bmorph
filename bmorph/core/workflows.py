@@ -14,7 +14,7 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         interval=pd.DateOffset(years=1),
         overlap=60, n_smooth_long=None, n_smooth_short=5,
         bw=3, xbins=200, ybins=10,
-        rtol=1e-6, atol=1e-8, method='hist', train_cdf_min=1e-4, **kwargs):
+        rtol=1e-6, atol=1e-8, method='hist', train_cdf_min=1e-6, **kwargs):
     """Bias correction is performed by bmorph on user-defined intervals.
 
     Parameters
@@ -152,7 +152,7 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
                      ref_upstream_y=None, ref_downstream_y=None,
                      n_smooth_long=None, n_smooth_short=5,
                      bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, 
-                     method='hist', train_cdf_min=1e-4, **kwargs):
+                     method='hist', train_cdf_min=1e-6, **kwargs):
     """Bias correction performed by blending bmorphed flows on user defined intervals.
 
     Blendmorph is used to perform spatially consistent bias correction, this function
