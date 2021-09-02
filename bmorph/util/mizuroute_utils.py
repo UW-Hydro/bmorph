@@ -8,6 +8,7 @@ import numpy as np
 from scipy.stats import entropy
 from string import Template
 import subprocess
+import warnings
 
 CONTROL_TEMPLATE = Template(
 """<ancil_dir>            $ancil_dir !
@@ -896,20 +897,20 @@ def map_met_hru_to_seg(met_hru, topo):
                             coords={'time': met_hru['time'], 'seg': topo['seg']})
 
     # Map from hru -> segment for met data
-    # In case a mapping doesn't exist to all segments,
-    # we define a neighborhood search to spatially average
+    # In case a segment is not assigned an hru,
+    # nan fills the place of any conditioning data
     null_neighborhood = [-3, -2, -1, 0, 1, 2, 3]
     for var in met_vars:
         for seg in met_seg['seg'].values:
             subset = np.argwhere(hru_2_seg == seg).flatten()
-            # First fallback, search in the null_neighborhood
-            if not len(subset):
-                subset = np.hstack([np.argwhere(hru_2_seg == seg-offset).flatten()
-                                    for offset in null_neighborhood])
-            # Second fallback, use domain average
-            if not len(subset):
-                subset = np.arange(len(met_hru['hru'].values))
             met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
+
+            # If there is no hru for this segment,
+            # then we will put nan in its place
+            if not len(subset):
+                met_seg[var].loc[{'seg': seg}] = np.nan*met_hru[var].isel(hru=0)
+                warings.warn(f"segement {seg} is not assigned an hru, it will not be bias corrected in bmorph")
+                
     return met_seg
 
 
