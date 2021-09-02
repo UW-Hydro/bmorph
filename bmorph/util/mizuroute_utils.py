@@ -908,9 +908,8 @@ def map_met_hru_to_seg(met_hru, topo):
                                     for offset in null_neighborhood])
             # Second fallback, use domain average
             if not len(subset):
-                subset = met_hru['hru'].values
+                subset = np.arange(len(met_hru['hru'].values))
             met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
-
     return met_seg
 
 
