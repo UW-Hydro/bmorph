@@ -909,8 +909,8 @@ def map_met_hru_to_seg(met_hru, topo):
             # then we will put nan in its place
             if not len(subset):
                 met_seg[var].loc[{'seg': seg}] = np.nan*met_hru[var].isel(hru=0)
-                warings.warn(f"segement {seg} is not assigned an hru, it will not be bias corrected in bmorph")
-                
+                warnings.warn(f"segement {seg} is not assigned an hru, it will not be bias corrected in bmorph")
+
     return met_seg
 
 
