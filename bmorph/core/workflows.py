@@ -458,12 +458,15 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         scbc_type = 'univariate'
         scbc_fun = partial(_scbc_u_seg, **bmorph_config)
 
+    # select out segs that have an hru
+    bc_segs_idx = np.where(ds['has_hru'])[0]
+
     if client:
-        futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
+        futures = [client.submit(scbc_fun, ds.isel(seg=seg)) for seg in bc_segs_idx]
         results = client.gather(futures)
     else:
         results = []
-        for seg in tqdm(ds['seg'].values):
+        for seg in tqdm(bc_segs_idx):
             results.append(scbc_fun(ds.sel(seg=seg)))
 
     out_file = (f'{bmorph_config["data_path"]}/input/'

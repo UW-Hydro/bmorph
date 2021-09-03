@@ -913,6 +913,9 @@ def map_met_hru_to_seg(met_hru, topo):
 
     return met_seg
 
+def check_seg_has_hru():
+
+
 
 def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
@@ -1003,5 +1006,13 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
 
     # Merge it all together
     met_seg = xr.merge([met_seg, routed])
+
+    # Lastly, flag whether each seg has an 
+    # hru or not as a requirement for bias correction
+    hru_2_seg = topo['seg_hru_id'].values
+    met_seg['has_hru'] = np.nan*met_seg['seg']
+    for seg in met_seg['seg'].values:
+        met_seg['has_hru'].loc[{'seg':seg}] = len(np.argwhere(hru_2_seg == seg)) > 0
+
     return met_seg
 
