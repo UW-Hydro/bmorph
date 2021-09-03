@@ -913,10 +913,6 @@ def map_met_hru_to_seg(met_hru, topo):
 
     return met_seg
 
-def check_seg_has_hru():
-
-
-
 def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
                             fill_method = 'r2', min_kge=None):
