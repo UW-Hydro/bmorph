@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from functools import partial
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 from bmorph.util import mizuroute_utils as mizutil
 import os
 
@@ -393,6 +393,25 @@ def _scbc_u_seg(ds, apply_window, raw_train_window, ref_train_window,
     scbc_u_locals = scbc_u_mults * local_flow.sel(time=scbc_u_mults.index)
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
 
+def _scbc_pass(ds, apply_window, **kwargs):
+    """
+    Formats flows that are not to be bias corrected because they are
+    from segements without hrus into a format compatible with flows
+    that are bias corrected. This is to ensure all the data is still
+    returned to the user, but that the flows that are not bias
+    corrected stay the same.    
+    """
+    raw_ts =    ds['IRFroutedRunoff'].to_series()
+    local_flow =   ds['dlayRunoff']
+
+    # taken from apply_blendmorph
+    apply_window = slice(*apply_window)
+    # multipliers of 1 will represent no change
+    pass_mults = 0*local_flow.sel(time=apply_window).to_pandas() + 1
+    # properly format the lcoals
+    pass_locals = pass_mults * local_flow.sel(time=pass_mults.index)
+    return raw_ts, pass_mults, pass_locals
+
 
 def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
     """
@@ -459,15 +478,27 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         scbc_fun = partial(_scbc_u_seg, **bmorph_config)
 
     # select out segs that have an hru
+    # and prep the pass function if there are
+    # segs without an hru
     bc_segs_idx = np.where(ds['has_hru'])[0]
+    if len(bc_segs_idx) != len(ds['seg'].values):
+        scbc_pass_fun = partial(_scbc_pass, **bmorph_config)
 
     if client:
-        futures = [client.submit(scbc_fun, ds.isel(seg=seg)) for seg in bc_segs_idx]
+        futures = []
+        for seg_idx in np.arange(len(ds['seg'].values)):
+            if seg_idx in bc_segs_idx:
+                futures.append(client.submit(scbc_fun, ds.isel(seg=seg_idx)))
+            else:
+                futures.append(client.submit(scbc_pass_fun, ds.isel(seg=seg_idx)))
         results = client.gather(futures)
     else:
         results = []
-        for seg in tqdm(bc_segs_idx):
-            results.append(scbc_fun(ds.isel(seg=seg)))
+        for seg_idx in tqdm(np.arange(len(ds['seg'].values))):
+            if seg_idx in bc_segs_idx:
+                results.append(scbc_fun(ds.isel(seg=seg_idx)))
+            else:
+                results.append(scbc_pass_fun(ds.isel(seg=seg_idx)))
 
     out_file = (f'{bmorph_config["data_path"]}/input/'
                 f'{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
@@ -487,7 +518,7 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
             )
 
     mizutil.run_mizuroute(mizuroute_exe, config_path)
-    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*')
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*', engine='netcdf4')
     region_totals = region_totals.sel(time=slice(*bmorph_config['apply_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals.load()
