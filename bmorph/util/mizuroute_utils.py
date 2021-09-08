@@ -1,5 +1,6 @@
 import os
 from glob import glob
+from dask.core import subs
 import xarray as xr
 import pandas as pd
 import geopandas as gpd
@@ -899,17 +900,18 @@ def map_met_hru_to_seg(met_hru, topo):
     # Map from hru -> segment for met data
     # In case a segment is not assigned an hru,
     # nan fills the place of any conditioning data
-    null_neighborhood = [-3, -2, -1, 0, 1, 2, 3]
-    for var in met_vars:
-        for seg in met_seg['seg'].values:
-            subset = np.argwhere(hru_2_seg == seg).flatten()
-            met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
-
-            # If there is no hru for this segment,
-            # then we will put nan in its place
-            if not len(subset):
-                met_seg[var].loc[{'seg': seg}] = np.nan*met_hru[var].isel(hru=0)
-                warnings.warn(f"segement {seg} is not assigned an hru, it will not be bias corrected in bmorph")
+    segs_without_hrus = []
+    for seg in met_seg['seg'].values:
+        subset = np.argwhere(hru_2_seg == seg).flatten()
+        if not len(subset):
+            segs_without_hrus.append(seg)   
+            for var in met_vars:
+                met_seg[var].loc[{'seg': seg}] = np.nan*met_hru[var].isel(hru=0)            
+        else:
+            for var in met_vars:
+                met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
+    if len(segs_without_hrus):
+        warnings.warn(f"The following segement(s) is/are not assigned an hru, it/they will not be bias corrected in bmorph: {segs_without_hrus}")
 
     return met_seg
 

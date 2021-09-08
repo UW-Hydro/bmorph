@@ -467,7 +467,7 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
     else:
         results = []
         for seg in tqdm(bc_segs_idx):
-            results.append(scbc_fun(ds.sel(seg=seg)))
+            results.append(scbc_fun(ds.isel(seg=seg)))
 
     out_file = (f'{bmorph_config["data_path"]}/input/'
                 f'{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')
