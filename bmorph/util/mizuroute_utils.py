@@ -821,7 +821,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
 
 
 def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
-                    var_key: str, gauge_segs = None):
+                    var_key: str, has_hru: xr.DataArray, gauge_segs = None):
     """
     Splits the variable into its up and down components to be used in blendmorph.
 
@@ -837,6 +837,8 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
         suffix of the up and down parts of the variable
     var_key: str
         variable name to access the variable to be split in map_var
+    has_hru: xr>dataArray
+        contains the 'has_hru' variable in alliance with map_var
     gauge_segs: list, optional
         List of the gauge segs that identify the reaches that are gauge sites, pulled from routed
         if None.
@@ -858,12 +860,16 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     map_var = xr.merge([map_var, routed])[var_key]
 
     for seg in routed['seg'].values:
-        up_seg = routed['up_ref_seg'].sel(seg=seg)
-        down_seg = routed['down_ref_seg'].sel(seg=seg)
-        if up_seg != -1:
-            routed[up_var].loc[{'seg': seg}] = map_var.sel(seg=up_seg).values[:]
-        if down_seg != -1:
-            routed[down_var].loc[{'seg': seg}] = map_var.sel(seg=down_seg).values[:]
+        # again, don't want to provide any conditioning data for
+        # segs without hrus ... and we don't need to provide
+        # an else statment since the override already sets it to nan
+        if has_hru.sel(seg=seg):
+            up_seg = routed['up_ref_seg'].sel(seg=seg)
+            down_seg = routed['down_ref_seg'].sel(seg=seg)
+            if up_seg != -1:
+                routed[up_var].loc[{'seg': seg}] = map_var.sel(seg=up_seg).values[:]
+            if down_seg != -1:
+                routed[down_var].loc[{'seg': seg}] = map_var.sel(seg=down_seg).values[:]
 
     return routed
 
@@ -989,6 +995,12 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
 
     # Remap any meteorological data from hru to stream segment
     met_seg = map_met_hru_to_seg(met_hru, topo)
+    # flag whether each seg has an 
+    # hru or not as a requirement for bias correction
+    hru_2_seg = topo['seg_hru_id'].values
+    met_seg['has_hru'] = np.nan*met_seg['seg']
+    for seg in met_seg['seg'].values:
+        met_seg['has_hru'].loc[{'seg':seg}] = len(np.argwhere(hru_2_seg == seg)) > 0
 
     # Get the longest overlapping time period between all datasets
     routed = calculate_blend_vars(routed, topo, reference, route_var = route_var,
@@ -996,21 +1008,14 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
 
     # Put all data on segments
     seg_ref =  xr.Dataset({'reference_flow':(('time','seg'), reference['reference_flow'].values)},
-                           coords = {'time': reference['time'].values, 'seg': ref_segs},)
-    routed = map_var_to_segs(routed, routed[route_var], 'raw_flow', route_var)
-    routed = map_var_to_segs(routed, seg_ref['reference_flow'], 'ref_flow', 'reference_flow')
+                           coords = {'time': reference['time'].values, 'seg': ref_segs}, )
+    routed = map_var_to_segs(routed, routed[route_var], 'raw_flow', route_var, met_seg['has_hru'])
+    routed = map_var_to_segs(routed, seg_ref['reference_flow'], 'ref_flow', 'reference_flow', met_seg['has_hru'])
     for v in met_vars:
-        routed = map_var_to_segs(routed, met_seg[v], v, v)
+        routed = map_var_to_segs(routed, met_seg[v], v, v, met_seg['has_hru'])
 
     # Merge it all together
     met_seg = xr.merge([met_seg, routed])
-
-    # Lastly, flag whether each seg has an 
-    # hru or not as a requirement for bias correction
-    hru_2_seg = topo['seg_hru_id'].values
-    met_seg['has_hru'] = np.nan*met_seg['seg']
-    for seg in met_seg['seg'].values:
-        met_seg['has_hru'].loc[{'seg':seg}] = len(np.argwhere(hru_2_seg == seg)) > 0
 
     return met_seg
 
