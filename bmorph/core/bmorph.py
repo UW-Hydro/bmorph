@@ -42,6 +42,7 @@ def marginalize_cdf(y_raw, z_raw, vals):
     """Find the marginalized cdf by computing cumsum(P(x|y=val)) for each val"""
     y_raw = np.array(y_raw)
     z_raw = np.array(z_raw)
+    z_raw[z_raw == 0] = 1e-15
     vals = np.array(vals)
     locs = np.argmin(np.abs(vals[:, np.newaxis] - y_raw), axis=1)
     z = np.cumsum(z_raw[:, locs], axis=0)
