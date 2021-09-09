@@ -132,7 +132,7 @@ def walk_down(ds, start_seg):
     ds: xr.Dataset
         Dataset containing river segments, downstream segs, the length
         of the river segments, and which segs are gauge sites as
-        'seg', 'down_seg', 'lenght', and 'is_gauge', respectively.
+        'seg', 'down_seg', 'length', and 'is_gauge', respectively.
     start_seg: int
         River segment designation to start walking from to a
         downstream gauge site.
@@ -168,7 +168,7 @@ def walk_up(ds, start_seg):
     ds: xr.Dataset
         Dataset containing river segments, upstream segs, the length
         of the river segments, and which segs are gauge sites as
-        'seg', 'up_seg', 'lenght', and 'is_gauge', respectively.
+        'seg', 'up_seg', 'length', and 'is_gauge', respectively.
     start_seg: int
         River segment designation to start walking from to an
         upstream gauge site.
