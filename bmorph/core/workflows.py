@@ -477,6 +477,20 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         scbc_type = 'univariate'
         scbc_fun = partial(_scbc_u_seg, **bmorph_config)
 
+    sel_vars = ['IRFroutedRunoff',
+                'up_raw_flow',
+                'up_ref_flow',
+                'up_ref_seg',
+                'IRFroutedRunoff',
+                'down_raw_flow',
+                'down_ref_flow',
+                'down_ref_seg',
+                'cdf_blend_factor',
+                'dlayRunoff']
+    if scbc_type == 'conditional':
+        sel_vars.append(f'down_{bmorph_config["condition_var"]}')
+        sel_vars.append(f'up_{bmorph_config["condition_var"]}')
+
     # select out segs that have an hru
     # and prep the pass function if there are
     # segs without an hru
@@ -485,12 +499,13 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         scbc_pass_fun = partial(_scbc_pass, **bmorph_config)
 
     if client:
+        big_futures =  [client.scatter(ds[sel_vars].sel(seg=seg)) for seg in tqdm(ds['seg'].values)]
         futures = []
-        for seg_idx in np.arange(len(ds['seg'].values)):
+        for bf, seg_idx in zip(big_futures, np.arange(len(ds['seg'].values))):
             if seg_idx in bc_segs_idx:
-                futures.append(client.submit(scbc_fun, ds.isel(seg=seg_idx)))
+                futures.append(client.submit(scbc_fun, bf))
             else:
-                futures.append(client.submit(scbc_pass_fun, ds.isel(seg=seg_idx)))
+                futures.append(client.submit(scbc_pass_fun, bf))
         results = client.gather(futures)
     else:
         results = []
@@ -514,7 +529,7 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
             config_dir=bmorph_config['data_path']+'/mizuroute_configs/',
             topo_dir=bmorph_config['data_path']+'/topologies/',
             input_dir=bmorph_config['data_path']+'/input/',
-            output_dir=bmorph_config['data_path']+'/output/',
+            output_dir=bmorph_config['data_path']+bmorph_config['output_sub'],
             )
 
     mizutil.run_mizuroute(mizuroute_exe, config_path)
