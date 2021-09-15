@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from functools import partial
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 from bmorph.util import mizuroute_utils as mizutil
 import os
 
@@ -543,7 +543,7 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
             )
 
     mizutil.run_mizuroute(mizuroute_exe, config_path)
-    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{mizuroute_config["out_name"]}*', engine='netcdf4')
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{mizuroute_config["out_name"]}*')
     region_totals = region_totals.sel(time=slice(*bmorph_config['apply_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals.load()
