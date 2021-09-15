@@ -43,7 +43,13 @@ def write_mizuroute_config(region, scbc_type, time_window,
                            config_dir='../mizuroute_configs/',
                            topo_dir='../topologies/',
                            input_dir='../input/',
-                           output_dir='../output/'):
+                           output_dir='../output/',
+                           out_name=None):
+    # meaning an out_name was not specified and we should
+    # specify it here
+    if not out_name:
+        out_name = f'{region}_{scbc_type}_scbc'
+
     mizuroute_config = {
         'ancil_dir': os.path.abspath(topo_dir)+'/',
         'input_dir': os.path.abspath(input_dir)+'/',
@@ -52,7 +58,7 @@ def write_mizuroute_config(region, scbc_type, time_window,
         'sim_end': time_window[1].strftime("%Y-%m-%d"),
         'topo_file': f'{region}_huc12_topology_scaled_area.nc',
         'flow_file': f'{region}_local_{scbc_type}_scbc.nc',
-        'out_name': f'{region}_{scbc_type}_scbc'
+        'out_name': out_name
     }
 
     config_path = os.path.abspath(f'{config_dir}reroute_{region}_{scbc_type}.control')
@@ -374,7 +380,7 @@ def trim_time(dataset_list: list):
 
 def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
     """
-    Adds contributing_area, average elevation, length, and down_seg to
+    Adds contributing_area, length, and down_seg to
     routed from topology.
 
     Parameters
@@ -393,8 +399,7 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
         The input dataset routed updated with the topological data.
     """
     routed = routed.sel(seg=topology['seg'])
-    #routed['contributing_area'] = topology['Contrib_Area']
-    #routed['elevation'] = 0.5 * (topology['TopElev'] + topology['BotElev'])
+    routed['contributing_area'] = topology['Contrib_Area']
     routed['length'] = topology['Length']
     routed['down_seg'] = topology['Tosegment']
 

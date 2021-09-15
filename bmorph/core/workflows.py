@@ -523,17 +523,19 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
     else:
         mult_file = None
     unpack_and_write_netcdf(results, ds['seg'], out_file, mult_path=mult_file)
+
     config_path, mizuroute_config = mizutil.write_mizuroute_config(
             bmorph_config["output_prefix"],
             scbc_type, bmorph_config['apply_window'],
-            config_dir=bmorph_config['data_path']+'/mizuroute_configs/',
-            topo_dir=bmorph_config['data_path']+'/topologies/',
-            input_dir=bmorph_config['data_path']+'/input/',
-            output_dir=bmorph_config['data_path']+'/output/',
+            config_dir=bmorph_config.get('mizuroute_configs_path', bmorph_config['data_path'] + '/mizuroute_configs/'),
+            topo_dir=bmorph_config.get('topologies_path', bmorph_config['data_path'] + '/topologies/'),
+            input_dir=bmorph_config.get('input_path', bmorph_config['data_path'] + '/input/'),
+            output_dir=bmorph_config.get('output_path', bmorph_config['data_path'] + '/output/'),
+            out_name=bmorph_config.get('out_name', None)
             )
 
     mizutil.run_mizuroute(mizuroute_exe, config_path)
-    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*')
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{mizuroute_config["out_name"]}*')
     region_totals = region_totals.sel(time=slice(*bmorph_config['apply_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals.load()
