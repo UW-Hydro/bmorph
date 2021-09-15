@@ -399,7 +399,7 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
         The input dataset routed updated with the topological data.
     """
     routed = routed.sel(seg=topology['seg'])
-    #routed['contributing_area'] = topology['Contrib_Area']
+    routed['contributing_area'] = topology['Contrib_Area']
     #routed['elevation'] = 0.5 * (topology['TopElev'] + topology['BotElev'])
     routed['length'] = topology['Length']
     routed['down_seg'] = topology['Tosegment']
