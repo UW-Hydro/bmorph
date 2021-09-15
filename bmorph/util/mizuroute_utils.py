@@ -1,13 +1,10 @@
 import os
-from glob import glob
 import xarray as xr
-import pandas as pd
-import geopandas as gpd
-import bmorph
 import numpy as np
 from scipy.stats import entropy
 from string import Template
 import subprocess
+import warnings
 
 CONTROL_TEMPLATE = Template(
 """<ancil_dir>            $ancil_dir !
@@ -130,7 +127,7 @@ def walk_down(ds, start_seg):
     ds: xr.Dataset
         Dataset containing river segments, downstream segs, the length
         of the river segments, and which segs are gauge sites as
-        'seg', 'down_seg', 'lenght', and 'is_gauge', respectively.
+        'seg', 'down_seg', 'length', and 'is_gauge', respectively.
     start_seg: int
         River segment designation to start walking from to a
         downstream gauge site.
@@ -166,7 +163,7 @@ def walk_up(ds, start_seg):
     ds: xr.Dataset
         Dataset containing river segments, upstream segs, the length
         of the river segments, and which segs are gauge sites as
-        'seg', 'up_seg', 'lenght', and 'is_gauge', respectively.
+        'seg', 'up_seg', 'length', and 'is_gauge', respectively.
     start_seg: int
         River segment designation to start walking from to an
         upstream gauge site.
@@ -819,7 +816,7 @@ def calculate_blend_vars(routed: xr.Dataset, topology: xr.Dataset, reference: xr
 
 
 def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
-                    var_key: str, gauge_segs = None):
+                    var_key: str, has_hru: xr.DataArray, gauge_segs = None):
     """
     Splits the variable into its up and down components to be used in blendmorph.
 
@@ -835,6 +832,8 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
         suffix of the up and down parts of the variable
     var_key: str
         variable name to access the variable to be split in map_var
+    has_hru: xr>dataArray
+        contains the 'has_hru' variable in alliance with map_var
     gauge_segs: list, optional
         List of the gauge segs that identify the reaches that are gauge sites, pulled from routed
         if None.
@@ -856,12 +855,16 @@ def map_var_to_segs(routed: xr.Dataset, map_var: xr.DataArray, var_label: str,
     map_var = xr.merge([map_var, routed])[var_key]
 
     for seg in routed['seg'].values:
-        up_seg = routed['up_ref_seg'].sel(seg=seg)
-        down_seg = routed['down_ref_seg'].sel(seg=seg)
-        if up_seg != -1:
-            routed[up_var].loc[{'seg': seg}] = map_var.sel(seg=up_seg).values[:]
-        if down_seg != -1:
-            routed[down_var].loc[{'seg': seg}] = map_var.sel(seg=down_seg).values[:]
+        # again, don't want to provide any conditioning data for
+        # segs without hrus ... and we don't need to provide
+        # an else statment since the override already sets it to nan
+        if has_hru.sel(seg=seg):
+            up_seg = routed['up_ref_seg'].sel(seg=seg)
+            down_seg = routed['down_ref_seg'].sel(seg=seg)
+            if up_seg != -1:
+                routed[up_var].loc[{'seg': seg}] = map_var.sel(seg=up_seg).values[:]
+            if down_seg != -1:
+                routed[down_var].loc[{'seg': seg}] = map_var.sel(seg=down_seg).values[:]
 
     return routed
 
@@ -896,23 +899,22 @@ def map_met_hru_to_seg(met_hru, topo):
                             coords={'time': met_hru['time'], 'seg': topo['seg']})
 
     # Map from hru -> segment for met data
-    # In case a mapping doesn't exist to all segments,
-    # we define a neighborhood search to spatially average
-    null_neighborhood = [-3, -2, -1, 0, 1, 2, 3]
-    for var in met_vars:
-        for seg in met_seg['seg'].values:
-            subset = np.argwhere(hru_2_seg == seg).flatten()
-            # First fallback, search in the null_neighborhood
-            if not len(subset):
-                subset = np.hstack([np.argwhere(hru_2_seg == seg-offset).flatten()
-                                    for offset in null_neighborhood])
-            # Second fallback, use domain average
-            if not len(subset):
-                subset = met_hru['hru'].values
-            met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
+    # In case a segment is not assigned an hru,
+    # nan fills the place of any conditioning data
+    segs_without_hrus = []
+    for seg in met_seg['seg'].values:
+        subset = np.argwhere(hru_2_seg == seg).flatten()
+        if not len(subset):
+            segs_without_hrus.append(seg)   
+            for var in met_vars:
+                met_seg[var].loc[{'seg': seg}] = np.nan*met_hru[var].isel(hru=0)            
+        else:
+            for var in met_vars:
+                met_seg[var].loc[{'seg': seg}] = met_hru[var].isel(hru=subset).mean(dim='hru')
+    if len(segs_without_hrus):
+        warnings.warn(f"The following segement(s) is/are not assigned an hru, it/they will not be bias corrected in bmorph: {segs_without_hrus}")
 
     return met_seg
-
 
 def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
                             met_hru: xr.Dataset=None, route_var: str='IRFroutedRunoff',
@@ -988,6 +990,12 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
 
     # Remap any meteorological data from hru to stream segment
     met_seg = map_met_hru_to_seg(met_hru, topo)
+    # flag whether each seg has an 
+    # hru or not as a requirement for bias correction
+    hru_2_seg = topo['seg_hru_id'].values
+    met_seg['has_hru'] = np.nan*met_seg['seg']
+    for seg in met_seg['seg'].values:
+        met_seg['has_hru'].loc[{'seg':seg}] = len(np.argwhere(hru_2_seg == seg)) > 0
 
     # Get the longest overlapping time period between all datasets
     routed = calculate_blend_vars(routed, topo, reference, route_var = route_var,
@@ -995,13 +1003,14 @@ def to_bmorph(topo: xr.Dataset, routed: xr.Dataset, reference: xr.Dataset,
 
     # Put all data on segments
     seg_ref =  xr.Dataset({'reference_flow':(('time','seg'), reference['reference_flow'].values)},
-                           coords = {'time': reference['time'].values, 'seg': ref_segs},)
-    routed = map_var_to_segs(routed, routed[route_var], 'raw_flow', route_var)
-    routed = map_var_to_segs(routed, seg_ref['reference_flow'], 'ref_flow', 'reference_flow')
+                           coords = {'time': reference['time'].values, 'seg': ref_segs}, )
+    routed = map_var_to_segs(routed, routed[route_var], 'raw_flow', route_var, met_seg['has_hru'])
+    routed = map_var_to_segs(routed, seg_ref['reference_flow'], 'ref_flow', 'reference_flow', met_seg['has_hru'])
     for v in met_vars:
-        routed = map_var_to_segs(routed, met_seg[v], v, v)
+        routed = map_var_to_segs(routed, met_seg[v], v, v, met_seg['has_hru'])
 
     # Merge it all together
     met_seg = xr.merge([met_seg, routed])
+
     return met_seg
 

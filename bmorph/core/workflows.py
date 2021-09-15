@@ -14,7 +14,7 @@ def apply_bmorph(raw_ts, train_ts, ref_ts,
         interval=pd.DateOffset(years=1),
         overlap=60, n_smooth_long=None, n_smooth_short=5,
         bw=3, xbins=200, ybins=10,
-        rtol=1e-6, atol=1e-8, method='hist', train_cdf_min=1e-4, **kwargs):
+        rtol=1e-6, atol=1e-8, method='hist', train_cdf_min=1e-6, **kwargs):
     """Bias correction is performed by bmorph on user-defined intervals.
 
     Parameters
@@ -152,7 +152,7 @@ def apply_blendmorph(raw_upstream_ts, raw_downstream_ts,
                      ref_upstream_y=None, ref_downstream_y=None,
                      n_smooth_long=None, n_smooth_short=5,
                      bw=3, xbins=200, ybins=10, rtol=1e-6, atol=1e-8, 
-                     method='hist', train_cdf_min=1e-4, **kwargs):
+                     method='hist', train_cdf_min=1e-6, **kwargs):
     """Bias correction performed by blending bmorphed flows on user defined intervals.
 
     Blendmorph is used to perform spatially consistent bias correction, this function
@@ -393,6 +393,25 @@ def _scbc_u_seg(ds, apply_window, raw_train_window, ref_train_window,
     scbc_u_locals = scbc_u_mults * local_flow.sel(time=scbc_u_mults.index)
     return scbc_u_flows, scbc_u_mults, scbc_u_locals
 
+def _scbc_pass(ds, apply_window, **kwargs):
+    """
+    Formats flows that are not to be bias corrected because they are
+    from segements without hrus into a format compatible with flows
+    that are bias corrected. This is to ensure all the data is still
+    returned to the user, but that the flows that are not bias
+    corrected stay the same.    
+    """
+    raw_ts =    ds['IRFroutedRunoff'].to_series()
+    local_flow =   ds['dlayRunoff']
+
+    # taken from apply_blendmorph
+    apply_window = slice(*apply_window)
+    # multipliers of 1 will represent no change
+    pass_mults = 0*local_flow.sel(time=apply_window).to_pandas() + 1
+    # properly format the lcoals
+    pass_locals = pass_mults * local_flow.sel(time=pass_mults.index)
+    return raw_ts, pass_mults, pass_locals
+
 
 def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
     """
@@ -458,13 +477,43 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         scbc_type = 'univariate'
         scbc_fun = partial(_scbc_u_seg, **bmorph_config)
 
+    sel_vars = ['IRFroutedRunoff',
+                'up_raw_flow',
+                'up_ref_flow',
+                'up_ref_seg',
+                'IRFroutedRunoff',
+                'down_raw_flow',
+                'down_ref_flow',
+                'down_ref_seg',
+                'cdf_blend_factor',
+                'dlayRunoff']
+    if scbc_type == 'conditional':
+        sel_vars.append(f'down_{bmorph_config["condition_var"]}')
+        sel_vars.append(f'up_{bmorph_config["condition_var"]}')
+
+    # select out segs that have an hru
+    # and prep the pass function if there are
+    # segs without an hru
+    bc_segs_idx = np.where(ds['has_hru'])[0]
+    if len(bc_segs_idx) != len(ds['seg'].values):
+        scbc_pass_fun = partial(_scbc_pass, **bmorph_config)
+
     if client:
-        futures = [client.submit(scbc_fun, ds.sel(seg=seg)) for seg in ds['seg'].values]
+        big_futures =  [client.scatter(ds[sel_vars].sel(seg=seg)) for seg in tqdm(ds['seg'].values)]
+        futures = []
+        for bf, seg_idx in zip(big_futures, np.arange(len(ds['seg'].values))):
+            if seg_idx in bc_segs_idx:
+                futures.append(client.submit(scbc_fun, bf))
+            else:
+                futures.append(client.submit(scbc_pass_fun, bf))
         results = client.gather(futures)
     else:
         results = []
-        for seg in tqdm(ds['seg'].values):
-            results.append(scbc_fun(ds.sel(seg=seg)))
+        for seg_idx in tqdm(np.arange(len(ds['seg'].values))):
+            if seg_idx in bc_segs_idx:
+                results.append(scbc_fun(ds.isel(seg=seg_idx)))
+            else:
+                results.append(scbc_pass_fun(ds.isel(seg=seg_idx)))
 
     out_file = (f'{bmorph_config["data_path"]}/input/'
                 f'{bmorph_config["output_prefix"]}_local_{scbc_type}_scbc.nc')

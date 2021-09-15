@@ -42,6 +42,7 @@ def marginalize_cdf(y_raw, z_raw, vals):
     """Find the marginalized cdf by computing cumsum(P(x|y=val)) for each val"""
     y_raw = np.array(y_raw)
     z_raw = np.array(z_raw)
+    z_raw[z_raw == 0] = 1e-15
     vals = np.array(vals)
     locs = np.argmin(np.abs(vals[:, np.newaxis] - y_raw), axis=1)
     z = np.cumsum(z_raw[:, locs], axis=0)
@@ -52,7 +53,7 @@ def marginalize_cdf(y_raw, z_raw, vals):
 def cqm(raw_x: pd.Series, train_x: pd.Series, ref_x: pd.Series,
         raw_y: pd.Series, train_y: pd.Series, ref_y: pd.Series=None,
         method='hist', xbins=200, ybins=10, bw=3, rtol=1e-7, atol=0, 
-        nsmooth=5, train_cdf_min=1e-4) -> pd.Series:
+        nsmooth=5, train_cdf_min=1e-6) -> pd.Series:
     """Conditional Quantile Mapping
 
     Multidimensional conditional equidistant CDF matching function:
@@ -98,7 +99,7 @@ def cqm(raw_x: pd.Series, train_x: pd.Series, ref_x: pd.Series,
     return multipliers
 
 
-def edcdfm(raw_x, raw_cdf, train_cdf, ref_cdf, train_cdf_min=1e-4):
+def edcdfm(raw_x, raw_cdf, train_cdf, ref_cdf, train_cdf_min=1e-6):
     '''Calculate  multipliers using an adapted version of the EDCDFm technique
 
     This routine implements part of the PresRat bias correction method from
@@ -171,7 +172,7 @@ def bmorph(raw_ts, train_ts, ref_ts,
            raw_apply_window, raw_train_window, ref_train_window, raw_cdf_window,
            raw_y=None, ref_y=None, train_y=None,
            nsmooth=12, bw=3, xbins=200, ybins=10, rtol=1e-7, atol=0, method='hist',
-           smooth_multipliers=True, train_cdf_min=1e-4):
+           smooth_multipliers=True, train_cdf_min=1e-6):
     '''Morph `raw_ts` based on differences between `ref_ts` and `train_ts`
 
     bmorph is an adaptation of the PresRat bias correction procedure from
