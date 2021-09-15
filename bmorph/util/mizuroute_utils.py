@@ -380,7 +380,7 @@ def trim_time(dataset_list: list):
 
 def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
     """
-    Adds contributing_area, average elevation, length, and down_seg to
+    Adds contributing_area, length, and down_seg to
     routed from topology.
 
     Parameters
@@ -400,7 +400,6 @@ def map_segs_topology(routed: xr.Dataset, topology: xr.Dataset):
     """
     routed = routed.sel(seg=topology['seg'])
     routed['contributing_area'] = topology['Contrib_Area']
-    #routed['elevation'] = 0.5 * (topology['TopElev'] + topology['BotElev'])
     routed['length'] = topology['Length']
     routed['down_seg'] = topology['Tosegment']
 

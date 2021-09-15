@@ -523,23 +523,15 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
     else:
         mult_file = None
     unpack_and_write_netcdf(results, ds['seg'], out_file, mult_path=mult_file)
-    
-    # need to set our optional directory configs to their default
-    # in case they were not specified
-    for optional_config, default in zip(['mizuroute_configs_path', 'topologies_path', 'input_path', 'output_path'], ['/mizuroute_configs/', '/topologies/', '/input/', '/output/']):
-        if optional_config not in bmorph_config.keys():
-            bmorph_config[optional_config] = bmorph_config['data_path'] + default
-    if not 'out_name' in bmorph_config.keys():
-        bmorph_config['out_name'] = None
 
     config_path, mizuroute_config = mizutil.write_mizuroute_config(
             bmorph_config["output_prefix"],
             scbc_type, bmorph_config['apply_window'],
-            config_dir=bmorph_config['mizuroute_configs_path'],
-            topo_dir=bmorph_config['topologies_path'],
-            input_dir=bmorph_config['input_path'],
-            output_dir=bmorph_config['output_path'],
-            out_name=bmorph_config['out_name']
+            config_dir=bmorph_config.get('mizuroute_configs_path', bmorph_config['data_path'] + '/mizuroute_configs/'),
+            topo_dir=bmorph_config.get('topologies_path', bmorph_config['data_path'] + '/topologies/'),
+            input_dir=bmorph_config.get('input_path', bmorph_config['data_path'] + '/input/'),
+            output_dir=bmorph_config.get('output_path', bmorph_config['data_path'] + '/output/'),
+            out_name=bmorph_config.get('out_name', None)
             )
 
     mizutil.run_mizuroute(mizuroute_exe, config_path)
