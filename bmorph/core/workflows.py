@@ -529,7 +529,6 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
     for optional_config, default in zip(['mizuroute_configs_path', 'topologies_path', 'input_path', 'output_path'], ['/mizuroute_configs/', '/topologies/', '/input/', '/output/']):
         if optional_config not in bmorph_config.keys():
             bmorph_config[optional_config] = bmorph_config['data_path'] + default
-    # for this one we'll let the write_mizroute_config handle the default
     if not 'out_name' in bmorph_config.keys():
         bmorph_config['out_name'] = None
 
@@ -544,7 +543,7 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
             )
 
     mizutil.run_mizuroute(mizuroute_exe, config_path)
-    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{bmorph_config["output_prefix"]}_{scbc_type}_scbc*', engine='netcdf4')
+    region_totals = xr.open_mfdataset(f'{mizuroute_config["output_dir"]}{mizuroute_config["out_name"]}*', engine='netcdf4')
     region_totals = region_totals.sel(time=slice(*bmorph_config['apply_window']))
     region_totals['seg'] = region_totals['reachID'].isel(time=0)
     return region_totals.load()
