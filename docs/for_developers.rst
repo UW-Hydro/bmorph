@@ -28,6 +28,14 @@ Similar to numpy's `log1p <https://numpy.org/doc/stable/reference/generated/nump
 
 Tired of having to constantly reformat you subplots whenever you want to tack on one more plot or scratch off something you didn't think you wanted? Well `bmorph.plotting.evaluation.determine_row_col <https://bmorph.readthedocs.io/en/develop/api.html#bmorph.evaluation.plotting.determine_row_col>`_ automates that process for you by calculating the tightest possible square/rectangular dimensions for your subplots. There may be some extra subplots leftover (and therefore we recommend turning off axis past the number you wish to plot), there will be at least enough subplots to fit all that you ask for.
 
+Progress Bars
+-------------
+
+``tqdm``
+^^^^^^^^
+
+`tqdm <https://tqdm.github.io/docs/tqdm/>`_ is a customizable progress bar for iterators, used here in ``apply_scbc`` for example. These allow for an easily updatable status of progress to be printed from your scripts or notebooks. A few helpful arguments include ``disable`` to turn them off, ``leave`` to determine whether to keep the bar after it completes, or ``desc`` to provide a label for the progress bar. 
+
 Creating Documentation
 ----------------------
 
