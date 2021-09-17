@@ -7,9 +7,7 @@ Bias correction for streamflow time series
 | bmorph tutorial           | [![Binder](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/gh/UW-Hydro/bmorph/tutorial?filepath=tutorial%2Fbmorph_tutorial.ipynb)
 | Travis-CI Build           | [![Build Status](https://travis-ci.org/UW-Hydro/bmorph.svg?branch=master)](https://travis-ci.org/UW-Hydro/bmorph) |
 | License                | [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/UW-Hydro/MetSim/master/LICENSE) |
-| Current Release DOI    | 
-
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5348463.svg)](https://doi.org/10.5281/zenodo.5348463)
+| Current Release DOI    | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5348463.svg)](https://doi.org/10.5281/zenodo.5348463)
  |
 
 ## Installation
