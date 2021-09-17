@@ -413,7 +413,7 @@ def _scbc_pass(ds, apply_window, **kwargs):
     return raw_ts, pass_mults, pass_locals
 
 
-def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
+def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False, **tqdm_kwargs):
     """
     Applies Spatially Consistent Bias Correction (SCBC) by
     bias correcting local flows and re-routing them through
@@ -438,6 +438,8 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         Whether to save multipliers from bmorph for diagnosis. If True,
         multipliers are saved in the same directory as local flows. Defaults
         as False to not save multipliers.
+    **tqdm_kwargs (optional)
+        Keyword arguments for tqdm loops within apply_scbc.
 
     Returns
     -------
@@ -499,7 +501,7 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         scbc_pass_fun = partial(_scbc_pass, **bmorph_config)
 
     if client:
-        big_futures =  [client.scatter(ds[sel_vars].sel(seg=seg)) for seg in tqdm(ds['seg'].values)]
+        big_futures =  [client.scatter(ds[sel_vars].sel(seg=seg)) for seg in tqdm(ds['seg'].values, **tqdm_kwargs)]
         futures = []
         for bf, seg_idx in zip(big_futures, np.arange(len(ds['seg'].values))):
             if seg_idx in bc_segs_idx:
@@ -509,7 +511,7 @@ def apply_scbc(ds, mizuroute_exe, bmorph_config, client=None, save_mults=False):
         results = client.gather(futures)
     else:
         results = []
-        for seg_idx in tqdm(np.arange(len(ds['seg'].values))):
+        for seg_idx in tqdm(np.arange(len(ds['seg'].values)), **tqdm_kwargs):
             if seg_idx in bc_segs_idx:
                 results.append(scbc_fun(ds.isel(seg=seg_idx)))
             else:
